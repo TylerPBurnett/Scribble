@@ -1,0 +1,314 @@
+/* Base styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
+    Arial, sans-serif;
+  background-color: #15202B; /* Twitter dim mode background */
+  color: #E7E9EA; /* Twitter dim mode text color */
+  line-height: 1.5;
+}
+
+/* App container */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Header */
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 0;
+  border-bottom: 1px solid #38444D; /* Twitter dim mode border color */
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* Buttons */
+.primary-button, .secondary-button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 16px;
+  border-radius: 99px; /* More rounded buttons like Twitter */
+  border: none;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.primary-button {
+  background-color: #1D9BF0; /* Twitter blue */
+  color: white;
+}
+
+.primary-button:hover {
+  background-color: #1A91DA; /* Slightly darker Twitter blue */
+}
+
+.secondary-button {
+  background-color: #2D3741; /* Dark button background */
+  color: #E7E9EA;
+  border: 1px solid #38444D;
+}
+
+.secondary-button:hover {
+  background-color: #3A444D; /* Slightly lighter on hover */
+}
+
+.button-icon {
+  font-size: 1.2em;
+}
+
+.browse-button {
+  padding: 6px 12px;
+  border: 1px solid #38444D;
+  background-color: #2D3741;
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
+  color: #E7E9EA;
+}
+
+.browse-button:hover {
+  background-color: #3A444D;
+}
+
+/* Main content */
+.app-content {
+  flex: 1;
+  padding: 20px 0;
+}
+
+/* Notes grid */
+.notes-overview {
+  margin-bottom: 30px;
+}
+
+.notes-overview h2 {
+  margin-bottom: 15px;
+  color: #E7E9EA;
+}
+
+.notes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.note-card {
+  background-color: #192734; /* Slightly lighter than the background */
+  border-radius: 12px; /* More rounded corners */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  padding: 15px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  position: relative;
+  overflow: hidden;
+  height: 180px;
+  border: 1px solid #38444D;
+}
+
+.note-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  background-color: #1E2732; /* Slightly lighter on hover */
+}
+
+.note-card .note-title {
+  font-weight: 600;
+  margin-bottom: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #E7E9EA;
+}
+
+.note-card .note-preview {
+  font-size: 0.9em;
+  color: #8899A6; /* Twitter dim mode secondary text */
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.note-card .note-date {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  font-size: 0.8em;
+  color: #8899A6;
+}
+
+.note-card .note-delete {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s, background-color 0.2s;
+  color: #E7E9EA;
+}
+
+.note-card:hover .note-delete {
+  opacity: 1;
+}
+
+.note-card .note-delete:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 30px;
+  background-color: #192734;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  border: 1px solid #38444D;
+  color: #8899A6;
+}
+
+/* Settings panel */
+.settings-panel {
+  background-color: #192734;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  padding: 20px;
+  margin-top: 20px;
+  border: 1px solid #38444D;
+}
+
+.settings-panel h2 {
+  margin-bottom: 20px;
+  color: #E7E9EA;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.setting-row label {
+  width: 120px;
+  flex-shrink: 0;
+  color: #E7E9EA;
+}
+
+.path-input {
+  flex: 1;
+  display: flex;
+}
+
+.path-input input {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #38444D;
+  border-radius: 4px 0 0 4px;
+  background-color: #253341;
+  color: #E7E9EA;
+}
+
+/* Footer */
+.app-footer {
+  padding: 15px 0;
+  border-top: 1px solid #38444D;
+  color: #8899A6;
+  font-size: 0.9em;
+}
+
+/* Error message */
+.error-message {
+  color: #F4212E;
+  text-align: center;
+  padding: 10px;
+}
+
+/* Utility classes */
+.hidden {
+  display: none !important;
+}
+
+/* Search bar */
+.search-container {
+  margin-bottom: 1rem;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+#search-notes {
+  width: 100%;
+  padding: 10px 35px 10px 15px;
+  border: 1px solid #2d4257;
+  border-radius: 20px;
+  background-color: #192734;
+  color: #e7e9ea;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+#search-notes:focus {
+  outline: none;
+  border-color: #1d9bf0;
+  box-shadow: 0 0 0 2px rgba(29, 155, 240, 0.2);
+}
+
+#search-notes::placeholder {
+  color: #8899a6;
+}
+
+.clear-search-button {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  color: #8899a6;
+  font-size: 18px;
+  cursor: pointer;
+  display: none;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.clear-search-button:hover {
+  background-color: #253341;
+  color: #e7e9ea;
+}
+
+.has-search-input .clear-search-button {
+  display: flex;
+}
+
+/* Search highlights */
+.highlight {
+  background-color: rgba(29, 155, 240, 0.3);
+  padding: 0 2px;
+  border-radius: 2px;
+}

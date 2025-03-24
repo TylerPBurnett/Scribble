@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sticky Notes</title>
+    <link rel="stylesheet" href="index.css" />
+  </head>
+  <body>
+    <div class="app-container">
+      <header class="app-header">
+        <h1>Sticky Notes</h1>
+        <div class="header-actions">
+          <button id="btn-new-note" class="primary-button">
+            <span class="button-icon">+</span>
+            New Note
+          </button>
+          <button id="btn-settings" class="secondary-button">
+            <span class="button-icon">⚙️</span>
+            Settings
+          </button>
+        </div>
+      </header>
+
+      <main class="app-content">
+        <section class="notes-overview">
+          <h2>Your Notes</h2>
+          <div class="search-container">
+            <input type="text" id="search-notes" placeholder="Search notes..." autocomplete="off">
+            <button id="clear-search" class="clear-search-button" title="Clear search">&times;</button>
+          </div>
+          <div id="notes-list" class="notes-grid">
+            <!-- Notes will be loaded here dynamically -->
+            <div class="empty-state hidden">
+              <p>You don't have any notes yet. Create your first note to get started!</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Settings Panel (initially hidden) -->
+        <section id="settings-panel" class="settings-panel hidden">
+          <h2>Settings</h2>
+          <div class="setting-row">
+            <label for="save-path">Save Location:</label>
+            <div class="path-input">
+              <input type="text" id="save-path" readonly>
+              <button id="btn-browse" class="browse-button">Browse</button>
+            </div>
+          </div>
+          <div class="setting-row">
+            <button id="btn-save-settings" class="primary-button">Save Settings</button>
+            <button id="btn-cancel-settings" class="secondary-button">Cancel</button>
+          </div>
+        </section>
+      </main>
+
+      <footer class="app-footer">
+        <p>Save location: <span id="current-save-path">Loading...</span></p>
+      </footer>
+    </div>
+    
+    <script src="renderer.js"></script>
+  </body>
+</html>

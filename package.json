@@ -1,0 +1,37 @@
+{
+  "name": "sticky-notes",
+  "productName": "sticky-notes",
+  "version": "1.0.0",
+  "description": "Markdown Sticky Notes Application",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "electron-forge start",
+    "package": "electron-forge package",
+    "make": "electron-forge make",
+    "publish": "electron-forge publish",
+    "lint": "echo \"No linting configured\""
+  },
+  "keywords": [
+    "sticky-notes",
+    "markdown",
+    "notes"
+  ],
+  "author": "TylerPBurnett <contact.tylerburnett@proton.me>",
+  "license": "MIT",
+  "dependencies": {
+    "electron-squirrel-startup": "^1.0.1",
+    "marked": "^4.3.0",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "^7.7.0",
+    "@electron-forge/maker-deb": "^7.7.0",
+    "@electron-forge/maker-rpm": "^7.7.0",
+    "@electron-forge/maker-squirrel": "^7.7.0",
+    "@electron-forge/maker-zip": "^7.7.0",
+    "@electron-forge/plugin-auto-unpack-natives": "^7.7.0",
+    "@electron-forge/plugin-fuses": "^7.7.0",
+    "@electron/fuses": "^1.8.0",
+    "electron": "^35.0.3"
+  }
+}

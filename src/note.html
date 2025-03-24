@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sticky Note</title>
+  <link rel="stylesheet" href="note.css" />
+</head>
+<body>
+  <div class="note-container">
+    <!-- Note header with controls -->
+    <div class="note-header">
+      <div class="note-toolbar">
+        <button id="btn-save" class="toolbar-button" title="Save">
+          <svg class="save-icon" viewBox="0 0 24 24" width="16" height="16">
+            <path d="M5 5V19H19V9L15 5H5Z" stroke="currentColor" stroke-width="2" fill="none"/>
+            <rect x="8" y="5" width="8" height="6" rx="1" stroke="currentColor" stroke-width="2" fill="none"/>
+            <rect x="8" y="14" width="8" height="5" rx="1" stroke="currentColor" stroke-width="2" fill="none"/>
+          </svg>
+        </button>
+        <button id="btn-format" class="toolbar-button" title="Formatting Options">
+          <svg class="format-icon" viewBox="0 0 24 24" width="16" height="16">
+            <path d="M9 5L15 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M12 5L12 19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M7 12L17 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M8 19L16 19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <button id="btn-color" class="toolbar-button" title="Change Note Color">
+          <svg class="theme-icon" viewBox="0 0 24 24" width="16" height="16">
+            <circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="2"/>
+            <path d="M12 2V4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M12 20V22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M4 12H2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M22 12H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="note-controls">
+        <button id="btn-minimize" class="control-button" title="Minimize">_</button>
+        <button id="btn-pin" class="control-button" title="Pin to top"><i class="pin-icon"></i></button>
+        <button id="btn-close" class="control-button" title="Close">×</button>
+      </div>
+    </div>
+    
+    <!-- Format panel (initially hidden) -->
+    <div id="format-panel" class="format-panel hidden">
+      <div class="format-row">
+        <label for="font-family">Font:</label>
+        <select id="font-family">
+          <option value="Arial">Arial</option>
+          <option value="Helvetica">Helvetica</option>
+          <option value="Times New Roman">Times New Roman</option>
+          <option value="Courier New">Courier New</option>
+          <option value="Georgia">Georgia</option>
+          <option value="Verdana">Verdana</option>
+        </select>
+      </div>
+      <div class="format-row">
+        <label for="font-size">Size:</label>
+        <input type="number" id="font-size" min="8" max="36" value="14">
+      </div>
+      <div class="format-row">
+        <label for="notebook-bg">Notebook Paper:</label>
+        <input type="checkbox" id="notebook-bg">
+      </div>
+      <div class="format-row">
+        <label for="font-color">Font Color:</label>
+        <input type="color" id="font-color" value="#000000">
+      </div>
+    </div>
+    
+    <!-- Color panel (initially hidden) -->
+    <div id="color-panel" class="color-panel hidden">
+      <div class="color-options">
+        <!-- Dark mode colors -->
+        <div class="color-option" data-color="#192734" style="background-color: #192734;" title="Twitter Dark Mode"></div>
+        <div class="color-option" data-color="#0F0F0F" style="background-color: #0F0F0F;" title="Black"></div>
+        
+        <!-- Pastel colors -->
+        <div class="color-option" data-color="#F8D7DA" style="background-color: #F8D7DA;" title="Pastel Pink"></div>
+        <div class="color-option" data-color="#CCE5FF" style="background-color: #CCE5FF;" title="Pastel Blue"></div>
+        <div class="color-option" data-color="#FFF3CD" style="background-color: #FFF3CD;" title="Pastel Yellow"></div>
+        <div class="color-option" data-color="#F8F9FA" style="background-color: #F8F9FA;" title="Soft White"></div>
+      </div>
+      <div class="color-row">
+        <label for="custom-color">Custom:</label>
+        <input type="color" id="custom-color" value="#192734">
+      </div>
+    </div>
+    
+    <!-- Note content area -->
+    <div class="note-content-container">
+      <!-- Edit mode (textarea for markdown editing) -->
+      <textarea id="note-editor" class="note-content" placeholder="Type your markdown note here..."></textarea>
+      
+      <!-- Preview mode (rendered markdown) -->
+      <div id="note-preview" class="note-content note-preview hidden"></div>
+    </div>
+    
+    <!-- Note footer -->
+    <div class="note-footer">
+      <button id="btn-toggle-preview" class="footer-button" title="Toggle Preview">
+        Preview
+      </button>
+      <span id="note-status" class="note-status">Saved</span>
+    </div>
+  </div>
+  
+  <script src="note.js"></script>
+</body>
+</html> 

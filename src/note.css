@@ -1,0 +1,611 @@
+/* Base styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
+    Arial, sans-serif;
+  overflow: hidden;
+  background-color: transparent;
+}
+
+/* Main note container */
+.note-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  background-color: #192734; /* Dark mode background */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+  border: 1px solid #38444D;
+  color: #E7E9EA;
+}
+
+/* Notebook paper background */
+.notebook-paper {
+  background-color: #192734;
+  background-image: 
+    linear-gradient(90deg, transparent, transparent 30px, #38444D 30px, #38444D 31px, transparent 31px),
+    linear-gradient(#253341 0.1em, transparent 0.1em);
+  background-size: 100% 1.2em;
+}
+
+/* Note header */
+.note-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  border-bottom: 1px solid #38444D;
+  -webkit-app-region: drag; /* Allow dragging from the header */
+  background-color: #15202B; /* Slightly darker than the note */
+  border-radius: 12px 12px 0 0;
+}
+
+.note-controls, .note-toolbar {
+  display: flex;
+  -webkit-app-region: no-drag; /* Don't drag when clicking buttons */
+}
+
+.note-toolbar {
+  margin-right: auto; /* Push to the left side */
+  gap: 5px; /* Add some space between toolbar buttons */
+}
+
+.note-controls {
+  margin-left: auto; /* Push to the right side */
+}
+
+.control-button, .toolbar-button {
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  margin: 0 2px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+  color: #E7E9EA;
+}
+
+.control-button:hover, .toolbar-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.control-button.active {
+  color: #1D9BF0; /* Twitter blue */
+}
+
+/* Format and color panels */
+.format-panel, .color-panel {
+  padding: 12px;
+  background-color: #253341;
+  border-bottom: 1px solid #38444D;
+}
+
+.format-row, .color-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  color: #E7E9EA;
+}
+
+.format-row label, .color-row label {
+  flex: 0 0 100px;
+}
+
+.format-row select, .format-row input[type="number"], .format-row input[type="color"] {
+  background-color: #15202B;
+  border: 1px solid #38444D;
+  color: #E7E9EA;
+  padding: 5px;
+  border-radius: 4px;
+}
+
+.color-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 8px;
+}
+
+.color-option {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid #38444D;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  position: relative;
+}
+
+.color-option:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 0 2px rgba(29, 155, 240, 0.5);
+}
+
+.color-option.selected {
+  border: 2px solid #1D9BF0;
+  box-shadow: 0 0 0 2px rgba(29, 155, 240, 0.8);
+}
+
+/* Note content area */
+.note-content-container {
+  flex: 1;
+  overflow: auto;
+  padding: 15px;
+  background-color: #192734;
+}
+
+.note-content {
+  width: 100%;
+  height: 100%;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  line-height: 1.5;
+  resize: none;
+  outline: none;
+  border: none;
+  background: transparent;
+}
+
+.note-preview {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* Scrollbar styling */
+.note-content-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.note-content-container::-webkit-scrollbar-track {
+  background: #15202B;
+}
+
+.note-content-container::-webkit-scrollbar-thumb {
+  background-color: #38444D;
+  border-radius: 4px;
+}
+
+.note-content-container::-webkit-scrollbar-thumb:hover {
+  background-color: #4C5760;
+}
+
+/* Markdown rendering styles */
+.note-preview h1 {
+  font-size: 1.8em;
+  margin-top: 0.8em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+  border-bottom: 1px solid #38444D;
+  padding-bottom: 0.2em;
+  color: #E7E9EA;
+}
+
+.note-preview h2 {
+  font-size: 1.5em;
+  margin-top: 0.7em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+  color: #E7E9EA;
+}
+
+.note-preview h3 {
+  font-size: 1.3em;
+  margin-top: 0.6em;
+  margin-bottom: 0.4em;
+  font-weight: 600;
+  color: #E7E9EA;
+}
+
+.note-preview h4, .note-preview h5, .note-preview h6 {
+  margin-top: 0.5em;
+  margin-bottom: 0.3em;
+  font-weight: 600;
+  color: #E7E9EA;
+}
+
+.note-preview p {
+  margin-bottom: 1em;
+  line-height: 1.5;
+  color: #E7E9EA;
+}
+
+.note-preview a {
+  color: #1D9BF0; /* Twitter blue */
+  text-decoration: none;
+}
+
+.note-preview a:hover {
+  text-decoration: underline;
+}
+
+.note-preview strong {
+  font-weight: 600;
+  color: #E7E9EA;
+}
+
+.note-preview em {
+  font-style: italic;
+  color: #E7E9EA;
+}
+
+.note-preview del {
+  text-decoration: line-through;
+  color: #8899A6;
+}
+
+.note-preview ul, .note-preview ol {
+  padding-left: 1.8em;
+  margin-bottom: 1em;
+  color: #E7E9EA;
+}
+
+.note-preview ul {
+  list-style-type: disc;
+}
+
+.note-preview ol {
+  list-style-type: decimal;
+}
+
+.note-preview li {
+  margin-bottom: 0.3em;
+  color: #E7E9EA;
+}
+
+.note-preview li p {
+  margin-bottom: 0.5em;
+}
+
+.note-preview blockquote {
+  border-left: 4px solid #38444D;
+  padding-left: 1em;
+  margin-left: 0.5em;
+  margin-right: 0.5em;
+  margin-bottom: 1em;
+  color: #8899A6;
+  font-style: italic;
+}
+
+.note-preview code {
+  font-family: 'Courier New', Courier, monospace;
+  background-color: #253341;
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+  font-size: 0.9em;
+  color: #E7E9EA;
+}
+
+.note-preview pre {
+  background-color: #253341;
+  padding: 1em;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin-bottom: 1em;
+  border: 1px solid #38444D;
+}
+
+.note-preview pre code {
+  background-color: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-size: 0.9em;
+  display: block;
+  color: #E7E9EA;
+}
+
+.note-preview img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.note-preview hr {
+  border: none;
+  border-top: 1px solid #38444D;
+  margin: 1.5em 0;
+}
+
+.note-preview table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 1em;
+  border: 1px solid #38444D;
+}
+
+.note-preview th, .note-preview td {
+  padding: 8px;
+  text-align: left;
+  border: 1px solid #38444D;
+}
+
+.note-preview th {
+  background-color: #253341;
+  font-weight: 600;
+}
+
+.note-preview tr:nth-child(even) {
+  background-color: #1A2834;
+}
+
+.markdown-list {
+  padding-left: 1.8em;
+  margin-bottom: 1em;
+}
+
+.inline-code {
+  font-family: 'Courier New', Courier, monospace;
+  background-color: #253341;
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+  font-size: 0.9em;
+  color: #E7E9EA;
+}
+
+.code-block {
+  background-color: #253341;
+  padding: 1em;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin-bottom: 1em;
+  border: 1px solid #38444D;
+}
+
+.markdown-quote {
+  border-left: 4px solid #38444D;
+  padding-left: 1em;
+  margin-left: 0.5em;
+  margin-right: 0.5em;
+  margin-bottom: 1em;
+  color: #8899A6;
+  font-style: italic;
+}
+
+/* Button states for save indicator */
+.toolbar-button.modified span {
+  color: #F7BB0E; /* Yellow/amber for modified */
+  font-size: 12px;
+}
+
+.toolbar-button.saving span {
+  color: #1D9BF0; /* Twitter blue for saving */
+}
+
+.saving-icon {
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Note footer */
+.note-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 15px;
+  border-top: 1px solid #38444D;
+  background-color: #15202B;
+  border-radius: 0 0 12px 12px;
+}
+
+.footer-button {
+  background-color: #2D3741;
+  border: 1px solid #38444D;
+  border-radius: 99px;
+  padding: 5px 12px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: background-color 0.2s;
+  color: #E7E9EA;
+}
+
+.footer-button:hover {
+  background-color: #3A444D;
+}
+
+.note-status {
+  font-size: 0.8em;
+  color: #8899A6;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Light theme overrides for text readability */
+.note-container.light-theme {
+  color: #15202B;
+}
+
+.note-container.light-theme .note-header,
+.note-container.light-theme .note-footer {
+  background-color: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+.note-container.light-theme .control-button, 
+.note-container.light-theme .toolbar-button {
+  color: #15202B;
+}
+
+.note-container.light-theme .control-button:hover, 
+.note-container.light-theme .toolbar-button:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.note-container.light-theme .footer-button {
+  background-color: rgba(0, 0, 0, 0.1);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #15202B;
+}
+
+.note-container.light-theme .note-status {
+  color: #4B5563;
+}
+
+/* Format and color panels for light theme */
+.note-container.light-theme .format-panel,
+.note-container.light-theme .color-panel {
+  background-color: rgba(255, 255, 255, 0.9);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #15202B;
+}
+
+.note-container.light-theme .format-row label, 
+.note-container.light-theme .color-row label {
+  color: #15202B;
+}
+
+.note-container.light-theme .format-row select, 
+.note-container.light-theme .format-row input[type="number"] {
+  background-color: white;
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #15202B;
+}
+
+/* Markdown rendering for light theme */
+.note-container.light-theme .note-preview h1,
+.note-container.light-theme .note-preview h2,
+.note-container.light-theme .note-preview h3,
+.note-container.light-theme .note-preview h4,
+.note-container.light-theme .note-preview h5,
+.note-container.light-theme .note-preview h6,
+.note-container.light-theme .note-preview p,
+.note-container.light-theme .note-preview li,
+.note-container.light-theme .note-preview strong,
+.note-container.light-theme .note-preview em {
+  color: #15202B;
+}
+
+.note-container.light-theme .note-preview a {
+  color: #0366d6;
+}
+
+.note-container.light-theme .note-preview code,
+.note-container.light-theme .note-preview pre {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: #15202B;
+}
+
+.note-container.light-theme .note-preview blockquote {
+  border-left-color: rgba(0, 0, 0, 0.2);
+  color: #4B5563;
+}
+
+.note-container.light-theme .markdown-list {
+  color: #15202B;
+}
+
+.note-container.light-theme .inline-code {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: #15202B;
+}
+
+.note-container.light-theme .control-button.active {
+  background-color: rgba(29, 155, 240, 0.2);
+}
+
+.note-container.light-theme .control-button.active {
+  color: #1D9BF0; /* Keep the Twitter blue even in light theme */
+}
+
+/* Pin icon styling */
+.pin-icon {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  position: relative;
+}
+
+.pin-icon:before {
+  content: "";
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: #8899A6;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.pin-icon:after {
+  content: "";
+  position: absolute;
+  width: 2px;
+  height: 8px;
+  background-color: #8899A6;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Active pin icon */
+.control-button.active .pin-icon:before,
+.control-button.active .pin-icon:after {
+  background-color: #E7E9EA;
+}
+
+.control-button.active {
+  background-color: rgba(29, 155, 240, 0.2);
+}
+
+.note-container.light-theme .control-button.active .pin-icon:before,
+.note-container.light-theme .control-button.active .pin-icon:after {
+  background-color: #15202B;
+}
+
+/* Icon styling */
+.theme-icon, .format-icon, .save-icon {
+  color: inherit;
+  stroke-width: 2;
+  transition: transform 0.2s ease;
+}
+
+.toolbar-button:hover .theme-icon {
+  transform: rotate(30deg);
+}
+
+.toolbar-button:hover .format-icon {
+  transform: scale(1.1);
+}
+
+.toolbar-button:hover .save-icon {
+  transform: translateY(-2px);
+}
+
+/* Save indicator states */
+.toolbar-button.modified .save-icon {
+  color: #F7BB0E; /* Yellow/amber for modified */
+}
+
+.toolbar-button.saving .save-icon {
+  color: #1D9BF0; /* Twitter blue for saving */
+  animation: pulse 1s infinite alternate;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+/* Light theme icon adjustments */
+.note-container.light-theme .theme-icon,
+.note-container.light-theme .format-icon, 
+.note-container.light-theme .save-icon {
+  color: #15202B;
+} 
