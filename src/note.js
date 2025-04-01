@@ -177,8 +177,11 @@ const updateSelectedColor = (color) => {
 
 // Apply note styling based on noteData
 const applyNoteStyles = () => {
-  // Apply note background color
+  // Apply note background color to the entire note container
   noteContainer.style.backgroundColor = noteData.color;
+  
+  // Apply the same background color to the content container
+  document.querySelector('.note-content-container').style.backgroundColor = noteData.color;
   
   // Toggle light/dark theme based on background color
   if (lightColors.includes(noteData.color)) {
@@ -200,8 +203,27 @@ const applyNoteStyles = () => {
   // Apply notebook paper background if enabled
   if (noteData.notebookBg) {
     noteContainer.classList.add('notebook-paper');
+    
+    // Create notebook paper effect using CSS variables for better contrast with any background
+    const contentContainer = document.querySelector('.note-content-container');
+    if (lightColors.includes(noteData.color)) {
+      // For light backgrounds, use darker lines
+      contentContainer.style.backgroundImage = `
+        linear-gradient(90deg, transparent, transparent 30px, rgba(0, 0, 0, 0.1) 30px, rgba(0, 0, 0, 0.1) 31px, transparent 31px),
+        linear-gradient(rgba(0, 0, 0, 0.05) 0.1em, transparent 0.1em)
+      `;
+    } else {
+      // For dark backgrounds, use lighter lines
+      contentContainer.style.backgroundImage = `
+        linear-gradient(90deg, transparent, transparent 30px, rgba(255, 255, 255, 0.1) 30px, rgba(255, 255, 255, 0.1) 31px, transparent 31px),
+        linear-gradient(rgba(255, 255, 255, 0.05) 0.1em, transparent 0.1em)
+      `;
+    }
+    contentContainer.style.backgroundSize = '100% 1.2em';
   } else {
     noteContainer.classList.remove('notebook-paper');
+    // Remove the notebook paper background image
+    document.querySelector('.note-content-container').style.backgroundImage = 'none';
   }
   
   // Apply font styling
@@ -326,15 +348,19 @@ const setupEventListeners = () => {
   });
   
   // Format panel toggle
-  btnFormat.addEventListener('click', () => {
+  btnFormat.addEventListener('click', (e) => {
+    console.log('Format button clicked', e.target);
     formatPanel.classList.toggle('hidden');
     colorPanel.classList.add('hidden'); // Close color panel if open
+    e.stopPropagation(); // Prevent event from bubbling up to document
   });
   
   // Color panel toggle
-  btnColor.addEventListener('click', () => {
+  btnColor.addEventListener('click', (e) => {
+    console.log('Color button clicked', e.target);
     colorPanel.classList.toggle('hidden');
     formatPanel.classList.add('hidden'); // Close format panel if open
+    e.stopPropagation(); // Prevent event from bubbling up to document
   });
   
   // Save button now acts as indicator only
@@ -409,11 +435,17 @@ const setupEventListeners = () => {
   
   // Click outside panels to close them
   document.addEventListener('click', (e) => {
-    if (!formatPanel.contains(e.target) && e.target !== btnFormat && !formatPanel.classList.contains('hidden')) {
+    console.log('Document clicked', e.target);
+    
+    // Check if we clicked outside the format panel and not on the format button
+    if (!formatPanel.contains(e.target) && !btnFormat.contains(e.target) && !formatPanel.classList.contains('hidden')) {
+      console.log('Closing format panel');
       formatPanel.classList.add('hidden');
     }
     
-    if (!colorPanel.contains(e.target) && e.target !== btnColor && !colorPanel.classList.contains('hidden')) {
+    // Check if we clicked outside the color panel and not on the color button
+    if (!colorPanel.contains(e.target) && !btnColor.contains(e.target) && !colorPanel.classList.contains('hidden')) {
+      console.log('Closing color panel');
       colorPanel.classList.add('hidden');
     }
   });

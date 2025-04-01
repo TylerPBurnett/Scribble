@@ -13,8 +13,66 @@ const preferences = {
   // Default preferences
   savePath: path.join(app.getPath('documents'), 'StickyNotes'),
   defaultWidth: 300,
-  defaultHeight: 300
+  defaultHeight: 300,
+  openNotes: [] // Add this to track open note IDs
 };
+
+// Path to the preferences file
+const preferencesPath = path.join(app.getPath('userData'), 'preferences.json');
+
+// Load preferences from file
+function loadPreferences() {
+  try {
+    if (fs.existsSync(preferencesPath)) {
+      const data = fs.readFileSync(preferencesPath, 'utf8');
+      const savedPrefs = JSON.parse(data);
+      
+      // Update preferences with saved values
+      Object.assign(preferences, savedPrefs);
+      console.log('Preferences loaded:', preferences);
+    } else {
+      console.log('No saved preferences found, using defaults');
+      // Save default preferences for future use
+      savePreferences();
+    }
+    
+    // Ensure openNotes is always an array
+    if (!Array.isArray(preferences.openNotes)) {
+      preferences.openNotes = [];
+    }
+  } catch (error) {
+    console.error('Error loading preferences:', error);
+    // Reset to defaults if there was an error
+    preferences.openNotes = [];
+  }
+}
+
+// Save preferences to file
+function savePreferences() {
+  try {
+    // Make sure the user data directory exists
+    const userDataDir = path.dirname(preferencesPath);
+    if (!fs.existsSync(userDataDir)) {
+      fs.mkdirSync(userDataDir, { recursive: true });
+    }
+    
+    // Convert to JSON and save
+    const prefsJson = JSON.stringify(preferences, null, 2);
+    fs.writeFileSync(preferencesPath, prefsJson);
+    console.log('Preferences saved to:', preferencesPath);
+    console.log('Saved preferences content:', prefsJson);
+  } catch (error) {
+    console.error('Error saving preferences:', error);
+  }
+}
+
+// Save the list of currently open notes
+function saveOpenNotes() {
+  const openNoteIds = Array.from(noteWindows.keys());
+  console.log(`Saving ${openNoteIds.length} open notes:`, openNoteIds);
+  preferences.openNotes = openNoteIds;
+  savePreferences();
+}
 
 // Ensure the save directory exists
 function ensureSavePath() {
@@ -91,7 +149,11 @@ function createNoteWindow(noteData = null) {
   // Clean up when window is closed
   noteWindow.on('closed', () => {
     if (noteData && noteData.id) {
+      console.log(`Note window closed for ID: ${noteData.id}`);
       noteWindows.delete(noteData.id);
+      
+      // Don't save preferences here, as it will overwrite them every time
+      // a single note is closed. We'll save on app quit instead.
     }
   });
   
@@ -103,6 +165,7 @@ function createMainWindow() {
   const mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
+    title: 'Scribble',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -131,17 +194,77 @@ function createMainWindow() {
   // Open DevTools for debugging
   mainWindow.webContents.openDevTools();
   
-  // When the main window is ready to show, load existing notes
+  // When the main window is ready to show
   mainWindow.on('ready-to-show', () => {
     console.log('Main window ready to show');
-    loadExistingNotes();
+    mainWindow.show();
   });
+  
+  return mainWindow;
 }
 
 // Load all existing notes from the save directory
 function loadExistingNotes() {
   const savePath = ensureSavePath();
+  console.log('Loading existing notes with preferences:', JSON.stringify(preferences));
   
+  // If we have a list of previously open notes, just open those
+  if (preferences.openNotes && Array.isArray(preferences.openNotes) && preferences.openNotes.length > 0) {
+    console.log('Opening previously open notes:', preferences.openNotes);
+    let notesOpened = 0;
+    
+    // Open each note that was previously open
+    for (const noteId of preferences.openNotes) {
+      try {
+        const notePath = path.join(savePath, `${noteId}.md`);
+        const metadataPath = path.join(savePath, `${noteId}.json`);
+        
+        console.log(`Checking note ${noteId} at path: ${notePath}`);
+        
+        // Check if the note still exists
+        if (fs.existsSync(notePath)) {
+          console.log(`Found note file for ${noteId}, opening it`);
+          
+          // Get the content
+          const content = fs.readFileSync(notePath, 'utf8');
+          
+          // Get the metadata if it exists
+          let metadata = {};
+          if (fs.existsSync(metadataPath)) {
+            const metadataContent = fs.readFileSync(metadataPath, 'utf8');
+            metadata = JSON.parse(metadataContent);
+          }
+          
+          // Create the note data
+          const noteData = {
+            id: noteId,
+            content,
+            ...metadata
+          };
+          
+          // Create a window for the note
+          const window = createNoteWindow(noteData);
+          noteWindows.set(noteId, window);
+          notesOpened++;
+        } else {
+          console.log(`Previously open note ${noteId} no longer exists`);
+        }
+      } catch (error) {
+        console.error(`Error loading previously open note ${noteId}:`, error);
+      }
+    }
+    
+    console.log(`Finished opening previously open notes: ${notesOpened} notes opened`);
+    return;
+  } else {
+    console.log('No previously open notes found');
+    return; // Don't load any notes if none were previously open
+  }
+}
+
+// Function to load all notes - extracted from loadExistingNotes
+function loadAllNotes(savePath) {
+  console.log('Loading all notes from', savePath);
   fs.readdir(savePath, (err, files) => {
     if (err) {
       console.error('Error reading notes directory:', err);
@@ -149,7 +272,10 @@ function loadExistingNotes() {
     }
     
     // Find all markdown files
-    files.filter(file => file.endsWith('.md')).forEach(file => {
+    const mdFiles = files.filter(file => file.endsWith('.md'));
+    console.log(`Found ${mdFiles.length} note files`);
+    
+    mdFiles.forEach(file => {
       const notePath = path.join(savePath, file);
       
       try {
@@ -195,9 +321,11 @@ function saveNote(noteId, data) {
     fs.writeFileSync(notePath, data.content || '');
     
     // Save metadata separately
-    const { content, ...metadata } = data;
+    const metadataWithoutContent = { ...data };
+    delete metadataWithoutContent.content;
+    
     const metadataPath = path.join(savePath, `${noteId}.json`);
-    fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+    fs.writeFileSync(metadataPath, JSON.stringify(metadataWithoutContent, null, 2));
     
     return { id: noteId, ...data };
   } catch (error) {
@@ -235,45 +363,6 @@ function deleteNote(noteId) {
     console.error(`Error deleting note ${noteId}:`, error);
     return false;
   }
-}
-
-// Get all notes
-function getAllNotes() {
-  const savePath = ensureSavePath();
-  const notes = [];
-  
-  try {
-    const files = fs.readdirSync(savePath);
-    
-    // Find all markdown files
-    files.filter(file => file.endsWith('.md')).forEach(file => {
-      const noteId = path.basename(file, '.md');
-      const notePath = path.join(savePath, file);
-      
-      // Get the content
-      const content = fs.readFileSync(notePath, 'utf8');
-      
-      // Get the metadata if it exists
-      let metadata = {};
-      const metadataPath = path.join(savePath, `${noteId}.json`);
-      
-      if (fs.existsSync(metadataPath)) {
-        const metadataContent = fs.readFileSync(metadataPath, 'utf8');
-        metadata = JSON.parse(metadataContent);
-      }
-      
-      // Add the note to the array
-      notes.push({
-        id: noteId,
-        content,
-        ...metadata
-      });
-    });
-  } catch (error) {
-    console.error('Error loading notes:', error);
-  }
-  
-  return notes;
 }
 
 // Register IPC handlers
@@ -323,9 +412,7 @@ function registerIpcHandlers() {
       const files = fs.readdirSync(savePath);
       
       // Find all markdown files
-      const noteFiles = files.filter(file => file.endsWith('.md'));
-      
-      for (const file of noteFiles) {
+      files.filter(file => file.endsWith('.md')).forEach(file => {
         const noteId = path.basename(file, '.md');
         const notePath = path.join(savePath, file);
         
@@ -352,7 +439,7 @@ function registerIpcHandlers() {
           ...metadata,
           updatedAt: metadata.updatedAt || fs.statSync(notePath).mtime
         });
-      }
+      });
       
       return notes;
     } catch (error) {
@@ -549,12 +636,29 @@ function registerIpcHandlers() {
 }
 
 // When Electron has initialized and is ready to create browser windows
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  console.log('App is ready');
+  
+  // Initialize the quitting flag
+  app.isQuitting = false;
+  
+  // Load saved preferences
+  loadPreferences();
+  console.log('Loaded preferences with openNotes:', preferences.openNotes);
+  
   // Register IPC handlers
   registerIpcHandlers();
   
-  // Create the main window
-  createMainWindow();
+  // Create the main window but don't automatically load notes
+  const mainWindow = createMainWindow();
+  
+  // Wait for the main window to load before loading notes
+  mainWindow.webContents.on('did-finish-load', () => {
+    console.log('Main window loaded, now loading notes');
+    setTimeout(() => {
+      loadExistingNotes();
+    }, 500); // Small delay to ensure everything is ready
+  });
   
   // macOS: Re-create a window when dock icon is clicked
   app.on('activate', () => {
@@ -564,10 +668,36 @@ app.whenReady().then(() => {
   });
 });
 
+// Save open notes and mark app as quitting
+app.on('before-quit', () => {
+  console.log('Application is quitting, saving open notes...');
+  app.isQuitting = true;  // Add a flag to know we're quitting
+  saveOpenNotes();
+});
+
 // Quit when all windows are closed, except on macOS
 app.on('window-all-closed', () => {
+  console.log('All windows closed');
+  
+  // Save the current state of open notes before closing
+  saveOpenNotes();
+  
   if (process.platform !== 'darwin') {
     app.quit();
+  }
+});
+
+// On macOS, save open notes when all windows are closed
+app.on('will-quit', () => {
+  console.log('Application will quit, final check of open notes');
+  app.isQuitting = true;
+  
+  // Only update preferences if there are still notes open
+  // Otherwise, use the previously saved state
+  if (noteWindows.size > 0) {
+    saveOpenNotes();
+  } else {
+    console.log('No notes open at quit time, preserving previously saved state');
   }
 });
 

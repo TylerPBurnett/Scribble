@@ -1,6 +1,19 @@
+const { ipcMain } = require('electron');
+const { v4: uuidv4 } = require('uuid');
+
+// Declare noteWindows as a Map to store note windows
+const noteWindows = new Map();
+
+// This function should be declared or imported from elsewhere
+const createNoteWindow = (noteId) => {
+  // Function implementation should be here
+  // This is just a placeholder until we can see the actual implementation
+  console.log(`Creating window for note: ${noteId}`);
+};
+
 // IPC handlers
 ipcMain.handle('create-note', () => {
-  console.log("create-note handler called");
+  console.log('create-note handler called');
   try {
     const noteId = uuidv4();
     console.log(`Generated new note ID: ${noteId}`);
@@ -10,7 +23,7 @@ ipcMain.handle('create-note', () => {
     
     return noteId;
   } catch (error) {
-    console.error("Error in create-note handler:", error);
+    console.error('Error in create-note handler:', error);
     throw error;
   }
 });

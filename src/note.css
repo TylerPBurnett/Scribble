@@ -26,11 +26,18 @@ body {
 }
 
 /* Notebook paper background */
-.notebook-paper {
-  background-color: #192734;
+.notebook-paper .note-content-container {
   background-image: 
     linear-gradient(90deg, transparent, transparent 30px, #38444D 30px, #38444D 31px, transparent 31px),
     linear-gradient(#253341 0.1em, transparent 0.1em);
+  background-size: 100% 1.2em;
+}
+
+/* Light theme version of the notebook paper */
+.light-theme.notebook-paper .note-content-container {
+  background-image: 
+    linear-gradient(90deg, transparent, transparent 30px, rgba(0, 0, 0, 0.1) 30px, rgba(0, 0, 0, 0.1) 31px, transparent 31px),
+    linear-gradient(rgba(0, 0, 0, 0.05) 0.1em, transparent 0.1em);
   background-size: 100% 1.2em;
 }
 
@@ -73,6 +80,13 @@ body {
   justify-content: center;
   transition: background-color 0.2s;
   color: #E7E9EA;
+  position: relative;
+  z-index: 10;
+}
+
+/* Make the SVG content unclickable, allowing clicks to go to the button */
+.toolbar-button svg {
+  pointer-events: none;
 }
 
 .control-button:hover, .toolbar-button:hover {
@@ -88,6 +102,8 @@ body {
   padding: 12px;
   background-color: #253341;
   border-bottom: 1px solid #38444D;
+  position: relative;
+  z-index: 9;
 }
 
 .format-row, .color-row {
@@ -141,7 +157,7 @@ body {
   flex: 1;
   overflow: auto;
   padding: 15px;
-  background-color: #192734;
+  /* background-color is now set dynamically in JavaScript */
 }
 
 .note-content {
