@@ -3,13 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sticky Notes</title>
+    <title>Scribble</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="index.css" />
   </head>
   <body>
     <div class="app-container">
       <header class="app-header">
-        <h1>Sticky Notes</h1>
+        <h1 class="app-title">Scribble</h1>
         <div class="header-actions">
           <button id="btn-new-note" class="primary-button">
             <span class="button-icon">+</span>
@@ -24,7 +27,6 @@
 
       <main class="app-content">
         <section class="notes-overview">
-          <h2>Your Notes</h2>
           <div class="search-container">
             <input type="text" id="search-notes" placeholder="Search notes..." autocomplete="off">
             <button id="clear-search" class="clear-search-button" title="Clear search">&times;</button>

@@ -138,7 +138,7 @@ const fuzzySearch = (text, query) => {
   let highlighted = '';
   let lastPos = 0;
   
-  charPositions.forEach((pos, i) => {
+  charPositions.forEach(pos => {
     // Add text before this character
     highlighted += text.substring(lastPos, pos);
     // Add the highlighted character
@@ -305,7 +305,7 @@ const createNoteCard = (note, searchTerm = '') => {
 // Create a new note
 async function createNewNote() {
   try {
-    console.log("Attempting to create a new note...");
+    console.log('Attempting to create a new note...');
     
     // Try to create a new note via electronAPI
     const noteId = await window.electronAPI.createNote();
@@ -314,7 +314,7 @@ async function createNewNote() {
     // We'll reload notes after a short delay to ensure the new note is saved
     setTimeout(async () => {
       await loadNotes();
-      console.log("Notes list reloaded");
+      console.log('Notes list reloaded');
     }, 500);
   } catch (error) {
     console.error('Error creating note:', error);
