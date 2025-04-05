@@ -1,5 +1,7 @@
 const { ipcMain } = require('electron');
 const { v4: uuidv4 } = require('uuid');
+const { app, BrowserWindow } = require('electron');
+const path = require('/Users/tyler/Scribble/src/assets/icons/icon.icns');
 
 // Declare noteWindows as a Map to store note windows
 const noteWindows = new Map();
@@ -41,4 +43,19 @@ ipcMain.handle('open-note', (event, noteId) => {
   // If not open, create a new window for this note
   createNoteWindow(noteId);
   return noteId;
-}); 
+});
+
+function createWindow() {
+  const win = new BrowserWindow({
+    width: 800,
+    height: 600,
+    icon: path.join(__dirname, 'path/to/your/icon.icns'), // Update this path
+    webPreferences: {
+      nodeIntegration: true,
+    },
+  });
+
+  win.loadFile('index.html');
+}
+
+app.whenReady().then(createWindow); 
