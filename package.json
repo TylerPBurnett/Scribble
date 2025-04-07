@@ -1,8 +1,8 @@
 {
-  "name": "sticky-notes",
-  "productName": "sticky-notes",
+  "name": "scribble",
+  "productName": "Scribble",
   "version": "1.0.0",
-  "description": "Markdown Sticky Notes Application",
+  "description": "Scribble - A Markdown Notes Application",
   "main": "src/index.js",
   "scripts": {
     "start": "electron-forge start",

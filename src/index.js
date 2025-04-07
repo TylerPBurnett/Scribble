@@ -8,6 +8,9 @@ if (require('electron-squirrel-startup')) {
   app.quit();
 }
 
+// Set app name to Scribble
+app.setName('Scribble');
+
 // Define a simple preferences object instead of using electron-store
 const preferences = {
   // Default preferences
@@ -93,6 +96,7 @@ function createNoteWindow(noteData = null) {
     height: preferences.defaultHeight,
     frame: false, // Frameless window
     transparent: true, // Transparent background
+    icon: path.join(__dirname, 'assets', 'icons', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -166,6 +170,7 @@ function createMainWindow() {
     width: 800,
     height: 600,
     title: 'Scribble',
+    icon: path.join(__dirname, 'assets', 'icons', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
