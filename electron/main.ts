@@ -1,15 +1,43 @@
 import { app, BrowserWindow, ipcMain, dialog, screen, Tray, Menu, globalShortcut, nativeImage } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import fs from 'node:fs'
+import fs from 'node:fs/promises'
+import fsSync from 'node:fs'
 import Store from 'electron-store'
 // @ts-expect-error no type definitions available
 import AutoLaunch from 'auto-launch'
+import { v4 as uuidv4 } from 'uuid'
+
+// Import the Note type from shared types
+// Path is relative to the compiled JS file in dist-electron
+import { Note } from '../src/shared/types/Note'
+
+// Global map to store noteId -> filePath
+const noteFileRegistry = new Map<string, string>();
+
+// Global map to store transient new note data
+const transientNewNotes = new Map<string, Note>();
+
+// Define the metadata interface
+interface NoteMetadata {
+  id?: string;
+  color?: string;
+  pinned?: boolean;
+  favorite?: boolean;
+  transparency?: number;
+  [key: string]: unknown;
+}
 
 // Type for settings
 interface SettingsType {
   hotkeys?: {
     newNote?: string;
+    [key: string]: string | undefined;
+  };
+  globalHotkeys?: {
+    newNote?: string;
+    toggleApp?: string;  // <-- new preferred name
+    showApp?: string;    // <-- legacy name kept for BC
     [key: string]: string | undefined;
   };
   [key: string]: unknown;
@@ -226,6 +254,9 @@ function createNoteWindow(noteId: string) {
     titleBarOverlay: false,
     // Don't show traffic lights at all
     trafficLightPosition: { x: -20, y: -20 },
+    // Enable transparency for the window
+    transparent: false, // We'll control opacity via setOpacity instead
+    opacity: 1, // Start fully opaque
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
       contextIsolation: true,
@@ -265,6 +296,19 @@ function createNoteWindow(noteId: string) {
 
   // Store the window reference
   noteWindows.set(noteId, noteWindow)
+
+  // Send initial note data once the window is ready
+  noteWindow.once('ready-to-show', () => {
+    // Check if we have transient data for this note
+    if (transientNewNotes.has(noteId)) {
+      const initialNoteData = transientNewNotes.get(noteId);
+      console.log(`[Main Process] Sending initial note data for ID: ${noteId}`);
+      noteWindow.webContents.send('initial-note-data', initialNoteData);
+
+      // Don't delete the data here - the renderer will request it again if needed
+      // and will signal when it can be deleted
+    }
+  });
 
   // Add a handler for navigation events (including refreshes)
   noteWindow.webContents.on('will-navigate', (event, url) => {
@@ -317,8 +361,14 @@ function createNoteWindow(noteId: string) {
 
   // Clean up when window is closed
   noteWindow.on('closed', () => {
-    console.log(`Note window closed: ${noteId}`);
-    noteWindows.delete(noteId)
+    console.log(`[Main Process] Note window closed: ${noteId}`);
+    noteWindows.delete(noteId);
+
+    // Clean up any transient data for this note
+    if (transientNewNotes.has(noteId)) {
+      console.log(`[Main Process] Cleaning up transient data for note: ${noteId}`);
+      transientNewNotes.delete(noteId);
+    }
   })
 
   return noteWindow
@@ -428,7 +478,7 @@ function createSettingsWindow() {
 
 // Create tray icon
 function createTray() {
-  // Create tray icon 
+  // Create tray icon
   const iconPath = path.join(process.env.APP_ROOT, 'src/assets/icon-64.png')
   const trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 })
 
@@ -450,13 +500,13 @@ function createTray() {
     {
       label: 'New Note',
       click: () => {
-        // Generate a unique ID for the new note
-        const noteId = `new-${Date.now().toString(36)}`
-        createNoteWindow(noteId)
+        // Generate a unique UUID for the new note
+        const noteId = uuidv4();
+        createNoteWindow(noteId);
 
         // Show main window if it's hidden
         if (mainWindow && !mainWindow.isVisible()) {
-          mainWindow.show()
+          mainWindow.show();
         }
       }
     },
@@ -495,66 +545,303 @@ function createTray() {
   })
 }
 
+// Default global hotkeys - use non-optional types here since these are guaranteed to exist
+const DEFAULT_GLOBAL_HOTKEYS: Readonly<Record<string, string>> = {
+  newNote  : 'CommandOrControl+Alt+N',
+  toggleApp: 'CommandOrControl+Alt+S',
+};
+
 // Register global hotkeys
 function registerGlobalHotkeys() {
+  // One call is sufficient - it clears every shortcut registered by this app
+  console.log('Unregistering all global shortcuts');
+  globalShortcut.unregisterAll();
+
   // Get settings to check for custom hotkeys
-  const settingsStore = new Store({ name: 'settings' })
-  const settings = settingsStore.get('settings') as SettingsType || {}
-  const hotkeys = settings.hotkeys || {}
+  const settingsStore = new Store({ name: 'settings' });
+  const settings = settingsStore.get('settings') as SettingsType || {};
+
+  console.log('Full settings from store:', JSON.stringify(settings, null, 2));
+
+  // Get global hotkeys from settings using an immutable approach
+  const globalHotkeys = {
+    ...DEFAULT_GLOBAL_HOTKEYS,
+    ...(settings.globalHotkeys ?
+      // Filter out undefined/null values from user settings
+      Object.fromEntries(
+        Object.entries(settings.globalHotkeys)
+          .filter(([, value]) => value !== undefined && value !== null)
+      )
+      : {}
+    )
+  };
+
+  // Log the hotkeys we're about to register
+  console.log('Registering global hotkeys:', JSON.stringify(globalHotkeys, null, 2));
+
+  // Compare with defaults to see if they're different
+  const usingDefaults =
+    globalHotkeys?.newNote === DEFAULT_GLOBAL_HOTKEYS.newNote &&
+    ((globalHotkeys?.toggleApp === DEFAULT_GLOBAL_HOTKEYS.toggleApp) ||
+     (globalHotkeys?.showApp === DEFAULT_GLOBAL_HOTKEYS.toggleApp)); // Support both old and new property names
+
+  console.log(`Using default hotkeys: ${usingDefaults}`);
 
   // Register global hotkey for creating a new note
-  const newNoteHotkey = hotkeys.newNote || 'CommandOrControl+Alt+N'
-  globalShortcut.register(newNoteHotkey, () => {
-    // Generate a unique ID for the new note
-    const noteId = `new-${Date.now().toString(36)}`
-    createNoteWindow(noteId)
+  const newNoteHotkey = globalHotkeys?.newNote;
+  const newNoteRegistered = registerShortcut(
+    newNoteHotkey,
+    () => {
+      // Generate a unique UUID for the new note
+      const noteId = uuidv4();
+      console.log('[Main Process] Global hotkey: create-note called, generated UUID:', noteId);
 
-    // Show main window if it's hidden
-    if (mainWindow && !mainWindow.isVisible()) {
-      mainWindow.show()
+      // Create a new note object and store it in transient registry
+      const newNote: Note = {
+        id: noteId,
+        title: 'Untitled Note',
+        content: '<p></p>',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        _isNew: true
+      };
+
+      console.log('[Main Process] Global hotkey: Generated new note object:', newNote);
+
+      // Store the note in the transient registry
+      transientNewNotes.set(noteId, newNote);
+
+      createNoteWindow(noteId);
+
+      // Show main window if it's hidden
+      if (mainWindow && !mainWindow.isVisible()) {
+        mainWindow.show();
+      }
+    },
+    'new note'
+  );
+
+  // Register global hotkey for toggling the app visibility
+  // Support both old (showApp) and new (toggleApp) property names for backward compatibility
+  const toggleAppHotkey = globalHotkeys?.toggleApp || globalHotkeys?.showApp;
+  const toggleAppRegistered = registerShortcut(
+    toggleAppHotkey,
+    () => {
+      if (mainWindow) {
+        // Toggle visibility: hide if visible, show if hidden
+        if (mainWindow.isVisible()) {
+          console.log('Main window is visible, hiding it');
+          mainWindow.hide();
+        } else {
+          console.log('Main window is hidden, showing it');
+          mainWindow.show();
+          mainWindow.focus();
+        }
+      } else {
+        // If window doesn't exist, create it
+        console.log('Main window does not exist, creating it');
+        createMainWindow();
+      }
+    },
+    'toggling app'
+  );
+
+  // Check all registered shortcuts
+  const allRegisteredShortcuts = [];
+
+  // Check if our hotkeys are registered
+  if (newNoteHotkey && newNoteRegistered) {
+    const formattedHotkey = formatAccelerator(newNoteHotkey);
+    allRegisteredShortcuts.push(formattedHotkey);
+  }
+
+  if (toggleAppHotkey && toggleAppRegistered) {
+    const formattedHotkey = formatAccelerator(toggleAppHotkey);
+    allRegisteredShortcuts.push(formattedHotkey);
+  }
+
+  // Also check default hotkeys
+  if (DEFAULT_GLOBAL_HOTKEYS.newNote && globalShortcut.isRegistered(DEFAULT_GLOBAL_HOTKEYS.newNote)) {
+    allRegisteredShortcuts.push(DEFAULT_GLOBAL_HOTKEYS.newNote);
+  }
+
+  if (DEFAULT_GLOBAL_HOTKEYS.toggleApp && globalShortcut.isRegistered(DEFAULT_GLOBAL_HOTKEYS.toggleApp)) {
+    allRegisteredShortcuts.push(DEFAULT_GLOBAL_HOTKEYS.toggleApp);
+  }
+
+  console.log('Currently registered global shortcuts:', allRegisteredShortcuts);
+  console.log('Global hotkeys registration complete');
+}
+
+// Helper function to ensure hotkeys are properly formatted for Electron's accelerator
+function formatAccelerator(hotkey: string | undefined): string {
+  // Handle undefined, null, or empty string
+  if (!hotkey) return '';
+
+  try {
+    // Define recognized modifiers
+    const modifiers = ['CommandOrControl', 'Command', 'Control', 'Alt', 'Option', 'Shift', 'Meta'];
+
+    // Split the hotkey into parts and filter out empty strings
+    const parts = hotkey.split('+').filter(Boolean);
+
+    // Normalize case & filter duplicates
+    const normalizedParts = parts
+      .map(p => {
+        // Normalize common lower-case user input
+        const canonical = modifiers.find(m => m.toLowerCase() === p.toLowerCase());
+        return canonical || p;
+      })
+      // Filter out duplicates (case-insensitive)
+      .filter((part, index, self) =>
+        self.findIndex(p => p.toLowerCase() === part.toLowerCase()) === index
+      );
+
+    // Sort modifiers to come first
+    normalizedParts.sort((a, b) => {
+      const aIndex = modifiers.indexOf(a);
+      const bIndex = modifiers.indexOf(b);
+
+      if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+      if (aIndex !== -1) return -1;
+      if (bIndex !== -1) return 1;
+      return 0;
+    });
+
+    // Join the parts back together
+    return normalizedParts.join('+');
+  } catch (error) {
+    console.error('Error formatting accelerator:', error, 'hotkey:', hotkey);
+    return '';
+  }
+}
+
+/**
+ * Helper function to register a global shortcut
+ * @param accelerator The hotkey string to register
+ * @param handler The callback function to execute when the hotkey is triggered
+ * @param description A description of what the hotkey does (for logging)
+ * @returns boolean indicating if registration was successful
+ */
+function registerShortcut(
+  accelerator: string | undefined,
+  handler: () => void,
+  description: string
+): boolean {
+  if (!accelerator) {
+    console.log(`No ${description} hotkey defined, skipping registration`);
+    return false;
+  }
+
+  try {
+    console.log(`Attempting to register global hotkey for ${description}: ${accelerator}`);
+
+    // Ensure the hotkey is properly formatted
+    const formattedHotkey = formatAccelerator(accelerator);
+    console.log(`Formatted hotkey for ${description}: ${formattedHotkey}`);
+
+    // Guard against empty accelerators before registering
+    if (!formattedHotkey) {
+      console.error(`Empty formatted hotkey for ${description}, skipping registration`);
+      return false;
     }
-  })
 
-  // Register global hotkey for showing the app
-  globalShortcut.register('CommandOrControl+Alt+S', () => {
-    if (mainWindow) {
-      mainWindow.show()
-      mainWindow.focus()
+    const success = globalShortcut.register(formattedHotkey, handler);
+
+    if (success) {
+      console.log(`Successfully registered global hotkey for ${description}: ${formattedHotkey}`);
     } else {
-      createMainWindow()
+      console.error(`Failed to register global hotkey for ${description}: ${formattedHotkey} - registration returned false`);
     }
-  })
 
-  console.log('Global hotkeys registered')
+    return success;
+  } catch (error) {
+    console.error(`Error registering global hotkey for ${description}: ${accelerator}`, error);
+    return false;
+  }
+}
+
+// Helper function to create a safe filename from a title
+function getSafeFileName(title: string, noteId: string): string {
+  // Sanitize the title (replace invalid chars with underscores, limit length)
+  const sanitizedTitle = title && title.trim()
+    ? title.trim().replace(/[^a-z0-9]/gi, '_').toLowerCase().substring(0, 50)
+    : 'untitled_note';
+
+  // Append the noteId (or a portion of it) to ensure uniqueness
+  return `${sanitizedTitle}_${noteId.substring(0, 8)}.md`;
+}
+
+// Helper function to parse metadata from file content
+function parseMetadataFromFileContent(content: string): { metadata: NoteMetadata, content: string } {
+  // Look for metadata in HTML comment at the end of the file
+  // Format: <!-- scribble-metadata: {"color":"#fff9c4","pinned":true} -->
+  const metadataRegex = /<!-- scribble-metadata: (.*?) -->\s*$/;
+  const match = content.match(metadataRegex);
+
+  if (!match) {
+    return { metadata: {}, content };
+  }
+
+  try {
+    // Parse the JSON metadata
+    const metadataJson = match[1];
+    const metadata = JSON.parse(metadataJson) as NoteMetadata;
+
+    // Remove the metadata comment from content
+    const contentWithoutMetadata = content.replace(metadataRegex, '');
+
+    return {
+      metadata,
+      content: contentWithoutMetadata
+    };
+  } catch (error) {
+    console.error('Error parsing metadata JSON in main process:', error);
+    return { metadata: {}, content };
+  }
 }
 
 // Get default save location
-function getDefaultSaveLocation() {
+async function getDefaultSaveLocation() {
   const userDataPath = app.getPath('userData')
   const savePath = path.join(userDataPath, 'Notes')
 
   // Create directory if it doesn't exist
-  if (!fs.existsSync(savePath)) {
-    fs.mkdirSync(savePath, { recursive: true })
+  if (!fsSync.existsSync(savePath)) {
+    await fs.mkdir(savePath, { recursive: true })
   }
 
   return savePath
 }
 
 // IPC handlers
-ipcMain.handle('open-note', (_, noteId) => {
-  console.log('IPC: open-note called with noteId:', noteId)
-  const window = createNoteWindow(noteId)
-  console.log('Note window created:', window ? 'success' : 'failed')
-  return { success: !!window }
+ipcMain.handle('open-note', (_, noteId: string, initialNoteData?: Note) => {
+  console.log('[Main Process] IPC: open-note called with noteId:', noteId);
+
+  // If initialNoteData is provided and it's a new note, store it in the transient registry
+  if (initialNoteData && initialNoteData._isNew) {
+    console.log('[Main Process] Storing initial note data in transient registry:', initialNoteData);
+    transientNewNotes.set(noteId, initialNoteData);
+  }
+
+  const window = createNoteWindow(noteId);
+  console.log('[Main Process] Note window created:', window ? 'success' : 'failed');
+
+  return { success: !!window };
 })
 
-// Listen for note updates and relay to main window
-ipcMain.on('note-updated', (_, noteId) => {
-  // Relay the update to the main window if it exists
-  if (mainWindow) {
-    mainWindow.webContents.send('note-updated', noteId)
-  }
+// Listen for note updates and broadcast to all windows
+ipcMain.on('note-updated', (event, noteId, updatedProperties) => {
+  console.log(`[Main Process] Received 'note-updated' from a renderer: ${noteId}, Properties:`, updatedProperties);
+
+  // Broadcast the update to all active browser windows
+  BrowserWindow.getAllWindows().forEach(window => {
+    // Don't send back to the sender to avoid potential loops
+    if (window.webContents.id !== event.sender.id) {
+      console.log(`[Main Process] Broadcasting note update to window ID: ${window.id}`);
+      window.webContents.send('note-updated', noteId, updatedProperties);
+    }
+  });
 })
 
 // Window control handlers
@@ -628,13 +915,49 @@ ipcMain.handle('window-set-pin-state', (_, noteId, isPinned) => {
   return false
 })
 
-ipcMain.handle('create-note', () => {
-  // Generate a unique ID for the new note
-  const noteId = `new-${Date.now().toString(36)}`
-  console.log('IPC: create-note called, generated ID:', noteId)
-  const window = createNoteWindow(noteId)
-  console.log('New note window created:', window ? 'success' : 'failed')
-  return { success: !!window, noteId }
+// Handle window transparency
+ipcMain.handle('window-set-transparency', (event, value) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  if (win) {
+    // Set the window opacity directly
+    win.setOpacity(value)
+
+    // Find the noteId for this window
+    let noteId = null
+    for (const [id, noteWin] of noteWindows.entries()) {
+      if (noteWin === win) {
+        noteId = id
+        break
+      }
+    }
+
+    console.log(`Window transparency value for note ${noteId}: ${value}`)
+    return true
+  }
+  return false
+})
+
+ipcMain.handle('create-note', async () => {
+  // Generate a unique UUID for the new note
+  const noteId = uuidv4();
+  console.log('[Main Process] IPC: create-note called, generated UUID:', noteId);
+
+  // Create a new note object
+  const newNote: Note = {
+    id: noteId,
+    title: 'Untitled Note',
+    content: '<p></p>',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    _isNew: true
+  };
+
+  console.log('[Main Process] Generated new note object:', newNote);
+
+  // Store the note in the transient registry
+  transientNewNotes.set(noteId, newNote);
+
+  return newNote;
 })
 
 ipcMain.handle('create-note-with-id', (_, noteId) => {
@@ -643,28 +966,39 @@ ipcMain.handle('create-note-with-id', (_, noteId) => {
 })
 
 ipcMain.handle('get-note-id', (event) => {
-  console.log('=== IPC: get-note-id called ===')
+  console.log('[Main Process] === IPC: get-note-id called ===')
   // Find the window that sent this request
   const win = BrowserWindow.fromWebContents(event.sender)
   if (!win) {
-    console.log('No window found for this request')
+    console.log('[Main Process] No window found for this request')
     return null
   }
 
-  console.log('Window ID:', win.id)
-  console.log('Current noteWindows Map size:', noteWindows.size)
-  console.log('noteWindows entries:', Array.from(noteWindows.entries()).map(([id, w]) => ({ id, winId: w.id })))
+  console.log('[Main Process] Window ID:', win.id)
+  console.log('[Main Process] Current noteWindows Map size:', noteWindows.size)
+  console.log('[Main Process] noteWindows entries:', Array.from(noteWindows.entries()).map(([id, w]) => ({ id, winId: w.id })))
 
   // Check if this is a note window
   for (const [noteId, noteWin] of noteWindows.entries()) {
     if (noteWin === win) {
-      console.log('Found note ID for window:', noteId)
+      console.log('[Main Process] Found note ID for window:', noteId)
       return noteId
     }
   }
 
-  console.log('This is not a note window')
+  console.log('[Main Process] This is not a note window')
   return null // This is the main window or an unknown window
+})
+
+// Handler to get transient new note data
+ipcMain.handle('get-transient-new-note-data', async (_, noteId: string) => {
+  const note = transientNewNotes.get(noteId);
+  if (note) {
+    console.log(`[Main Process] Serving transient data for new note ID: ${noteId}`);
+    return note;
+  }
+  console.warn(`[Main Process] No transient new note data found for ID: ${noteId}`);
+  return null;
 })
 
 // Settings IPC handlers
@@ -689,152 +1023,339 @@ ipcMain.handle('select-directory', async () => {
   return result
 })
 
-ipcMain.handle('get-default-save-location', () => {
-  return getDefaultSaveLocation()
+ipcMain.handle('get-default-save-location', async () => {
+  return await getDefaultSaveLocation()
 })
 
 // File operation handlers
-ipcMain.handle('save-note-to-file', async (_, noteId, title, content, saveLocation, oldTitle = '') => {
-    console.log('Saving note to file:', { noteId, title, saveLocation, oldTitle });
+ipcMain.handle('save-note-to-file', async (_, noteId: string, title: string, content: string, saveLocation: string, isFirstSave: unknown) => {
+  console.log('[Main Process] Saving note to file:', { noteId, title, saveLocation, isFirstSave });
   try {
     // Ensure the directory exists
-    if (!fs.existsSync(saveLocation)) {
-      fs.mkdirSync(saveLocation, { recursive: true })
+    if (!fsSync.existsSync(saveLocation)) {
+      await fs.mkdir(saveLocation, { recursive: true });
     }
 
-    // Create a safe filename from the title or use 'untitled_note' if title is empty
-    const safeTitle = title && title.trim() ?
-      title.trim().replace(/[^a-z0-9]/gi, '_').toLowerCase() :
-      'untitled_note_' + noteId.substring(0, 8)
+    // Convert isFirstSave to boolean (handling the type mismatch from preload)
+    const isNewNote = isFirstSave === true || isFirstSave === 'true';
+    console.log(`[Main Process] Is this a new note? ${isNewNote}`);
 
-    console.log('Creating filename from title:', { title, safeTitle })
+    // Get the current file path from the registry
+    const currentFilePath = noteFileRegistry.get(noteId);
+    console.log(`[Main Process] Current file path from registry: ${currentFilePath || 'Not found'}`);
 
-    // Create the full path
-    const filePath = path.join(saveLocation, `${safeTitle}.md`)
+    // Generate a new filename based on the title and noteId
+    const newFileName = getSafeFileName(title, noteId);
+    const newFilePath = path.join(saveLocation, newFileName);
+    console.log(`[Main Process] New file path: ${newFilePath}`);
 
-    // Check if the title has changed and we need to rename the file
-    console.log('Checking for title change:', { oldTitle, newTitle: title });
-    if (oldTitle && oldTitle !== title && oldTitle.trim()) {
-      const oldSafeTitle = oldTitle.trim().replace(/[^a-z0-9]/gi, '_').toLowerCase()
-      const oldFilePath = path.join(saveLocation, `${oldSafeTitle}.md`)
+    if (isNewNote) {
+      // This is a brand new note or a "Untitled Note" being saved for the first time
+      console.log(`[Main Process] Creating new note file: ${newFilePath} for ID: ${noteId}`);
+      await fs.writeFile(newFilePath, content);
 
-      console.log('Title changed, handling file rename:', {
-        oldTitle,
-        newTitle: title,
-        oldFilePath,
-        newFilePath: filePath
-      })
+      // Update the registry with the new file path
+      noteFileRegistry.set(noteId, newFilePath);
 
-      // Check if old file exists and rename it
-      if (fs.existsSync(oldFilePath) && oldFilePath !== filePath) {
+      return { success: true, filePath: newFilePath, newNoteId: noteId };
+    } else {
+      // Existing note logic (update or rename)
+      let finalFilePath = currentFilePath;
+
+      // If we have a current file path and the filename needs to change
+      if (currentFilePath && path.basename(currentFilePath) !== newFileName && path.dirname(currentFilePath) === saveLocation) {
+        console.log(`[Main Process] Title changed, need to rename file from ${path.basename(currentFilePath)} to ${newFileName}`);
+
         try {
-          console.log(`Renaming file from ${oldFilePath} to ${filePath}`)
-          // Rename the file instead of deleting and creating a new one
-          fs.renameSync(oldFilePath, filePath)
-          console.log('File renamed successfully')
+          // Check if the target file already exists (could happen with duplicate titles)
+          const newFileExists = await fs.stat(newFilePath).catch(() => null);
+
+          if (newFileExists) {
+            console.warn(`[Main Process] Target file ${newFilePath} already exists. Overwriting current file instead of renaming.`);
+            // We'll proceed to write to the new path, effectively overwriting if it's the same ID
+          } else {
+            // Rename the file
+            await fs.rename(currentFilePath, newFilePath);
+            console.log(`[Main Process] Renamed note file from ${currentFilePath} to ${newFilePath}`);
+          }
+
+          // Update the final path and registry
+          finalFilePath = newFilePath;
+          noteFileRegistry.set(noteId, newFilePath);
         } catch (renameErr) {
-          console.error('Error renaming file:', renameErr)
-          // If rename fails, we'll create a new file below
+          console.error('[Main Process] Error renaming file:', renameErr);
+          // If rename fails, we'll try to write to the new path directly
+          finalFilePath = newFilePath;
+        }
+      } else if (!currentFilePath) {
+        // This case handles notes that might have been created before the UUID system,
+        // or if the registry somehow got reset/lost for an existing note
+        console.log(`[Main Process] No existing file found in registry for ID ${noteId}. Searching directory...`);
+
+        try {
+          // Try to find the file by looking for files that might contain the noteId
+          const files = await fs.readdir(saveLocation);
+          const possibleOldFile = files.find(f => f.includes(noteId));
+
+          if (possibleOldFile) {
+            const oldPath = path.join(saveLocation, possibleOldFile);
+            console.log(`[Main Process] Found possible matching file: ${oldPath}`);
+
+            if (path.basename(oldPath) !== newFileName) {
+              // Rename the file if the name needs to change
+              await fs.rename(oldPath, newFilePath);
+              console.log(`[Main Process] Renamed fallback note file from ${oldPath} to ${newFilePath}`);
+              finalFilePath = newFilePath;
+            } else {
+              // File name hasn't changed, just update content
+              finalFilePath = oldPath;
+            }
+          } else {
+            console.warn(`[Main Process] No existing file found on disk for ID ${noteId}. Creating new file.`);
+            // This might happen if a note was opened/edited but then its file was manually deleted
+            finalFilePath = newFilePath;
+          }
+        } catch (searchErr) {
+          console.error('[Main Process] Error searching for existing file:', searchErr);
+          finalFilePath = newFilePath;
         }
       } else {
-        console.log('Cannot rename file:', {
-          oldFileExists: fs.existsSync(oldFilePath),
-          pathsEqual: oldFilePath === filePath,
-          oldFilePath,
-          newFilePath: filePath
-        })
+        // The file exists and the name hasn't changed, or it's in a different directory
+        console.log(`[Main Process] Using existing file path: ${currentFilePath}`);
+        finalFilePath = currentFilePath;
       }
-    } else {
-      console.log('No title change detected or invalid old title:', {
-        hasOldTitle: !!oldTitle,
-        titlesEqual: oldTitle === title,
-        oldTitleTrimmed: oldTitle ? oldTitle.trim() : null
-      });
+
+      // Write the updated content to the final file path
+      console.log(`[Main Process] Writing content to: ${finalFilePath}`);
+      await fs.writeFile(finalFilePath || newFilePath, content);
+
+      // Update the registry with the final path
+      noteFileRegistry.set(noteId, finalFilePath || newFilePath);
+
+      return {
+        success: true,
+        filePath: finalFilePath || newFilePath,
+        newNoteId: noteId
+      };
     }
-
-    // Write the file (either new file or update existing)
-    console.log('Writing to file path:', filePath)
-    fs.writeFileSync(filePath, content, 'utf8')
-    console.log('File written successfully')
-
-    return { success: true, filePath }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Error saving note to file:', error)
-    return { success: false, error: errorMessage }
+    console.error('[Main Process] Error saving note to file:', error);
+    return { success: false, error: errorMessage };
   }
 })
 
-ipcMain.handle('delete-note-file', async (_, noteId, title, saveLocation) => {
+ipcMain.handle('delete-note-file', async (_, noteId: string, _title: string, saveLocation: string) => {
+  console.log('[Main Process] Deleting note file:', { noteId, saveLocation });
   try {
-    // Create a safe filename from the title or use 'untitled_note' if title is empty
-    const safeTitle = title && title.trim() ?
-      title.trim().replace(/[^a-z0-9]/gi, '_').toLowerCase() :
-      'untitled_note_' + noteId.substring(0, 8)
+    // Get the file path from the registry
+    const filePathToDelete = noteFileRegistry.get(noteId);
+    console.log(`[Main Process] File path from registry: ${filePathToDelete || 'Not found'}`);
 
-    console.log('Creating filename from title:', { title, safeTitle })
+    if (!filePathToDelete) {
+      console.warn(`[Main Process] Attempted to delete note (ID: ${noteId}) but no file path found in registry.`);
 
-    // Create the full path
-    const filePath = path.join(saveLocation, `${safeTitle}.md`)
+      // Fallback: search the directory for files that might match the ID
+      try {
+        const files = await fs.readdir(saveLocation);
+        const possibleFile = files.find(file => file.includes(noteId));
 
-    // Check if file exists before deleting
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath)
+        if (possibleFile) {
+          const fullPath = path.join(saveLocation, possibleFile);
+          console.log(`[Main Process] Found possible matching file: ${fullPath}`);
+
+          // Delete the file
+          await fs.unlink(fullPath);
+          console.log(`[Main Process] Fallback deleted note file: ${fullPath} for ID: ${noteId}`);
+
+          // Remove from registry if it was somehow there with a different path
+          noteFileRegistry.delete(noteId);
+
+          return { success: true };
+        }
+
+        return { success: false, error: `File for note ID ${noteId} not found in directory.` };
+      } catch (searchErr) {
+        console.error('[Main Process] Error searching for file to delete:', searchErr);
+        return { success: false, error: `Error searching for file: ${searchErr instanceof Error ? searchErr.message : 'Unknown error'}` };
+      }
     }
 
-    return { success: true }
+    // Delete the file
+    await fs.unlink(filePathToDelete);
+    console.log(`[Main Process] Deleted note file: ${filePathToDelete} for ID: ${noteId}`);
+
+    // Remove from registry
+    noteFileRegistry.delete(noteId);
+
+    return { success: true };
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Error deleting note file:', error)
-    return { success: false, error: errorMessage }
+    console.error('[Main Process] Error deleting note file:', error);
+    return { success: false, error: errorMessage };
   }
 })
 
 // List all markdown files in a directory
 ipcMain.handle('list-note-files', async (_, directoryPath) => {
+  console.log(`[Main Process] Listing note files in directory: ${directoryPath}`);
   try {
-    if (!fs.existsSync(directoryPath)) {
-      return []
+    if (!fsSync.existsSync(directoryPath)) {
+      console.log(`[Main Process] Directory does not exist: ${directoryPath}`);
+      return [];
     }
 
-    const files = fs.readdirSync(directoryPath)
-    const markdownFiles = files.filter(file => file.endsWith('.md'))
+    const files = await fs.readdir(directoryPath);
+    const markdownFiles = files.filter(file => file.endsWith('.md'));
+    console.log(`[Main Process] Found ${markdownFiles.length} markdown files`);
 
-    return Promise.all(markdownFiles.map(async (fileName) => {
-      const filePath = path.join(directoryPath, fileName)
-      const stats = fs.statSync(filePath)
+    // Clear the registry before repopulating it
+    noteFileRegistry.clear();
 
-      // For simplicity, we'll use the filename without extension as the ID
-      // This ensures that when we search for a file by ID, we can find it
-      const id = fileName.replace(/\.md$/, '')
-      console.log('Generated ID from filename:', { fileName, id })
+    const noteFiles = [];
+    for (const fileName of markdownFiles) {
+      try {
+        const filePath = path.join(directoryPath, fileName);
+        const stats = await fs.stat(filePath);
 
-      return {
-        name: fileName,
-        path: filePath,
-        id,
-        createdAt: stats.birthtime,
-        modifiedAt: stats.mtime
+        // Default ID from filename (fallback)
+        let fileId = fileName.replace(/\.md$/, '');
+        let parsedMetadata = {};
+
+        try {
+          // Read the file content to extract metadata
+          const fileContent = await fs.readFile(filePath, 'utf8');
+          const { metadata } = parseMetadataFromFileContent(fileContent);
+
+          // If we have an embedded ID in the metadata, use that instead
+          if (metadata.id) {
+            fileId = metadata.id as string;
+            console.log(`[Main Process] Using embedded ID from metadata: ${fileId} for file: ${fileName}`);
+          } else {
+            console.log(`[Main Process] No embedded ID found, using filename-derived ID: ${fileId} for file: ${fileName}`);
+          }
+
+          parsedMetadata = metadata;
+        } catch (readError) {
+          console.warn(`[Main Process] Could not read or parse metadata from ${filePath}:`, readError);
+          // Continue with filename as ID if metadata parsing fails
+        }
+
+        // Add to the registry
+        noteFileRegistry.set(fileId, filePath);
+
+        // Add to the result list
+        noteFiles.push({
+          id: fileId,
+          name: fileName,
+          path: filePath,
+          createdAt: stats.birthtime,
+          modifiedAt: stats.mtime,
+          // Include metadata for easier access in noteService
+          metadata: parsedMetadata
+        });
+      } catch (fileError) {
+        console.error(`[Main Process] Error processing file ${fileName}:`, fileError);
+        // Skip this file and continue with others
       }
-    }))
+    }
+
+    console.log(`[Main Process] Processed ${noteFiles.length} note files. Registry size: ${noteFileRegistry.size}`);
+    return noteFiles;
   } catch (error: unknown) {
-    console.error('Error listing note files:', error)
-    return []
+    console.error('[Main Process] Error listing note files:', error);
+    return [];
   }
 })
 
 // Read a markdown file
 ipcMain.handle('read-note-file', async (_, filePath) => {
+  console.log(`[Main Process] Reading note file: ${filePath}`);
   try {
-    if (!fs.existsSync(filePath)) {
-      throw new Error(`File not found: ${filePath}`)
+    if (!fsSync.existsSync(filePath)) {
+      console.error(`[Main Process] File not found: ${filePath}`);
+      throw new Error(`File not found: ${filePath}`);
     }
 
-    const content = fs.readFileSync(filePath, 'utf8')
-    return content
+    const content = await fs.readFile(filePath, 'utf8');
+
+    // Parse the content to extract metadata
+    const { metadata } = parseMetadataFromFileContent(content);
+
+    // If the metadata contains an ID, make sure it's in the registry
+    if (metadata.id) {
+      const noteId = metadata.id as string;
+
+      // Update the registry if needed
+      if (!noteFileRegistry.has(noteId) || noteFileRegistry.get(noteId) !== filePath) {
+        console.log(`[Main Process] Updating registry for ID ${noteId} with path ${filePath}`);
+        noteFileRegistry.set(noteId, filePath);
+      }
+    }
+
+    return content;
   } catch (error: unknown) {
-    console.error('Error reading note file:', error)
-    throw error
+    console.error('[Main Process] Error reading note file:', error);
+    throw error;
+  }
+})
+
+// Collection file operation handlers
+ipcMain.handle('save-collections-file', async (_, collectionsData: string, saveLocation: string) => {
+  console.log('[Main Process] Saving collections to file:', { saveLocation });
+  try {
+    if (!saveLocation) {
+      throw new Error('Save location is required');
+    }
+
+    // Ensure the save location directory exists
+    if (!fsSync.existsSync(saveLocation)) {
+      console.log(`[Main Process] Creating save location directory: ${saveLocation}`);
+      await fs.mkdir(saveLocation, { recursive: true });
+    }
+
+    // Define the collections file path
+    const collectionsFilePath = path.join(saveLocation, 'collections.json');
+    
+    console.log(`[Main Process] Writing collections to: ${collectionsFilePath}`);
+    
+    // Write the collections data to file
+    await fs.writeFile(collectionsFilePath, collectionsData, 'utf8');
+    
+    console.log('[Main Process] Collections file saved successfully');
+    return { success: true, filePath: collectionsFilePath };
+  } catch (error: unknown) {
+    console.error('[Main Process] Error saving collections file:', error);
+    throw error;
+  }
+})
+
+ipcMain.handle('read-collections-file', async (_, saveLocation: string) => {
+  console.log('[Main Process] Reading collections from file:', { saveLocation });
+  try {
+    if (!saveLocation) {
+      console.log('[Main Process] No save location provided');
+      return null;
+    }
+
+    const collectionsFilePath = path.join(saveLocation, 'collections.json');
+    
+    // Check if the collections file exists
+    if (!fsSync.existsSync(collectionsFilePath)) {
+      console.log(`[Main Process] Collections file not found: ${collectionsFilePath}`);
+      return null;
+    }
+
+    console.log(`[Main Process] Reading collections from: ${collectionsFilePath}`);
+    
+    // Read the collections data from file
+    const collectionsData = await fs.readFile(collectionsFilePath, 'utf8');
+    
+    console.log('[Main Process] Collections file read successfully');
+    return collectionsData;
+  } catch (error: unknown) {
+    console.error('[Main Process] Error reading collections file:', error);
+    throw error;
   }
 })
 
@@ -880,13 +1401,234 @@ ipcMain.handle('get-auto-launch', async () => {
   }
 })
 
+// Sync settings from renderer to main process
+ipcMain.handle('sync-settings', (_, inputSettings) => {
+  try {
+    console.log('Syncing settings from renderer to main process:', inputSettings);
+
+    // Validate input to prevent type safety issues
+    if (typeof inputSettings !== 'object' || inputSettings === null) {
+      console.error('sync-settings: received non-object payload', inputSettings);
+      return false;
+    }
+
+    // Create a normalized settings object using an immutable approach
+    const normalisedSettings: SettingsType = {
+      ...inputSettings,
+      globalHotkeys: {
+        ...DEFAULT_GLOBAL_HOTKEYS,
+        ...(inputSettings.globalHotkeys && typeof inputSettings.globalHotkeys === 'object' ?
+          // Filter out undefined/null values from user settings
+          Object.fromEntries(
+            Object.entries(inputSettings.globalHotkeys)
+              .filter(([, value]) => value !== undefined && value !== null)
+          )
+          : {}
+        )
+      }
+    };
+
+    console.log('Created normalized settings with proper global hotkeys');
+
+    // Create a settings store if it doesn't exist
+    const settingsStore = new Store({ name: 'settings' });
+
+    // Save the normalized settings object
+    settingsStore.set('settings', normalisedSettings);
+
+    console.log('Settings synced successfully');
+
+    // Unregister all shortcuts
+    globalShortcut.unregisterAll();
+
+    // Register them again with new settings
+    registerGlobalHotkeys();
+
+    // Verify that the hotkeys were registered
+    const globalHotkeys = normalisedSettings.globalHotkeys;
+    if (globalHotkeys) {
+      const newNoteRegistered = globalHotkeys.newNote ?
+        globalShortcut.isRegistered(formatAccelerator(globalHotkeys.newNote)) : false;
+
+      // Use toggleApp if available, otherwise fall back to showApp
+      const toggleAppHotkey = globalHotkeys.toggleApp || globalHotkeys.showApp;
+      const toggleAppRegistered = toggleAppHotkey ?
+        globalShortcut.isRegistered(formatAccelerator(toggleAppHotkey)) : false;
+
+      console.log('Hotkey registration verification:', {
+        newNote: globalHotkeys.newNote,
+        newNoteRegistered,
+        toggleApp: toggleAppHotkey,
+        toggleAppRegistered
+      });
+
+      // If hotkeys failed to register, try again
+      if ((globalHotkeys.newNote && !newNoteRegistered) ||
+          (toggleAppHotkey && !toggleAppRegistered)) {
+        console.warn('Some hotkeys failed to register. Trying again...');
+
+        // Try unregistering again to be sure
+        globalShortcut.unregisterAll();
+
+        // And register again
+        registerGlobalHotkeys();
+
+        // Final verification
+        const finalNewNoteRegistered = globalHotkeys.newNote ?
+          globalShortcut.isRegistered(formatAccelerator(globalHotkeys.newNote)) : false;
+        const finalToggleAppRegistered = toggleAppHotkey ?
+          globalShortcut.isRegistered(formatAccelerator(toggleAppHotkey)) : false;
+
+        console.log('Final hotkey registration verification:', {
+          newNote: globalHotkeys.newNote,
+          newNoteRegistered: finalNewNoteRegistered,
+          toggleApp: toggleAppHotkey,
+          toggleAppRegistered: finalToggleAppRegistered
+        });
+      }
+    }
+
+    // Double-check that the settings were actually saved to the store
+    const savedSettings = settingsStore.get('settings');
+    console.log('Verification - settings in store after sync:', savedSettings);
+
+    // Ensure the saved settings match what was passed in
+    if (savedSettings && normalisedSettings.globalHotkeys &&
+        (savedSettings as SettingsType).globalHotkeys) {
+      const savedHotkeys = (savedSettings as SettingsType).globalHotkeys;
+
+      // Check if the required properties match, handling optional properties
+      const settingsMatch =
+        (savedHotkeys?.newNote === normalisedSettings.globalHotkeys?.newNote) &&
+        (savedHotkeys?.toggleApp === normalisedSettings.globalHotkeys?.toggleApp);
+
+      console.log(`Verification - settings match what was sent: ${settingsMatch}`);
+
+      if (!settingsMatch) {
+        console.warn('Settings in store do not match what was sent. Saving again...');
+        settingsStore.set('settings', normalisedSettings);
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error syncing settings:', error);
+    return false;
+  }
+});
+
+// Get settings from main process
+ipcMain.handle('get-main-process-settings', () => {
+  try {
+    const settingsStore = new Store({ name: 'settings' });
+    const settings = settingsStore.get('settings');
+    console.log('Retrieved settings from main process:', settings);
+
+    // Validate settings to ensure we're returning a proper object
+    if (typeof settings !== 'object' || settings === null) {
+      console.error('get-main-process-settings: retrieved non-object settings', settings);
+      return {};
+    }
+
+    return settings;
+  } catch (error) {
+    console.error('Error getting main process settings:', error);
+    return {};
+  }
+});
+
 // Update global hotkeys when settings change
-ipcMain.on('settings-updated', () => {
-  // Unregister all shortcuts
-  globalShortcut.unregisterAll()
+ipcMain.on('settings-updated', (event) => {
+  console.log('Received settings-updated event');
+
+  // Get the sender window to send acknowledgment
+  const senderWindow = BrowserWindow.fromWebContents(event.sender);
+
+  // One call is sufficient - it clears every shortcut registered by this app
+  console.log('Unregistering all shortcuts due to settings update');
+  globalShortcut.unregisterAll();
+
+  // Get the latest settings
+  const settingsStore = new Store({ name: 'settings' });
+  const inputSettings = settingsStore.get('settings') as SettingsType || {};
+
+  console.log('Retrieved latest settings for hotkey registration:',
+    inputSettings.globalHotkeys ? JSON.stringify(inputSettings.globalHotkeys, null, 2) : 'No global hotkeys found');
+
+  // Validate input to prevent type safety issues
+  if (typeof inputSettings !== 'object' || inputSettings === null) {
+    console.error('settings-updated: retrieved non-object settings', inputSettings);
+    // Send acknowledgment back to the sender window even on error
+    if (senderWindow && !senderWindow.isDestroyed()) {
+      senderWindow.webContents.send('settings-update-acknowledged', false);
+    }
+    return;
+  }
+
+  // Create a normalized settings object using an immutable approach
+  const normalisedSettings: SettingsType = {
+    ...inputSettings,
+    globalHotkeys: {
+      ...DEFAULT_GLOBAL_HOTKEYS,
+      ...(inputSettings.globalHotkeys && typeof inputSettings.globalHotkeys === 'object' ?
+        // Filter out undefined/null values from user settings
+        Object.fromEntries(
+          Object.entries(inputSettings.globalHotkeys)
+            .filter(([, value]) => value !== undefined && value !== null)
+        )
+        : {}
+      )
+    }
+  };
+
+  console.log('Created normalized settings with proper global hotkeys');
+
+  // Save the normalized settings
+  settingsStore.set('settings', normalisedSettings);
 
   // Register them again with new settings
-  registerGlobalHotkeys()
+  registerGlobalHotkeys();
+
+  // Send acknowledgment back to the sender window
+  if (senderWindow && !senderWindow.isDestroyed()) {
+    senderWindow.webContents.send('settings-update-acknowledged', true);
+  }
+
+  // Verify registration
+  if (normalisedSettings.globalHotkeys) {
+    const newNoteHotkey = normalisedSettings.globalHotkeys.newNote;
+    // Use toggleApp if available, otherwise fall back to showApp
+    const toggleAppHotkey = normalisedSettings.globalHotkeys.toggleApp || normalisedSettings.globalHotkeys.showApp;
+
+    // Verify new note hotkey registration
+    if (newNoteHotkey) {
+      const formattedHotkey = formatAccelerator(newNoteHotkey);
+      const isRegistered = globalShortcut.isRegistered(formattedHotkey);
+      console.log(`New note hotkey ${newNoteHotkey} (formatted: ${formattedHotkey}) registered: ${isRegistered}`);
+
+      // Check if default is still registered
+      if (DEFAULT_GLOBAL_HOTKEYS.newNote) {
+        const defaultRegistered = globalShortcut.isRegistered(DEFAULT_GLOBAL_HOTKEYS.newNote);
+        console.log(`Default new note hotkey still registered: ${defaultRegistered}`);
+      }
+    }
+
+    // Verify toggle app hotkey registration
+    if (toggleAppHotkey) {
+      const formattedHotkey = formatAccelerator(toggleAppHotkey);
+      const isRegistered = globalShortcut.isRegistered(formattedHotkey);
+      console.log(`Toggle app hotkey ${toggleAppHotkey} (formatted: ${formattedHotkey}) registered: ${isRegistered}`);
+
+      // Check if default is still registered
+      if (DEFAULT_GLOBAL_HOTKEYS.toggleApp) {
+        const defaultRegistered = globalShortcut.isRegistered(DEFAULT_GLOBAL_HOTKEYS.toggleApp);
+        console.log(`Default toggle app hotkey still registered: ${defaultRegistered}`);
+      }
+    }
+  }
+
+  // Log all registered shortcuts
+  console.log('All registered shortcuts after update completed');
 })
 
 // Handle theme changes
@@ -921,7 +1663,7 @@ if (process.platform === 'darwin' && app.dock) {
     console.log('Setting dock icon with new rounded PNG path:', pngIconPath)
 
     // Check if the file exists
-    if (fs.existsSync(pngIconPath)) {
+    if (fsSync.existsSync(pngIconPath)) {
       // Create a native image from the PNG file
       const dockIcon = nativeImage.createFromPath(pngIconPath)
 
@@ -933,7 +1675,7 @@ if (process.platform === 'darwin' && app.dock) {
 
         // Try with the original icon as a last resort
         const originalIconPath = path.join(process.env.APP_ROOT, 'src/assets/icon2-512.png')
-        if (fs.existsSync(originalIconPath)) {
+        if (fsSync.existsSync(originalIconPath)) {
           const originalIcon = nativeImage.createFromPath(originalIconPath)
           app.dock.setIcon(originalIcon)
         }
@@ -943,7 +1685,7 @@ if (process.platform === 'darwin' && app.dock) {
 
       // Try with the original icon as a last resort
       const originalIconPath = path.join(process.env.APP_ROOT, 'src/assets/icon2-512.png')
-      if (fs.existsSync(originalIconPath)) {
+      if (fsSync.existsSync(originalIconPath)) {
         const originalIcon = nativeImage.createFromPath(originalIconPath)
         app.dock.setIcon(originalIcon)
       }
@@ -959,7 +1701,7 @@ app.whenReady().then(() => {
   if (process.platform === 'darwin' && app.dock) {
     try {
       const pngIconPath = path.join(process.env.APP_ROOT, 'src/assets/icon2-512.png')
-      if (fs.existsSync(pngIconPath)) {
+      if (fsSync.existsSync(pngIconPath)) {
         const dockIcon = nativeImage.createFromPath(pngIconPath)
         app.dock.setIcon(dockIcon)
         console.log('Dock icon set again when app is ready')
@@ -977,12 +1719,4 @@ app.whenReady().then(() => {
 
   // Register global hotkeys
   registerGlobalHotkeys()
-})
-
-// Handle the before-quit event
-app.on('before-quit', () => {
-  isQuitting = true
-
-  // Unregister all shortcuts
-  globalShortcut.unregisterAll()
 })

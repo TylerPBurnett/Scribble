@@ -1,20 +1,8 @@
 import { FormControl, FormDescription, FormField, FormItem, FormLabel } from '@/components/ui/form';
 import { Switch } from '@/components/ui/switch';
-import { Input } from '@/components/ui/input';
 import { UseFormReturn } from 'react-hook-form';
-import { z } from 'zod';
-import { AppSettings } from '../../shared/services/settingsService';
 import { ThemeName } from '../../shared/services/themeService';
-
-// Define the form schema with Zod
-const formSchema = z.object({
-  autoLaunch: z.boolean(),
-  minimizeToTray: z.boolean(),
-  globalHotkeys: z.object({
-    newNote: z.string(),
-    showApp: z.string(),
-  }),
-});
+import { GlobalHotkeyEditor } from './GlobalHotkeyEditor';
 
 type SystemSectionProps = {
   form: UseFormReturn<any>;
@@ -22,6 +10,39 @@ type SystemSectionProps = {
 };
 
 export function SystemSection({ form, theme = 'dim' }: SystemSectionProps) {
+  // Handle global hotkey changes
+  const handleGlobalHotkeyChange = (field: any, value: string) => {
+    // Update the form field
+    field.onChange(value);
+
+    // Get the current form values
+    const formValues = form.getValues();
+
+    // Force immediate update of global hotkeys in main process
+    console.log('Global hotkey changed, updating main process immediately');
+    console.log('Current form values:', formValues);
+
+    // Only update if we have the necessary hotkeys
+    // Make sure we have at least the newNote hotkey
+    if (formValues.globalHotkeys?.newNote) {
+      // Ensure we have both toggleApp and showApp properties for backward compatibility
+      if (formValues.globalHotkeys.toggleApp && !formValues.globalHotkeys.showApp) {
+        formValues.globalHotkeys.showApp = formValues.globalHotkeys.toggleApp;
+      } else if (formValues.globalHotkeys.showApp && !formValues.globalHotkeys.toggleApp) {
+        formValues.globalHotkeys.toggleApp = formValues.globalHotkeys.showApp;
+      }
+
+      window.settings.syncSettings(formValues as Record<string, unknown>)
+        .then(success => {
+          console.log('Settings synced from SystemSection:', success);
+          window.settings.settingsUpdated();
+          console.log('Notified main process to update hotkeys');
+        })
+        .catch(error => {
+          console.error('Error syncing settings from SystemSection:', error);
+        });
+    }
+  };
   return (
     <div className="space-y-6 backdrop-blur-sm p-6">
       <h3 className={`text-2xl font-semibold border-b border-border/50 pb-4 ${theme === 'light' ? 'text-black' : 'text-foreground'}`}>System Integration</h3>
@@ -95,41 +116,33 @@ export function SystemSection({ form, theme = 'dim' }: SystemSectionProps) {
           control={form.control}
           name="globalHotkeys.newNote"
           render={({ field }) => (
-            <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border/30 p-5 backdrop-blur-sm bg-black/20">
-              <div className="space-y-2">
-                <FormLabel className={`text-base font-medium ${theme === 'light' ? 'text-black' : 'text-foreground'}`}>New Note</FormLabel>
-                <FormDescription className={`text-sm ${theme === 'light' ? 'text-black/70' : 'text-muted-foreground'}`}>
-                  Global hotkey to create a new note
-                </FormDescription>
-              </div>
+            <FormItem>
               <FormControl>
-                <Input
-                  {...field}
-                  className={`w-48 bg-secondary border border-border/50 focus:border-primary/50 focus:ring-1 focus:ring-primary/30 shadow-sm font-mono ${theme === 'light' ? 'text-black' : 'text-secondary-foreground'}`}
-                  placeholder="e.g. CommandOrControl+Alt+N"
+                <GlobalHotkeyEditor
+                  label="New Note"
+                  description="Global hotkey to create a new note"
+                  currentValue={field.value}
+                  onChange={(value) => handleGlobalHotkeyChange(field, value)}
+                  theme={theme}
                 />
               </FormControl>
             </FormItem>
           )}
         />
 
-        {/* Show App Global Hotkey */}
+        {/* Toggle App Global Hotkey */}
         <FormField
           control={form.control}
-          name="globalHotkeys.showApp"
+          name="globalHotkeys.toggleApp"
           render={({ field }) => (
-            <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border/30 p-5 backdrop-blur-sm bg-black/20">
-              <div className="space-y-2">
-                <FormLabel className={`text-base font-medium ${theme === 'light' ? 'text-black' : 'text-foreground'}`}>Show App</FormLabel>
-                <FormDescription className={`text-sm ${theme === 'light' ? 'text-black/70' : 'text-muted-foreground'}`}>
-                  Global hotkey to show the main window
-                </FormDescription>
-              </div>
+            <FormItem>
               <FormControl>
-                <Input
-                  {...field}
-                  className={`w-48 bg-secondary border border-border/50 focus:border-primary/50 focus:ring-1 focus:ring-primary/30 shadow-sm font-mono ${theme === 'light' ? 'text-black' : 'text-secondary-foreground'}`}
-                  placeholder="e.g. CommandOrControl+Alt+S"
+                <GlobalHotkeyEditor
+                  label="Toggle App"
+                  description="Global hotkey to show or hide the main window"
+                  currentValue={field.value}
+                  onChange={(value) => handleGlobalHotkeyChange(field, value)}
+                  theme={theme}
                 />
               </FormControl>
             </FormItem>

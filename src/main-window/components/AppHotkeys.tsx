@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { AppSettings } from '../../shared/services/settingsService';
 import { useAppHotkeys } from '../../shared/hooks/useAppHotkeys';
-import { HotkeyAction } from '../../shared/services/hotkeyService';
+// import { HotkeyAction } from '../../shared/services/hotkeyService';
 
 interface AppHotkeysProps {
   settings: AppSettings;
