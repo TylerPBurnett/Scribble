@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Note } from '../../shared/types/Note';
 import { deleteNote, updateNote } from '../../shared/services/noteService';
+import NoteCollectionManager from './NoteCollectionManager';
 
 interface NoteCardProps {
   note: Note;
@@ -8,12 +9,16 @@ interface NoteCardProps {
   isActive?: boolean;
   onDelete?: (noteId: string) => void;
   isPinned?: boolean;
+  isFavorite?: boolean;
+  onCollectionUpdate?: () => void;
+  allNotes?: Note[]; // Add allNotes prop for collection count updates
 }
 
-const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false }: NoteCardProps) => {
+const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false, isFavorite = false, onCollectionUpdate, allNotes = [] }: NoteCardProps) => {
   const [showMenu, setShowMenu] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [showCollectionManager, setShowCollectionManager] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [isContextMenu, setIsContextMenu] = useState(false);
   // Refs for DOM elements
@@ -82,6 +87,10 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false 
     const colorIndex = parseInt(lastChar, 16) % colors.length || 0; // Default to 0 if NaN
     return colors[colorIndex];
   };
+
+  // Check if the note is favorited or pinned
+  const isFavoriteNote = isFavorite || note.favorite;
+  const isPinnedNote = isPinned || note.pinned;
 
   // Toggle dropdown menu
   const toggleMenu = (e: React.MouseEvent) => {
@@ -298,7 +307,74 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false 
               <span>Duplicate</span>
             </button>
             <button
-              className={`flex items-center gap-2 w-full px-3 py-2 bg-transparent border-none ${isPinned ? 'text-amber-500' : 'text-text-secondary'} text-left cursor-pointer transition-colors hover:bg-background-notes/30`}
+              className="flex items-center gap-2 w-full px-3 py-2 bg-transparent border-none text-text-secondary text-left cursor-pointer transition-colors hover:bg-background-notes/30"
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                setShowMenu(false);
+                setIsContextMenu(false);
+                // Small delay to ensure menu is closed before action
+                setTimeout(() => {
+                  setShowCollectionManager(true);
+                }, 10);
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              <span>Organize</span>
+            </button>
+            <button
+              className={`flex items-center gap-2 w-full px-3 py-2 bg-transparent border-none ${isFavoriteNote ? 'text-amber-500' : 'text-text-secondary'} text-left cursor-pointer transition-colors hover:bg-background-notes/30`}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                setShowMenu(false);
+                setIsContextMenu(false);
+                // Small delay to ensure menu is closed before action
+                setTimeout(() => {
+                  // Toggle favorite state
+                  // Create a deep copy of the note to ensure we don't lose any properties
+                  const updatedNote = {
+                    ...note,
+                    favorite: !isFavoriteNote,
+                    // Ensure content is preserved exactly as it was
+                    content: note.content
+                  };
+                  // Update the note in the database
+                  updateNote(updatedNote).then(() => {
+                    // Notify other windows that this note has been updated with the specific property
+                    // This allows the main window to update its state without a full reload
+                    window.noteWindow.noteUpdated(note.id, { favorite: !isFavoriteNote });
+                  });
+                }, 10);
+              }}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill={isFavoriteNote ? "currentColor" : "none"}
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+              </svg>
+              <span>{isFavoriteNote ? 'Unfavorite' : 'Favorite'}</span>
+            </button>
+
+            <button
+              className={`flex items-center gap-2 w-full px-3 py-2 bg-transparent border-none ${isPinnedNote ? 'text-amber-500' : 'text-text-secondary'} text-left cursor-pointer transition-colors hover:bg-background-notes/30`}
               onMouseDown={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
@@ -314,16 +390,15 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false 
                   // Create a deep copy of the note to ensure we don't lose any properties
                   const updatedNote = {
                     ...note,
-                    pinned: !isPinned,
+                    pinned: !isPinnedNote,
                     // Ensure content is preserved exactly as it was
                     content: note.content
                   };
                   // Update the note in the database
                   updateNote(updatedNote).then(() => {
-                    // Notify other windows that this note has been updated
-                    window.noteWindow.noteUpdated(note.id);
-                    // Reload the main window to reflect the changes
-                    window.location.reload();
+                    // Notify other windows that this note has been updated with the specific property
+                    // This allows the main window to update its state without a full reload
+                    window.noteWindow.noteUpdated(note.id, { pinned: !isPinnedNote });
                   });
                 }, 10);
               }}
@@ -332,7 +407,7 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false 
                 width="14"
                 height="14"
                 viewBox="0 0 24 24"
-                fill={isPinned ? "currentColor" : "none"}
+                fill={isPinnedNote ? "currentColor" : "none"}
                 stroke="currentColor"
                 strokeWidth="2"
                 strokeLinecap="round"
@@ -341,7 +416,7 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false 
                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
                 <circle cx="12" cy="10" r="3"></circle>
               </svg>
-              <span>{isPinned ? 'Unpin' : 'Pin'}</span>
+              <span>{isPinnedNote ? 'Remove Float' : 'Float on Top'}</span>
             </button>
             <button
               className="flex items-center gap-2 w-full px-3 py-2 bg-transparent border-none text-text-secondary text-left cursor-pointer transition-colors hover:bg-background-notes/30"
@@ -400,6 +475,7 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false 
         className={`note-card ${colorInfo.className} ${isActive ? 'selected' : ''} rounded-xl overflow-hidden flex flex-col ${colorInfo.border} border-l-3 shadow-sm transition-all duration-200 cursor-pointer h-note-card
           hover:translate-y-[-2px] hover:shadow-md group`}
         onClick={() => onClick(note)}
+        tabIndex={-1}
         onContextMenu={handleContextMenu}
         style={{
           backgroundColor: colorStyle.backgroundColor,
@@ -415,8 +491,14 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false 
           {note.title || 'Untitled Note'}
         </h3>
         <div className="note-actions flex items-center gap-1 relative">
+          {/* Favorite icon */}
+          {isFavoriteNote && (
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="favorite-icon text-amber-500">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+            </svg>
+          )}
           {/* Pin icon */}
-          {isPinned && (
+          {isPinnedNote && (
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="pin-icon text-primary">
               <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
               <circle cx="12" cy="10" r="3"></circle>
@@ -500,7 +582,74 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false 
                 <span>Duplicate</span>
               </button>
               <button
-                className={`flex items-center gap-2 w-full px-3 py-2 bg-transparent border-none ${isPinned ? 'text-amber-500' : 'text-text-secondary'} text-left cursor-pointer transition-colors hover:bg-background-notes/30`}
+                className="flex items-center gap-2 w-full px-3 py-2 bg-transparent border-none text-text-secondary text-left cursor-pointer transition-colors hover:bg-background-notes/30"
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  setShowMenu(false);
+                  setIsContextMenu(false);
+                  // Small delay to ensure menu is closed before action
+                  setTimeout(() => {
+                    setShowCollectionManager(true);
+                  }, 10);
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                <span>Organize</span>
+              </button>
+              <button
+                className={`flex items-center gap-2 w-full px-3 py-2 bg-transparent border-none ${isFavoriteNote ? 'text-amber-500' : 'text-text-secondary'} text-left cursor-pointer transition-colors hover:bg-background-notes/30`}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  setShowMenu(false);
+                  setIsContextMenu(false);
+                  // Small delay to ensure menu is closed before action
+                  setTimeout(() => {
+                    // Toggle favorite state
+                    // Create a deep copy of the note to ensure we don't lose any properties
+                    const updatedNote = {
+                      ...note,
+                      favorite: !isFavoriteNote,
+                      // Ensure content is preserved exactly as it was
+                      content: note.content
+                    };
+                    // Update the note in the database
+                    updateNote(updatedNote).then(() => {
+                      // Notify other windows that this note has been updated with the specific property
+                      // This allows the main window to update its state without a full reload
+                      window.noteWindow.noteUpdated(note.id, { favorite: !isFavoriteNote });
+                    });
+                  }, 10);
+                }}
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill={isFavoriteNote ? "currentColor" : "none"}
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+                </svg>
+                <span>{isFavoriteNote ? 'Unfavorite' : 'Favorite'}</span>
+              </button>
+
+              <button
+                className={`flex items-center gap-2 w-full px-3 py-2 bg-transparent border-none ${isPinnedNote ? 'text-amber-500' : 'text-text-secondary'} text-left cursor-pointer transition-colors hover:bg-background-notes/30`}
                 onMouseDown={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
@@ -516,16 +665,15 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false 
                     // Create a deep copy of the note to ensure we don't lose any properties
                     const updatedNote = {
                       ...note,
-                      pinned: !isPinned,
+                      pinned: !isPinnedNote,
                       // Ensure content is preserved exactly as it was
                       content: note.content
                     };
                     // Update the note in the database
                     updateNote(updatedNote).then(() => {
-                      // Notify other windows that this note has been updated
-                      window.noteWindow.noteUpdated(note.id);
-                      // Reload the main window to reflect the changes
-                      window.location.reload();
+                      // Notify other windows that this note has been updated with the specific property
+                      // This allows the main window to update its state without a full reload
+                      window.noteWindow.noteUpdated(note.id, { pinned: !isPinnedNote });
                     });
                   }, 10);
                 }}
@@ -534,7 +682,7 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false 
                   width="14"
                   height="14"
                   viewBox="0 0 24 24"
-                  fill={isPinned ? "currentColor" : "none"}
+                  fill={isPinnedNote ? "currentColor" : "none"}
                   stroke="currentColor"
                   strokeWidth="2"
                   strokeLinecap="round"
@@ -543,7 +691,7 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false 
                   <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
                   <circle cx="12" cy="10" r="3"></circle>
                 </svg>
-                <span>{isPinned ? 'Unpin' : 'Pin'}</span>
+                <span>{isPinnedNote ? 'Remove Float' : 'Float on Top'}</span>
               </button>
 
               {/* Color option */}
@@ -711,12 +859,11 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false 
                       };
                       // Update the note in the database
                       updateNote(updatedNote).then(() => {
-                        // Notify other windows that this note has been updated
-                        window.noteWindow.noteUpdated(note.id);
+                        // Notify other windows that this note has been updated with the specific property
+                        // This allows the main window to update its state without a full reload
+                        window.noteWindow.noteUpdated(note.id, { color: color.value });
                         // Close the color picker
                         setShowColorPicker(false);
-                        // Reload the main window to reflect the changes
-                        window.location.reload();
                       });
                     }}
                   />
@@ -726,6 +873,25 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false 
           </div>
         </div>
       )}
+
+      {/* Collection Manager Modal */}
+      <NoteCollectionManager
+        note={note}
+        isOpen={showCollectionManager}
+        onClose={() => setShowCollectionManager(false)}
+        allNotes={allNotes}
+        onUpdate={() => {
+          // Notify parent component that collections have been updated
+          // This will trigger a refresh of the note list and collection counts
+          if (onCollectionUpdate) {
+            onCollectionUpdate();
+          }
+          // Also notify other windows for consistency
+          if (window.noteWindow && window.noteWindow.noteUpdated) {
+            window.noteWindow.noteUpdated(note.id, { collectionsUpdated: true });
+          }
+        }}
+      />
     </div>
     </>
   );

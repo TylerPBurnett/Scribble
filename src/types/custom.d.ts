@@ -30,6 +30,7 @@ interface Window {
     togglePin: (shouldPin: boolean) => Promise<boolean>;
     isPinned: () => Promise<boolean>;
     setPinState: (noteId: string, isPinned: boolean) => Promise<boolean>;
+    setTransparency: (value: number) => Promise<void>;
   };
 
   // Note window
@@ -38,7 +39,7 @@ interface Window {
     createNote: () => Promise<any>;
     createNoteWithId: (noteId: string) => Promise<any>;
     getNoteId: () => Promise<string | null>;
-    noteUpdated: (noteId: string) => void;
+    noteUpdated: (noteId: string, updatedProperties?: Record<string, any>) => void;
   };
 
   // Settings
@@ -51,6 +52,9 @@ interface Window {
     getAutoLaunch: () => Promise<boolean>;
     settingsUpdated: () => void;
     themeChanged: (theme: string) => void;
+    syncSettings: (settings: Record<string, unknown>) => Promise<boolean>;
+    getMainProcessSettings: () => Promise<Record<string, unknown>>;
+    onSettingsUpdateAcknowledged: (callback: (acknowledged: boolean) => void) => () => void;
   };
 
   // File operations
@@ -59,5 +63,8 @@ interface Window {
     deleteNoteFile: (noteId: string, title: string, saveLocation: string) => Promise<any>;
     listNoteFiles: (directoryPath: string) => Promise<any[]>;
     readNoteFile: (filePath: string) => Promise<string>;
+    // Collection file operations
+    saveCollectionsFile: (collectionsData: string, saveLocation: string) => Promise<{ success: boolean; filePath: string }>;
+    readCollectionsFile: (saveLocation: string) => Promise<string | null>;
   };
 }

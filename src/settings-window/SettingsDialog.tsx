@@ -58,7 +58,8 @@ const formSchema = z.object({
   minimizeToTray: z.boolean().optional(),
   globalHotkeys: z.object({
     newNote: z.string(),
-    showApp: z.string(),
+    toggleApp: z.string().optional(),
+    showApp: z.string().optional(),
   }).optional(),
   // Hotkeys are handled separately from the form
 });
@@ -94,7 +95,8 @@ export function SettingsDialog({
       minimizeToTray: initialSettings.minimizeToTray || true,
       globalHotkeys: initialSettings.globalHotkeys || {
         newNote: 'CommandOrControl+Alt+N',
-        showApp: 'CommandOrControl+Alt+S',
+        toggleApp: 'CommandOrControl+Alt+S',
+        showApp: 'CommandOrControl+Alt+S',  // Include both for backward compatibility
       },
     },
   });
@@ -106,6 +108,28 @@ export function SettingsDialog({
       ...values,
       hotkeys,
     } as AppSettings;
+
+    // Ensure both toggleApp and showApp properties are set for backward compatibility
+    if (combinedSettings.globalHotkeys) {
+      if (combinedSettings.globalHotkeys.toggleApp && !combinedSettings.globalHotkeys.showApp) {
+        combinedSettings.globalHotkeys.showApp = combinedSettings.globalHotkeys.toggleApp;
+      } else if (combinedSettings.globalHotkeys.showApp && !combinedSettings.globalHotkeys.toggleApp) {
+        combinedSettings.globalHotkeys.toggleApp = combinedSettings.globalHotkeys.showApp;
+      }
+    }
+
+    console.log('Saving settings with global hotkeys:', JSON.stringify(combinedSettings.globalHotkeys, null, 2));
+
+    // Force immediate update of global hotkeys
+    window.settings.syncSettings(combinedSettings as unknown as Record<string, unknown>)
+      .then(success => {
+        console.log('Settings synced directly from SettingsDialog:', success);
+        window.settings.settingsUpdated();
+        console.log('Notified main process to update hotkeys');
+      })
+      .catch(error => {
+        console.error('Error syncing settings from SettingsDialog:', error);
+      });
 
     onSave(combinedSettings);
     onOpenChange(false);

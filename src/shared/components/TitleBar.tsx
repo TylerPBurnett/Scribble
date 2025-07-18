@@ -14,7 +14,7 @@ interface TitleBarProps {
   className?: string;
 }
 
-const TitleBar: React.FC<TitleBarProps> = ({ title, onMinimize, onMaximize, onClose, className = '' }) => {
+const TitleBar: React.FC<TitleBarProps> = ({ onMinimize, onMaximize, onClose, className = '' }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [platform, setPlatform] = useState<'win32' | 'darwin' | 'other'>('other');
   const menuRef = useRef<HTMLDivElement>(null);

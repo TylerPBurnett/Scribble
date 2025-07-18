@@ -1,14 +1,24 @@
 import { Note } from '../types/Note';
 import { htmlToMarkdown, markdownToHtml } from '../utils/markdownUtils';
 import { getSettings } from './settingsService';
+import { v4 as uuidv4 } from 'uuid'; // Add UUID for stable IDs
 
-// Generate a unique ID
+// Generate a unique ID using UUID for stability
 const generateId = (): string => {
-  return Date.now().toString(36) + Math.random().toString(36).substring(2);
+  return uuidv4(); // Use UUID for stable IDs
 };
 
+// Define the metadata interface
+interface NoteMetadata {
+  id?: string;
+  color?: string;
+  pinned?: boolean;
+  favorite?: boolean;
+  [key: string]: unknown;
+}
+
 // Helper function to parse metadata from HTML comments
-const parseMetadata = (content: string): { metadata: Record<string, any>, content: string } => {
+const parseMetadata = (content: string): { metadata: NoteMetadata, content: string } => {
   // Look for metadata in HTML comment at the end of the file
   // Format: <!-- scribble-metadata: {"color":"#fff9c4","pinned":true} -->
   const metadataRegex = /<!-- scribble-metadata: (.*?) -->\s*$/;
@@ -21,7 +31,7 @@ const parseMetadata = (content: string): { metadata: Record<string, any>, conten
   try {
     // Parse the JSON metadata
     const metadataJson = match[1];
-    const metadata = JSON.parse(metadataJson);
+    const metadata = JSON.parse(metadataJson) as NoteMetadata;
 
     // Remove the metadata comment from content
     const contentWithoutMetadata = content.replace(metadataRegex, '');
@@ -68,18 +78,22 @@ export const getNotes = async (): Promise<Note[]> => {
         // Convert markdown to HTML for the editor
         const htmlContent = markdownToHtml(markdownContent);
 
+        // Use embedded ID from metadata if available, otherwise fall back to file.id
+        // This ensures we use the stable UUID that was embedded in the note
+        const noteId = metadata.id || file.id;
+        console.log('Using noteId:', noteId, 'from', metadata.id ? 'metadata' : 'filename');
+
         // Create a Note object
-        // We'll use the file ID as the note ID to ensure consistency
-        // This is important for file renaming to work correctly
         const note: Note = {
-          id: file.id,
+          id: noteId,
           title,
           content: htmlContent,
           createdAt: new Date(file.createdAt),
           updatedAt: new Date(file.modifiedAt),
           // Add metadata properties
           color: metadata.color,
-          pinned: metadata.pinned
+          pinned: metadata.pinned,
+          favorite: metadata.favorite
         };
 
         console.log('Created note from file:', {
@@ -88,7 +102,8 @@ export const getNotes = async (): Promise<Note[]> => {
           noteId: note.id,
           noteTitle: note.title,
           color: note.color,
-          pinned: note.pinned
+          pinned: note.pinned,
+          favorite: note.favorite
         });
 
         notes.push(note);
@@ -156,12 +171,19 @@ export const updateNote = async (updatedNote: Note): Promise<Note> => {
       const titlePrefix = finalNote.title ? `# ${finalNote.title}\n\n` : '';
 
       // Create metadata as JSON in HTML comment at the end of the file
-      const metadata: Record<string, any> = {};
+      const metadata: NoteMetadata = {
+        // Always include the stable ID in metadata
+        id: finalNote.id
+      };
+
       if (finalNote.color) {
         metadata.color = finalNote.color;
       }
       if (finalNote.pinned !== undefined) {
         metadata.pinned = finalNote.pinned;
+      }
+      if (finalNote.favorite !== undefined) {
+        metadata.favorite = finalNote.favorite;
       }
 
       // Only add metadata comment if there's actual metadata to store
@@ -173,11 +195,13 @@ export const updateNote = async (updatedNote: Note): Promise<Note> => {
 
       // Save directly with the custom title
       try {
+        // Type assertion to make TypeScript happy with the boolean parameter
         const result = await window.fileOps.saveNoteToFile(
           finalNote.id,
           finalNote.title,
           fullContent,
-          settings.saveLocation
+          settings.saveLocation,
+          true as unknown as string // isFirstSave flag - will be fixed in main process
         );
         console.log('First save result:', result);
         return finalNote;
@@ -188,69 +212,9 @@ export const updateNote = async (updatedNote: Note): Promise<Note> => {
     }
 
     try {
-      // For existing notes, we need to find the current file name on disk
-      // This is more reliable than using getNotes() which might not have the latest info
-      let oldTitle = '';
-      let titleChanged = false;
-
-      try {
-        // List all files in the directory
-        const files = await window.fileOps.listNoteFiles(settings.saveLocation);
-        console.log('Files in directory:', files.map(f => ({ name: f.name, id: f.id })));
-
-        // Try to find a file that matches this note's ID
-        // We need to be more flexible in finding the file since the ID might not match the filename exactly
-        // First try exact ID match
-        let matchingFile = files.find(file => file.id === updatedNote.id);
-
-        // If not found, try to find by creating a safe version of the note ID
-        if (!matchingFile) {
-          const safeNoteId = updatedNote.id.trim().replace(/[^a-z0-9]/gi, '_').toLowerCase();
-          matchingFile = files.find(file => file.id === safeNoteId);
-        }
-
-        // If still not found, try to find by the note title (this is a fallback)
-        if (!matchingFile) {
-          const safeTitleToFind = updatedNote.title.trim().replace(/[^a-z0-9]/gi, '_').toLowerCase();
-          matchingFile = files.find(file => {
-            const safeFileName = file.name.replace(/\.md$/, '');
-            return safeFileName === safeTitleToFind;
-          });
-        }
-
-        console.log('Matching file found:', matchingFile ? { name: matchingFile.name, id: matchingFile.id } : 'Not found');
-
-        if (matchingFile) {
-          // Extract the title from the filename
-          const fileNameWithoutExt = matchingFile.name.replace(/\.md$/, '');
-
-          // We need to compare using the same safe title format that was used to create the file
-          const oldSafeTitle = fileNameWithoutExt;
-          const newSafeTitle = updatedNote.title.trim().replace(/[^a-z0-9]/gi, '_').toLowerCase();
-
-          // Store the original title for the file rename operation
-          oldTitle = fileNameWithoutExt;
-
-          // Check if the safe versions of the titles are different
-          titleChanged = oldSafeTitle !== newSafeTitle;
-
-          console.log('Direct file comparison:', {
-            fileNameWithoutExt,
-            oldSafeTitle,
-            newSafeTitle,
-            newTitle: updatedNote.title,
-            changed: titleChanged
-          });
-        }
-      } catch (fileError) {
-        console.error('Error finding original file:', fileError);
-      }
-
-      console.log('Final title change decision:', {
-        oldTitle,
-        newTitle: updatedNote.title,
-        changed: titleChanged
-      });
+      // We no longer need to find the current file on disk
+      // The main process will handle file lookup using the stable ID
+      console.log('Updating existing note:', finalNote.id);
 
       // Convert HTML content to Markdown
       const markdownContent = htmlToMarkdown(finalNote.content);
@@ -259,12 +223,19 @@ export const updateNote = async (updatedNote: Note): Promise<Note> => {
       const titlePrefix = finalNote.title ? `# ${finalNote.title}\n\n` : '';
 
       // Create metadata as JSON in HTML comment at the end of the file
-      const metadata: Record<string, any> = {};
+      const metadata: NoteMetadata = {
+        // Always include the stable ID in metadata
+        id: finalNote.id
+      };
+
       if (finalNote.color) {
         metadata.color = finalNote.color;
       }
       if (finalNote.pinned !== undefined) {
         metadata.pinned = finalNote.pinned;
+      }
+      if (finalNote.favorite !== undefined) {
+        metadata.favorite = finalNote.favorite;
       }
 
       // Only add metadata comment if there's actual metadata to store
@@ -279,16 +250,17 @@ export const updateNote = async (updatedNote: Note): Promise<Note> => {
         id: finalNote.id,
         title: finalNote.title,
         saveLocation: settings.saveLocation,
-        oldTitle: titleChanged ? oldTitle : undefined
+        isFirstSave: false
       });
 
       try {
+        // Type assertion to make TypeScript happy with the boolean parameter
         const result = await window.fileOps.saveNoteToFile(
           finalNote.id,
           finalNote.title,
           fullContent,
           settings.saveLocation,
-          titleChanged ? oldTitle : undefined
+          false as unknown as string // Not first save - will be fixed in main process
         );
         console.log('Save result:', result);
       } catch (saveError) {
@@ -306,34 +278,26 @@ export const updateNote = async (updatedNote: Note): Promise<Note> => {
 
 // Delete a note
 export const deleteNote = async (noteId: string): Promise<void> => {
-  // Get all notes to find the one to delete
-  const notes = await getNotes();
-  const noteToDelete = notes.find(note => note.id === noteId);
+  // We no longer need to find the note first
+  // The main process will handle finding the file using the stable ID
+  const settings = getSettings();
+  if (settings.saveLocation) {
+    try {
+      console.log('Deleting note file with ID:', noteId);
 
-  // Delete the file if a save location is set
-  if (noteToDelete) {
-    const settings = getSettings();
-    if (settings.saveLocation) {
       try {
-        console.log('Deleting note file:', {
-          id: noteToDelete.id,
-          title: noteToDelete.title,
-          saveLocation: settings.saveLocation
-        });
-
-        try {
-          const result = await window.fileOps.deleteNoteFile(
-            noteToDelete.id,
-            noteToDelete.title,
-            settings.saveLocation
-          );
-          console.log('Delete note file result:', result);
-        } catch (deleteError) {
-          console.error('Error in deleteNoteFile:', deleteError);
-        }
-      } catch (error) {
-        console.error('Error deleting note file:', error);
+        // Add empty string as placeholder for the title parameter that will be removed in main process
+        const result = await window.fileOps.deleteNoteFile(
+          noteId,
+          "", // Empty placeholder for title that will be removed
+          settings.saveLocation
+        );
+        console.log('Delete note file result:', result);
+      } catch (deleteError) {
+        console.error('Error in deleteNoteFile:', deleteError);
       }
+    } catch (error) {
+      console.error('Error deleting note file:', error);
     }
   }
 };
@@ -343,23 +307,13 @@ export const getNoteById = async (noteId: string): Promise<Note | undefined> => 
   console.log('Getting note by ID:', noteId);
   const notes = await getNotes();
 
-  // First try exact ID match
-  let note = notes.find(note => note.id === noteId);
+  // With stable UUIDs, we should be able to find the note directly by ID
+  const note = notes.find(note => note.id === noteId);
 
-  // If not found, try to find by creating a safe version of the note ID
-  if (!note) {
-    const safeNoteId = noteId.trim().replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    note = notes.find(note => note.id === safeNoteId);
-    console.log('Trying safe note ID:', safeNoteId, note ? 'Found' : 'Not found');
-  }
-
-  // If still not found, try to find by matching the ID with the safe version of the title
-  if (!note) {
-    note = notes.find(note => {
-      const safeTitle = note.title.trim().replace(/[^a-z0-9]/gi, '_').toLowerCase();
-      return safeTitle === noteId || noteId.includes(safeTitle) || safeTitle.includes(noteId);
-    });
-    console.log('Trying partial title match:', note ? 'Found' : 'Not found');
+  if (note) {
+    console.log('Found note with ID:', noteId);
+  } else {
+    console.log('Note not found with ID:', noteId);
   }
 
   return note;

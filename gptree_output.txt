@@ -1,0 +1,1905 @@
+# Project Directory Structure:
+.
+├── electron/
+│   ├── electron-env.d.ts
+│   ├── main.ts
+│   └── preload.ts
+├── public/
+│   ├── electron-vite.animate.svg
+│   ├── electron-vite.svg
+│   └── vite.svg
+├── screenshots/
+│   └── main-app.png
+├── src/
+│   ├── assets/
+│   │   ├── icon-128.png
+│   │   ├── icon-256.png
+│   │   ├── icon-512.icns
+│   │   ├── icon-512.png
+│   │   ├── icon-64.png
+│   │   ├── icon.icns
+│   │   ├── icon.png
+│   │   ├── icon2-512.png
+│   │   └── react.svg
+│   ├── components/
+│   │   └── ui/
+│   │       ├── button.tsx
+│   │       ├── dialog.tsx
+│   │       ├── form.tsx
+│   │       ├── input.tsx
+│   │       ├── label.tsx
+│   │       └── switch.tsx
+│   ├── lib/
+│   │   └── utils.ts
+│   ├── main-window/
+│   │   ├── components/
+│   │   │   ├── AppHotkeys.tsx
+│   │   │   ├── NoteCard.tsx
+│   │   │   ├── NoteList.tsx
+│   │   │   └── Sidebar.tsx
+│   │   ├── MainApp.tsx
+│   │   └── main.tsx
+│   ├── note-window/
+│   │   ├── components/
+│   │   │   ├── NoteEditor.css
+│   │   │   ├── NoteEditor.tsx
+│   │   │   ├── NoteHotkeys.tsx
+│   │   │   ├── SettingsMenu.css
+│   │   │   ├── Tiptap.css
+│   │   │   └── Tiptap.tsx
+│   │   ├── NoteApp.css
+│   │   ├── NoteApp.tsx
+│   │   ├── note-window.css
+│   │   └── note.tsx
+│   ├── services/
+│   │   ├── noteService.ts
+│   │   └── settingsService.ts
+│   ├── settings-window/
+│   │   ├── components/
+│   │   │   ├── GlobalHotkeyEditor.tsx
+│   │   │   ├── HotkeyEditor.tsx
+│   │   │   ├── HotkeysSection.tsx
+│   │   │   ├── SystemSection.tsx
+│   │   │   └── ThemesSection.tsx
+│   │   ├── SettingsApp.tsx
+│   │   ├── SettingsDialog.tsx
+│   │   ├── SettingsWindow.css
+│   │   ├── SettingsWindow.tsx
+│   │   └── settings.tsx
+│   ├── shared/
+│   │   ├── components/
+│   │   │   ├── TailwindButton.tsx
+│   │   │   ├── TailwindTest.tsx
+│   │   │   └── TitleBar.tsx
+│   │   ├── hooks/
+│   │   │   └── useAppHotkeys.ts
+│   │   ├── providers/
+│   │   │   └── ThemeProvider.tsx
+│   │   ├── services/
+│   │   │   ├── hotkeyService.ts
+│   │   │   ├── noteService.ts
+│   │   │   ├── settingsService.ts
+│   │   │   └── themeService.ts
+│   │   ├── styles/
+│   │   │   ├── common.css
+│   │   │   ├── index.css
+│   │   │   ├── theme-plugin.js
+│   │   │   └── theme.ts
+│   │   ├── types/
+│   │   │   └── Note.ts
+│   │   └── utils/
+│   │       ├── markdownUtils.ts
+│   │       └── themeUtils.ts
+│   ├── types/
+│   │   ├── Note.ts
+│   │   └── custom.d.ts
+│   ├── utils/
+│   │   └── markdownUtils.ts
+│   ├── App.css
+│   ├── App.tsx
+│   ├── index.css
+│   ├── main.tsx
+│   └── vite-env.d.ts
+├── ui-temp/
+│   ├── app/
+│   │   └── page.tsx.bak
+│   ├── components/
+│   │   ├── emptystate.tsx.bak
+│   │   ├── notecard.tsx.bak
+│   │   └── sidebar.tsx.bak
+│   ├── styles/
+│   │   └── app.css.bak
+│   ├── app.tsx.bak
+│   └── types.ts.bak
+├── .eslintrc.cjs
+├── README.md
+├── bun.lock
+├── components.json
+├── electron-builder.json5
+├── index.html
+├── note.html
+├── package-lock.json
+├── package.json
+├── postcss.config.js
+├── settings.html
+├── tailwind.config.js
+├── tsconfig.json
+├── tsconfig.node.json
+└── vite.config.ts
+
+# BEGIN FILE CONTENTS
+
+# File: src/note-window/components/NoteEditor.tsx
+
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Note } from '../../shared/types/Note';
+import Tiptap from './Tiptap';
+import { updateNote, deleteNote } from '../../shared/services/noteService';
+import { getSettings, subscribeToSettingsChanges, AppSettings } from '../../shared/services/settingsService';
+import { NoteHotkeys } from './NoteHotkeys';
+import './NoteEditor.css';
+import './SettingsMenu.css';
+
+interface NoteEditorProps {
+  note: Note;
+  onSave?: (note: Note) => void;
+}
+
+const NoteEditor = ({ note, onSave }: NoteEditorProps) => {
+  const [title, setTitle] = useState(note.title);
+  const [content, setContent] = useState(note.content);
+  const [isDirty, setIsDirty] = useState(false);
+  const [isPinned, setIsPinned] = useState(note.pinned || false);
+  const [isFavorite, setIsFavorite] = useState(note.favorite || false);
+  const [noteColor, setNoteColor] = useState(note.color || '#fff9c4'); // Default yellow sticky note color
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [transparency, setTransparency] = useState(note.transparency || 1); // Default to fully opaque
+
+  // Track if we're currently editing the title to prevent premature saves
+  const [isTitleFocused, setIsTitleFocused] = useState(false);
+
+  // Store the temporary title value while editing
+  const [tempTitle, setTempTitle] = useState(note.title);
+
+  // Get settings for auto-save and hotkeys
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
+  const [autoSaveInterval, setAutoSaveInterval] = useState(5000);
+  const [appSettings, setAppSettings] = useState<AppSettings>({
+    saveLocation: '',
+    autoSave: true,
+    autoSaveInterval: 5,
+    theme: 'dim',
+  });
+
+  // Use refs to store the latest values for use in debounced functions
+  const titleRef = useRef(title);
+  const contentRef = useRef(content);
+  const noteDataRef = useRef(note);
+  const isDirtyRef = useRef(isDirty);
+
+  // Ref for the DOM element
+  const editorDomRef = useRef<HTMLDivElement>(null);
+
+  // Ref for the title input element
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // Update refs when state changes
+  useEffect(() => {
+    titleRef.current = title;
+  }, [title]);
+
+  useEffect(() => {
+    contentRef.current = content;
+  }, [content]);
+
+  useEffect(() => {
+    noteDataRef.current = note;
+  }, [note]);
+
+  useEffect(() => {
+    isDirtyRef.current = isDirty;
+  }, [isDirty]);
+
+  // Load settings on component mount and subscribe to changes
+  useEffect(() => {
+    // Initial settings load
+    const settings = getSettings();
+    setAppSettings(settings);
+    setAutoSaveEnabled(settings.autoSave);
+    setAutoSaveInterval(settings.autoSaveInterval * 1000); // Convert to milliseconds
+
+    // Subscribe to settings changes
+    const unsubscribe = subscribeToSettingsChanges((newSettings) => {
+      console.log('Settings changed in NoteEditor:', newSettings);
+      setAppSettings(newSettings);
+      setAutoSaveEnabled(newSettings.autoSave);
+      setAutoSaveInterval(newSettings.autoSaveInterval * 1000);
+    });
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
+  }, []);
+
+  // Define a stable save function that uses refs to access the latest state
+  const saveNote = useCallback(async () => {
+    const currentNote = noteDataRef.current;
+    const currentTitle = titleRef.current;
+    const currentContent = contentRef.current;
+
+    if (!currentNote) return;
+
+    const updatedNote = {
+      ...currentNote,
+      title: currentTitle,
+      content: currentContent,
+    };
+
+    try {
+      console.log('NoteEditor - Saving note:', updatedNote.id);
+      const savedNote = await updateNote(updatedNote);
+      console.log('NoteEditor - Note saved:', savedNote);
+
+      // Update the note reference with the saved note
+      // This is crucial for subsequent renames to work correctly
+      noteDataRef.current = savedNote;
+      console.log('NoteEditor - Updated note reference:', noteDataRef.current);
+
+      onSave?.(savedNote);
+
+      // Notify other windows that this note has been updated
+      // Use the saved note ID which might have changed if the title was changed
+      window.noteWindow.noteUpdated(savedNote.id, { title: savedNote.title });
+
+      // Reset dirty state after successful save
+      setIsDirty(false);
+    } catch (error) {
+      console.error('Error saving note:', error);
+    }
+  }, [onSave]);
+
+  // Create a debounced version of saveNote
+  const debouncedSave = useCallback(() => {
+    let timeoutId: NodeJS.Timeout | null = null;
+
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+
+    timeoutId = setTimeout(() => {
+      if (isDirtyRef.current) {
+        saveNote();
+      }
+    }, autoSaveInterval);
+  }, [saveNote, autoSaveInterval]);
+
+  // We're no longer using debounce for title changes
+  // Instead, we'll only update the title when the user clicks away from the input
+
+  // Track if this is a new note that hasn't been saved yet
+  const [isNewNote, setIsNewNote] = useState(note._isNew === true || (note.title === 'Untitled Note' && note.content === '<p></p>'));
+
+  // Detect if this is the first title change for a new note
+  useEffect(() => {
+    if (isNewNote && title !== 'Untitled Note') {
+      console.log('First title change for new note detected');
+      // Once the title has been changed from the default, it's no longer a new note
+      setIsNewNote(false);
+    }
+  }, [title, isNewNote]);
+
+  // Trigger auto-save when content changes (but NEVER during title editing)
+  useEffect(() => {
+    // Only mark as dirty for content changes when not editing the title
+    // For new notes, don't mark as dirty until the title has been changed
+    if (!isTitleFocused && (!isNewNote || title !== 'Untitled Note')) {
+      setIsDirty(true);
+    }
+  }, [content, isTitleFocused, isNewNote, title]);
+
+  // Title changes should only mark as dirty after focus is lost
+  useEffect(() => {
+    // Only mark as dirty for title changes when not currently editing
+    // and only if it's not a new note with default title
+    if (!isTitleFocused && (!isNewNote || title !== 'Untitled Note')) {
+      console.log('Title changed and not focused, marking as dirty');
+      setIsDirty(true);
+    }
+  }, [title, isTitleFocused, isNewNote]);
+
+  // Effect to adjust input width based on content
+  useEffect(() => {
+    if (titleInputRef.current) {
+      const inputWidth = isTitleFocused
+        ? Math.min(Math.max((tempTitle?.length || 1) * 8, 50), 250)
+        : Math.min(Math.max((title?.length || 1) * 8, 50), 250);
+
+      titleInputRef.current.style.width = `${inputWidth}px`;
+    }
+  }, [tempTitle, title, isTitleFocused]);
+
+  // Trigger debounced save when isDirty changes
+  useEffect(() => {
+    // NEVER save while the title is being edited
+    if (isDirty && autoSaveEnabled && !isTitleFocused) {
+      console.log(`Triggering debounced save with interval: ${autoSaveInterval}ms`);
+      debouncedSave();
+    }
+  }, [isDirty, autoSaveEnabled, debouncedSave, isTitleFocused, autoSaveInterval]);
+
+  // Last saved time formatting removed
+
+  // Dragging functionality
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Allow dragging from the title bar, but not from input fields or buttons
+    const target = e.target as HTMLElement;
+    const isInput = target.tagName === 'INPUT';
+    const isButton = target.tagName === 'BUTTON' || target.closest('button');
+    const isSvg = target.tagName === 'svg' || target.tagName === 'path' || target.closest('svg');
+
+    if (!isInput && !isButton && !isSvg) {
+      setIsDragging(true);
+    }
+  };
+
+  useEffect(() => {
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isDragging) {
+        // Use IPC to move the window instead of remote
+        window.windowControls.moveWindow(e.movementX, e.movementY);
+      }
+    };
+
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    } else {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
+
+  const handleClose = () => {
+    window.windowControls.close();
+  };
+
+  // Manual save function
+  const handleManualSave = () => {
+    console.log('Manual save triggered');
+    saveNote();
+  };
+
+  // Content update handler
+  const handleContentUpdate = useCallback((newContent: string) => {
+    setContent(newContent);
+  }, []);
+
+  // Update note transparency
+  const updateTransparency = useCallback(async (value: number) => {
+    try {
+      console.log('Updating transparency to:', value);
+
+      // Update state immediately for UI feedback
+      setTransparency(value);
+
+      // Apply transparency to the window via Electron IPC
+      // This affects the entire window
+      await window.windowControls.setTransparency(value);
+
+      // Update the note's transparency property
+      const updatedNote = {
+        ...noteDataRef.current,
+        transparency: value,
+        // Ensure content is preserved exactly as it was
+        content: contentRef.current
+      };
+
+      // Save the updated note
+      const savedNote = await updateNote(updatedNote);
+      noteDataRef.current = savedNote;
+      onSave?.(savedNote);
+
+      // Notify other windows that this note has been updated
+      window.noteWindow.noteUpdated(savedNote.id, { transparency: value });
+
+      // Close the settings menu after applying transparency
+      if (value !== 1) {
+        setShowSettingsMenu(false);
+      }
+    } catch (error) {
+      console.error('Error updating transparency:', error);
+    }
+  }, [onSave]);
+
+  // Check window pin state on mount
+  useEffect(() => {
+    const checkPinState = async () => {
+      try {
+        const isWindowPinned = await window.windowControls.isPinned();
+        setIsPinned(isWindowPinned);
+      } catch (error) {
+        console.error('Error checking window pin state:', error);
+      }
+    };
+
+    checkPinState();
+  }, []);
+
+  // Initialize window transparency on mount
+  useEffect(() => {
+    const initTransparency = async () => {
+      try {
+        console.log('Initializing transparency to:', transparency);
+
+        // Apply the initial transparency value to the window via Electron
+        if (transparency !== 1) {
+          await window.windowControls.setTransparency(transparency);
+        }
+      } catch (error) {
+        console.error('Error initializing window transparency:', error);
+      }
+    };
+
+    initTransparency();
+  }, [transparency]); // Include transparency as a dependency
+
+  // Add keyboard shortcuts for toggling transparency and favorite
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check for ⌥⌘T (Alt+Command+T) or Alt+Ctrl+T for Windows - Toggle transparency
+      if ((e.altKey && e.metaKey && e.key === 't') || (e.altKey && e.ctrlKey && e.key === 't')) {
+        e.preventDefault();
+        // Toggle between fully opaque and 70% transparent
+        const newTransparency = transparency === 1 ? 0.7 : 1;
+        updateTransparency(newTransparency);
+      }
+
+      // Check for ⌥⌘S (Alt+Command+S) or Alt+Ctrl+S for Windows - Toggle favorite
+      if ((e.altKey && e.metaKey && e.key === 's') || (e.altKey && e.ctrlKey && e.key === 's')) {
+        e.preventDefault();
+
+        // Toggle favorite state
+        const newFavoriteState = !isFavorite;
+        setIsFavorite(newFavoriteState);
+
+        // Update the note
+        const updatedNote = {
+          ...noteDataRef.current,
+          favorite: newFavoriteState,
+          content: contentRef.current
+        };
+
+        // Save the updated note
+        updateNote(updatedNote).then(savedNote => {
+          noteDataRef.current = savedNote;
+          onSave?.(savedNote);
+          window.noteWindow.noteUpdated(savedNote.id, { favorite: newFavoriteState });
+        }).catch(error => {
+          console.error('Error toggling favorite state:', error);
+        });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [transparency, updateTransparency, isFavorite, onSave]); // Include all dependencies
+
+  // Add click outside handler for settings menu
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (showSettingsMenu) {
+        // Check if the click was outside the settings menu
+        const target = e.target as HTMLElement;
+        const isSettingsMenuClick = target.closest('.settings-menu-container');
+        const isSettingsButtonClick = target.closest('.settings-button');
+
+        if (!isSettingsMenuClick && !isSettingsButtonClick) {
+          setShowSettingsMenu(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSettingsMenu]);
+
+  // Define color options
+  const colorOptions = [
+    { name: 'Yellow', value: '#fff9c4' }, // Default sticky note color
+    { name: 'White', value: '#ffffff' },
+    { name: 'Black', value: '#333333' },
+    { name: 'Pastel Green', value: '#d0f0c0' },
+    { name: 'Pastel Blue', value: '#b5d8eb' },
+    { name: 'Pastel Purple', value: '#d8c2ef' },
+    { name: 'Pastel Pink', value: '#f4c2c2' },
+    { name: 'Pastel Gray', value: '#d3d3d3' }
+  ];
+
+  // Toggle pin state
+  const togglePinState = async () => {
+    try {
+      const newPinState = !isPinned;
+      const result = await window.windowControls.togglePin(newPinState);
+      setIsPinned(result);
+
+      // Update the note's pinned property
+      // Create a deep copy of the note to ensure we don't lose any properties
+      const updatedNote = {
+        ...noteDataRef.current,
+        pinned: result,
+        // Ensure content is preserved exactly as it was
+        content: contentRef.current
+      };
+
+      // Save the updated note
+      const savedNote = await updateNote(updatedNote);
+      noteDataRef.current = savedNote;
+      onSave?.(savedNote);
+
+      // Notify other windows that this note has been updated
+      window.noteWindow.noteUpdated(savedNote.id, { pinned: result });
+    } catch (error) {
+      console.error('Error toggling pin state:', error);
+    }
+  };
+
+  // Change note color
+  const changeNoteColor = async (color: string) => {
+    try {
+      setNoteColor(color);
+      setShowSettingsMenu(false);
+
+      // Update the note's color property
+      const updatedNote = {
+        ...noteDataRef.current,
+        color: color,
+        // Ensure content is preserved exactly as it was
+        content: contentRef.current
+      };
+
+      // Save the updated note
+      const savedNote = await updateNote(updatedNote);
+      noteDataRef.current = savedNote;
+      onSave?.(savedNote);
+
+      // Notify other windows that this note has been updated
+      window.noteWindow.noteUpdated(savedNote.id, { color: color });
+    } catch (error) {
+      console.error('Error changing note color:', error);
+    }
+  };
+
+  // Function to darken a color for the header
+  const getDarkerShade = (color: string): string => {
+    // For specific colors, return predefined darker shades
+    if (color === '#ffffff') return '#f8f8f8';
+    if (color === '#333333') return '#333333'; // Match the body color for black
+    if (color === '#fff9c4') return '#fff5b1';
+
+    // For pastel gray, return the same color (no darkening)
+    if (color === '#d3d3d3') return color;
+
+    // For other colors, calculate a slightly darker shade
+    try {
+      // Parse the hex color
+      const r = parseInt(color.slice(1, 3), 16);
+      const g = parseInt(color.slice(3, 5), 16);
+      const b = parseInt(color.slice(5, 7), 16);
+
+      // Darken by 10%
+      const darkenFactor = 0.9;
+      const newR = Math.floor(r * darkenFactor);
+      const newG = Math.floor(g * darkenFactor);
+      const newB = Math.floor(b * darkenFactor);
+
+      // Convert back to hex
+      return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
+    } catch (error) {
+      console.error('Error darkening color:', error);
+      return color; // Return original color if there's an error
+    }
+  };
+
+  // Determine text color based on background color
+  const getTextColor = () => {
+    // For dark backgrounds, use white text
+    if (noteColor === '#333333') {
+      return '#ffffff';
+    }
+    // For all other colors (including pastel gray), use black text
+    return '#333333';
+  };
+
+  return (
+    <div
+      className="note-editor flex flex-col h-screen shadow-lg relative overflow-hidden"
+      style={{
+        backgroundColor: noteColor,
+        color: getTextColor(),
+      }}
+      ref={editorDomRef}
+    >
+      {/* Modern dark header with window controls and title */}
+      <div
+        className="flex items-center justify-between py-2 px-3 border-b border-black/10 cursor-grab shadow-sm"
+        onMouseDown={handleMouseDown}
+        style={{
+          WebkitAppRegion: 'drag',
+          borderBottomColor: 'rgba(0,0,0,0.08)',
+          backgroundColor: noteColor === '#333333' ? '#21222C' : getDarkerShade(noteColor)
+        }}
+      >
+        <div className="flex items-center justify-between w-full">
+          {/* Left side: Window controls */}
+          <div className="flex items-center gap-2">
+            {/* Close button */}
+            <button
+              onClick={handleClose}
+              className="w-6 h-6 rounded-full bg-gray-500/20 hover:bg-red-500 flex items-center justify-center transition-colors"
+              title="Close note"
+              style={{ WebkitAppRegion: 'no-drag' }}
+            >
+              <svg
+                width="10"
+                height="10"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M18 6L6 18"></path>
+                <path d="M6 6L18 18"></path>
+              </svg>
+            </button>
+
+            {/* Minimize button */}
+            <button
+              onClick={() => window.windowControls.minimize()}
+              className="w-6 h-6 rounded-full bg-gray-500/20 hover:bg-gray-500/50 flex items-center justify-center transition-colors"
+              title="Minimize"
+              style={{ WebkitAppRegion: 'no-drag' }}
+            >
+              <svg
+                width="10"
+                height="10"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M5 12H19"></path>
+              </svg>
+            </button>
+          </div>
+
+          {/* Center: Title */}
+          <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center">
+            <input
+              type="text"
+              className="note-title-input text-sm font-medium bg-transparent border-none outline-none focus:outline-none focus:ring-0 font-['Chirp',_'Segoe_UI',_sans-serif] cursor-text caret-black text-center"
+              style={{
+                WebkitAppRegion: 'no-drag',
+                boxShadow: 'none',
+                width: isTitleFocused ?
+                  `${Math.min(Math.max((tempTitle?.length || 1) * 8, 50), 250)}px` :
+                  `${Math.min(Math.max((title?.length || 1) * 8, 50), 250)}px`
+              }}
+              ref={titleInputRef}
+              value={isTitleFocused ? tempTitle : title}
+              onChange={(e) => {
+                // Only update the temporary title while editing
+                // This won't trigger any saves
+                const newTitle = e.target.value;
+                console.log('Title input change (temp):', newTitle);
+                setTempTitle(newTitle);
+
+                // Dynamically adjust width as user types
+                const inputWidth = Math.min(Math.max((newTitle.length || 1) * 8, 50), 250);
+                e.target.style.width = `${inputWidth}px`;
+              }}
+              onFocus={() => {
+                // When focusing, set the temporary title to the current title
+                setTempTitle(title);
+                setIsTitleFocused(true);
+                console.log('Title focused, preventing saves');
+              }}
+              onBlur={() => {
+                // When focus is lost, apply the title change if it's valid
+                setIsTitleFocused(false);
+
+                // Only apply the change if the title is not empty and not the default
+                if (tempTitle && tempTitle.trim() !== '') {
+                  if (tempTitle !== title) {
+                    console.log('Applying title change on blur:', tempTitle);
+                    setTitle(tempTitle);
+
+                    // If this was a new note, mark it as no longer new
+                    if (isNewNote && tempTitle !== 'Untitled Note') {
+                      setIsNewNote(false);
+                    }
+                  } else {
+                    console.log('Title unchanged, not marking as dirty');
+                  }
+                } else {
+                  console.log('Not applying empty title on blur');
+                  // Reset to the previous title if empty
+                  setTempTitle(title);
+                }
+              }}
+              placeholder="Untitled Note"
+            />
+          </div>
+
+          {/* Right side: Action buttons */}
+          <div className="flex items-center gap-2 relative" style={{ WebkitAppRegion: 'no-drag' }}>
+            {!autoSaveEnabled && (
+              <button
+                onClick={handleManualSave}
+                className="text-black/50 hover:text-blue-600 transition-colors p-1 cursor-pointer"
+                title="Save now"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3H16L21 8V19C21 20.1046 20.1046 21 19 21Z"></path>
+                  <path d="M17 21V13H7V21"></path>
+                  <path d="M7 3V8H15"></path>
+                </svg>
+              </button>
+            )}
+
+            {/* Settings button */}
+            <div className="relative">
+              <button
+                onClick={() => setShowSettingsMenu(!showSettingsMenu)}
+                className={`settings-button transition-colors p-1 cursor-pointer ${
+                  showSettingsMenu ? 'text-blue-600' : 'text-black/50 hover:text-blue-600'
+                }`}
+                title="Note settings"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+              </button>
+
+              {/* Settings menu dropdown */}
+              {showSettingsMenu && (
+                <div
+                  className="settings-menu-container absolute right-0 top-full mt-1 rounded-lg shadow-lg z-[9999] w-64"
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    color: '#E4E4E4'
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()} // Prevent drag events
+                >
+                  {/* Favorite option */}
+                  <div
+                    className="py-2 px-4 hover:bg-white/5 cursor-pointer transition-colors flex items-center justify-between"
+                    onClick={async () => {
+                      try {
+                        // Toggle favorite state
+                        const newFavoriteState = !isFavorite;
+                        console.log('NoteEditor - Toggling favorite state to:', newFavoriteState);
+                        setIsFavorite(newFavoriteState);
+
+                        // Update the note's favorite property
+                        const updatedNote = {
+                          ...noteDataRef.current,
+                          favorite: newFavoriteState,
+                          // Ensure content is preserved exactly as it was
+                          content: contentRef.current
+                        };
+                        console.log('NoteEditor - Updated note object:', updatedNote);
+
+                        // Save the updated note
+                        const savedNote = await updateNote(updatedNote);
+                        console.log('NoteEditor - Saved note from server:', savedNote);
+                        noteDataRef.current = savedNote;
+                        onSave?.(savedNote);
+
+                        // Notify other windows that this note has been updated
+                        // Pass the updated favorite property to immediately update the UI
+                        console.log('NoteEditor - Notifying other windows with:', { favorite: newFavoriteState });
+                        window.noteWindow.noteUpdated(savedNote.id, { favorite: newFavoriteState });
+                        console.log('NoteEditor - Notification sent');
+                      } catch (error) {
+                        console.error('Error toggling favorite state:', error);
+                      }
+                    }}
+                  >
+                    <span>Favorite</span>
+                    <div className="flex items-center gap-2">
+                      {isFavorite && (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                      )}
+                      <span className="keyboard-shortcut">⌥⌘S</span>
+                    </div>
+                  </div>
+
+                  {/* Pinned option with checkmark */}
+                  <div
+                    className="py-2 px-4 hover:bg-white/5 cursor-pointer transition-colors flex items-center justify-between"
+                    onClick={togglePinState}
+                  >
+                    <span>Float on Top</span>
+                    <div className="flex items-center gap-2">
+                      {isPinned && (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                      )}
+                      <span className="keyboard-shortcut">⌥⌘F</span>
+                    </div>
+                  </div>
+
+                  {/* Translucency option */}
+                  <div className="py-2 px-4 hover:bg-white/5 cursor-pointer transition-colors">
+                    <div className="flex items-center justify-between mb-1">
+                      <span>Translucency</span>
+                      <span className="keyboard-shortcut">⌥⌘T</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs opacity-50">Solid</span>
+                      <input
+                        type="range"
+                        min="0.3"
+                        max="1"
+                        step="0.05"
+                        value={transparency}
+                        onChange={(e) => {
+                          const newValue = parseFloat(e.target.value);
+                          console.log('Setting transparency to:', newValue);
+                          updateTransparency(newValue);
+                        }}
+                        className="w-full"
+                        style={{
+                          // Custom styling for the slider
+                          accentColor: '#3b82f6',
+                          height: '6px',
+                          borderRadius: '3px'
+                        }}
+                      />
+                      <span className="text-xs opacity-50">Clear</span>
+                    </div>
+                    <div className="text-xs text-center mt-1 opacity-50">
+                      {Math.round((1 - transparency) * 100)}% transparent
+                    </div>
+                  </div>
+
+                  {/* Note Shortcut option */}
+                  <div
+                    className="py-2 px-4 hover:bg-white/5 cursor-pointer transition-colors"
+                    onClick={() => {
+                      // Show a message explaining that this feature is coming soon
+                      alert('Note shortcuts will be available in a future update. This feature will allow you to assign custom keyboard shortcuts to specific notes.');
+                      setShowSettingsMenu(false);
+                    }}
+                  >
+                    <span>Note Shortcut</span>
+                    <span className="text-xs text-gray-400 ml-2">(Coming soon)</span>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="border-t border-white/10 my-1"></div>
+
+                  {/* Background Color section */}
+                  <div className="py-2 px-4">
+                    <div className="section-header">Background Color</div>
+                    <div className="grid grid-cols-8 gap-1">
+                      {colorOptions.map((color) => (
+                        <button
+                          key={color.value}
+                          className={`w-6 h-6 rounded-full border ${
+                            noteColor === color.value ? 'border-blue-500 border-2' : 'border-gray-700'
+                          } transition-all hover:scale-110`}
+                          style={{
+                            backgroundColor: color.value,
+                            boxShadow: noteColor === color.value ? '0 0 0 2px rgba(59, 130, 246, 0.3)' : 'none'
+                          }}
+                          title={color.name}
+                          onClick={() => changeNoteColor(color.value)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="border-t border-white/10 my-1"></div>
+
+                  {/* Save to File option */}
+                  <div
+                    className="py-2 px-4 hover:bg-white/5 cursor-pointer transition-colors"
+                    onClick={async () => {
+                      try {
+                        // Get the current note data
+                        const currentNote = noteDataRef.current;
+                        const currentContent = contentRef.current;
+
+                        // Get the save location from settings
+                        const settings = getSettings();
+                        if (!settings.saveLocation) {
+                          alert('No save location set. Please set a save location in Settings.');
+                          return;
+                        }
+
+                        // Convert HTML content to Markdown for saving
+                        const { htmlToMarkdown } = await import('../../shared/utils/markdownUtils');
+                        const markdownContent = htmlToMarkdown(currentContent);
+
+                        // Add title as H1 at the beginning
+                        const titlePrefix = currentNote.title ? `# ${currentNote.title}\n\n` : '';
+                        const fullContent = titlePrefix + markdownContent;
+
+                        // Save to file
+                        const result = await window.fileOps.saveNoteToFile(
+                          currentNote.id,
+                          currentNote.title,
+                          fullContent,
+                          settings.saveLocation
+                        );
+
+                        if (result.success) {
+                          alert(`Note saved to ${result.filePath}`);
+                        } else {
+                          alert('Failed to save note to file.');
+                        }
+
+                        // Close the settings menu
+                        setShowSettingsMenu(false);
+                      } catch (error) {
+                        console.error('Error saving note to file:', error);
+                        alert('Failed to save note to file. Please try again.');
+                      }
+                    }}
+                  >
+                    <span>Save to File</span>
+                  </div>
+
+                  {/* Move to Folder option */}
+                  <div className="py-2 px-4 hover:bg-white/5 cursor-pointer transition-colors flex items-center justify-between">
+                    <span>Move to Folder</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                  </div>
+
+                  {/* Move to Trash option */}
+                  <div
+                    className="py-2 px-4 hover:bg-white/5 cursor-pointer transition-colors text-red-400"
+                    onClick={async () => {
+                      // Confirm before deleting
+                      if (confirm(`Are you sure you want to move "${title}" to trash?`)) {
+                        try {
+                          // Get the note ID
+                          const noteId = noteDataRef.current.id;
+
+                          // Delete the note
+                          await deleteNote(noteId);
+
+                          // Notify other windows that this note has been deleted
+                          window.noteWindow.noteUpdated(noteId, { deleted: true });
+
+                          // Close the window
+                          window.windowControls.close();
+                        } catch (error) {
+                          console.error('Error deleting note:', error);
+                          alert('Failed to delete note. Please try again.');
+                        }
+                      }
+                    }}
+                  >
+                    <span>Move to Trash</span>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="border-t border-white/10 my-1"></div>
+
+                  {/* Settings option */}
+                  <div
+                    className="py-2 px-4 hover:bg-white/5 cursor-pointer transition-colors flex items-center justify-between"
+                    onClick={() => {
+                      // Open settings window
+                      window.settings.openSettings();
+                      // Close the settings menu
+                      setShowSettingsMenu(false);
+                    }}
+                  >
+                    <span>Settings...</span>
+                    <span className="keyboard-shortcut">⌘,</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        className="flex-1 overflow-hidden flex flex-col"
+        style={{
+          backgroundColor: noteColor,
+          color: getTextColor()
+        }}
+      >
+        <Tiptap
+          content={content}
+          onUpdate={handleContentUpdate}
+          placeholder="Start typing here..."
+          autofocus={true}
+          editorClass={noteColor === '#333333' ? 'dark-theme' : ''}
+          backgroundColor={noteColor}
+          toolbarColor={getDarkerShade(noteColor)}
+        />
+      </div>
+
+      {/* Keep the shadow effect at the top */}
+      <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-b from-black/10 to-transparent z-10"></div>
+
+      {/* Hotkeys */}
+      <NoteHotkeys
+        settings={appSettings}
+        note={noteDataRef.current}
+        onSave={handleManualSave}
+        onTogglePin={togglePinState}
+        onDelete={() => {
+          // Implement delete functionality if needed
+          console.log('Delete hotkey pressed');
+        }}
+        onChangeColor={() => {
+          // Toggle color picker
+          setShowColorPicker(!showColorPicker);
+        }}
+      />
+    </div>
+  );
+};
+
+export default NoteEditor;
+
+
+# File: src/shared/services/noteService.ts
+
+import { Note } from '../types/Note';
+import { htmlToMarkdown, markdownToHtml } from '../utils/markdownUtils';
+import { getSettings } from './settingsService';
+
+// Generate a unique ID
+const generateId = (): string => {
+  return Date.now().toString(36) + Math.random().toString(36).substring(2);
+};
+
+// Helper function to parse metadata from HTML comments
+const parseMetadata = (content: string): { metadata: Record<string, any>, content: string } => {
+  // Look for metadata in HTML comment at the end of the file
+  // Format: <!-- scribble-metadata: {"color":"#fff9c4","pinned":true} -->
+  const metadataRegex = /<!-- scribble-metadata: (.*?) -->\s*$/;
+  const match = content.match(metadataRegex);
+
+  if (!match) {
+    return { metadata: {}, content };
+  }
+
+  try {
+    // Parse the JSON metadata
+    const metadataJson = match[1];
+    const metadata = JSON.parse(metadataJson);
+
+    // Remove the metadata comment from content
+    const contentWithoutMetadata = content.replace(metadataRegex, '');
+
+    return {
+      metadata,
+      content: contentWithoutMetadata
+    };
+  } catch (error) {
+    console.error('Error parsing metadata JSON:', error);
+    return { metadata: {}, content };
+  }
+};
+
+// Get notes from file system
+export const getNotes = async (): Promise<Note[]> => {
+  const settings = getSettings();
+  if (!settings.saveLocation) return [];
+
+  try {
+    const files = await window.fileOps.listNoteFiles(settings.saveLocation);
+    const notes: Note[] = [];
+
+    for (const file of files) {
+      try {
+        // Read the file content
+        const fileContent = await window.fileOps.readNoteFile(file.path);
+
+        // Parse metadata from HTML comments
+        const { metadata, content } = parseMetadata(fileContent);
+
+        // Extract title from the first line if it's a heading
+        let title = file.name.replace(/\.md$/, '');
+        let markdownContent = content;
+
+        // If content starts with a markdown heading, use it as the title
+        const headingMatch = content.match(/^# (.+)$/m);
+        if (headingMatch) {
+          title = headingMatch[1];
+          // Remove the heading from the content for display
+          markdownContent = content.replace(/^# .+\n\n?/, '');
+        }
+
+        // Convert markdown to HTML for the editor
+        const htmlContent = markdownToHtml(markdownContent);
+
+        // Create a Note object
+        // We'll use the file ID as the note ID to ensure consistency
+        // This is important for file renaming to work correctly
+        const note: Note = {
+          id: file.id,
+          title,
+          content: htmlContent,
+          createdAt: new Date(file.createdAt),
+          updatedAt: new Date(file.modifiedAt),
+          // Add metadata properties
+          color: metadata.color,
+          pinned: metadata.pinned,
+          favorite: metadata.favorite
+        };
+
+        console.log('Created note from file:', {
+          fileId: file.id,
+          fileName: file.name,
+          noteId: note.id,
+          noteTitle: note.title,
+          color: note.color,
+          pinned: note.pinned,
+          favorite: note.favorite
+        });
+
+        notes.push(note);
+      } catch (error) {
+        console.error(`Error processing file ${file.path}:`, error);
+      }
+    }
+
+    return notes;
+  } catch (error) {
+    console.error('Error reading notes from file system:', error);
+    return [];
+  }
+};
+
+// Create a new note
+export const createNote = async (): Promise<Note> => {
+  // Create a new note with a temporary ID
+  const newNote: Note = {
+    id: generateId(),
+    title: 'Untitled Note', // Set a default title
+    content: '<p></p>',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    // Add a flag to indicate this is a new note that hasn't been saved yet
+    _isNew: true
+  };
+
+  // We don't immediately save the file to disk
+  // This prevents creating multiple files as the user edits the title
+  // The first save will happen when the user makes changes or when they blur the title field
+  console.log('Created new note with temporary ID:', newNote.id);
+
+  return newNote;
+};
+
+// Update a note
+export const updateNote = async (updatedNote: Note): Promise<Note> => {
+  // Get the updated note with the new timestamp
+  const finalNote = {
+    ...updatedNote,
+    updatedAt: new Date(),
+    // Remove the _isNew flag if it exists - the note is now being saved
+    _isNew: undefined
+  };
+
+  // Save to file if a save location is set
+  const settings = getSettings();
+  console.log('Settings from getSettings():', settings);
+  if (settings.saveLocation) {
+    console.log('Save location found:', settings.saveLocation);
+
+    // Check if this is a new note being saved for the first time
+    const isFirstSave = updatedNote._isNew === true;
+
+    // If this is a new note being saved for the first time, handle it specially
+    if (isFirstSave) {
+      console.log('First save of a new note with custom title:', updatedNote.title);
+      // We'll skip the file lookup since there shouldn't be a file yet
+
+      // Convert HTML content to Markdown
+      const markdownContent = htmlToMarkdown(finalNote.content);
+
+      // Add title as H1 at the beginning if it exists
+      const titlePrefix = finalNote.title ? `# ${finalNote.title}\n\n` : '';
+
+      // Create metadata as JSON in HTML comment at the end of the file
+      const metadata: Record<string, any> = {};
+      if (finalNote.color) {
+        metadata.color = finalNote.color;
+      }
+      if (finalNote.pinned !== undefined) {
+        metadata.pinned = finalNote.pinned;
+      }
+      if (finalNote.favorite !== undefined) {
+        metadata.favorite = finalNote.favorite;
+      }
+
+      // Only add metadata comment if there's actual metadata to store
+      const metadataComment = Object.keys(metadata).length > 0
+        ? `\n\n<!-- scribble-metadata: ${JSON.stringify(metadata)} -->`
+        : '';
+
+      const fullContent = titlePrefix + markdownContent + metadataComment;
+
+      // Save directly with the custom title
+      try {
+        const result = await window.fileOps.saveNoteToFile(
+          finalNote.id,
+          finalNote.title,
+          fullContent,
+          settings.saveLocation
+        );
+        console.log('First save result:', result);
+        return finalNote;
+      } catch (saveError) {
+        console.error('Error in first saveNoteToFile:', saveError);
+        return finalNote;
+      }
+    }
+
+    try {
+      // For existing notes, we need to find the current file name on disk
+      // This is more reliable than using getNotes() which might not have the latest info
+      let oldTitle = '';
+      let titleChanged = false;
+
+      try {
+        // List all files in the directory
+        const files = await window.fileOps.listNoteFiles(settings.saveLocation);
+        console.log('Files in directory:', files.map(f => ({ name: f.name, id: f.id })));
+
+        // Try to find a file that matches this note's ID
+        // We need to be more flexible in finding the file since the ID might not match the filename exactly
+        // First try exact ID match
+        let matchingFile = files.find(file => file.id === updatedNote.id);
+
+        // If not found, try to find by creating a safe version of the note ID
+        if (!matchingFile) {
+          const safeNoteId = updatedNote.id.trim().replace(/[^a-z0-9]/gi, '_').toLowerCase();
+          matchingFile = files.find(file => file.id === safeNoteId);
+        }
+
+        // If still not found, try to find by the note title (this is a fallback)
+        if (!matchingFile) {
+          const safeTitleToFind = updatedNote.title.trim().replace(/[^a-z0-9]/gi, '_').toLowerCase();
+          matchingFile = files.find(file => {
+            const safeFileName = file.name.replace(/\.md$/, '');
+            return safeFileName === safeTitleToFind;
+          });
+        }
+
+        console.log('Matching file found:', matchingFile ? { name: matchingFile.name, id: matchingFile.id } : 'Not found');
+
+        if (matchingFile) {
+          // Extract the title from the filename
+          const fileNameWithoutExt = matchingFile.name.replace(/\.md$/, '');
+
+          // We need to compare using the same safe title format that was used to create the file
+          const oldSafeTitle = fileNameWithoutExt;
+          const newSafeTitle = updatedNote.title.trim().replace(/[^a-z0-9]/gi, '_').toLowerCase();
+
+          // Store the original title for the file rename operation
+          oldTitle = fileNameWithoutExt;
+
+          // Check if the safe versions of the titles are different
+          titleChanged = oldSafeTitle !== newSafeTitle;
+
+          console.log('Direct file comparison:', {
+            fileNameWithoutExt,
+            oldSafeTitle,
+            newSafeTitle,
+            newTitle: updatedNote.title,
+            changed: titleChanged
+          });
+        }
+      } catch (fileError) {
+        console.error('Error finding original file:', fileError);
+      }
+
+      console.log('Final title change decision:', {
+        oldTitle,
+        newTitle: updatedNote.title,
+        changed: titleChanged
+      });
+
+      // Convert HTML content to Markdown
+      const markdownContent = htmlToMarkdown(finalNote.content);
+
+      // Add title as H1 at the beginning if it exists
+      const titlePrefix = finalNote.title ? `# ${finalNote.title}\n\n` : '';
+
+      // Create metadata as JSON in HTML comment at the end of the file
+      const metadata: Record<string, any> = {};
+      if (finalNote.color) {
+        metadata.color = finalNote.color;
+      }
+      if (finalNote.pinned !== undefined) {
+        metadata.pinned = finalNote.pinned;
+      }
+      if (finalNote.favorite !== undefined) {
+        metadata.favorite = finalNote.favorite;
+      }
+
+      // Only add metadata comment if there's actual metadata to store
+      const metadataComment = Object.keys(metadata).length > 0
+        ? `\n\n<!-- scribble-metadata: ${JSON.stringify(metadata)} -->`
+        : '';
+
+      const fullContent = titlePrefix + markdownContent + metadataComment;
+
+      // Save to file
+      console.log('Calling saveNoteToFile with:', {
+        id: finalNote.id,
+        title: finalNote.title,
+        saveLocation: settings.saveLocation,
+        oldTitle: titleChanged ? oldTitle : undefined
+      });
+
+      try {
+        const result = await window.fileOps.saveNoteToFile(
+          finalNote.id,
+          finalNote.title,
+          fullContent,
+          settings.saveLocation,
+          titleChanged ? oldTitle : undefined
+        );
+        console.log('Save result:', result);
+      } catch (saveError) {
+        console.error('Error in saveNoteToFile:', saveError);
+      }
+    } catch (error) {
+      console.error('Error saving note to file:', error);
+    }
+  } else {
+    console.log('No save location found in settings');
+  }
+
+  return finalNote;
+};
+
+// Delete a note
+export const deleteNote = async (noteId: string): Promise<void> => {
+  // Get all notes to find the one to delete
+  const notes = await getNotes();
+  const noteToDelete = notes.find(note => note.id === noteId);
+
+  // Delete the file if a save location is set
+  if (noteToDelete) {
+    const settings = getSettings();
+    if (settings.saveLocation) {
+      try {
+        console.log('Deleting note file:', {
+          id: noteToDelete.id,
+          title: noteToDelete.title,
+          saveLocation: settings.saveLocation
+        });
+
+        try {
+          const result = await window.fileOps.deleteNoteFile(
+            noteToDelete.id,
+            noteToDelete.title,
+            settings.saveLocation
+          );
+          console.log('Delete note file result:', result);
+        } catch (deleteError) {
+          console.error('Error in deleteNoteFile:', deleteError);
+        }
+      } catch (error) {
+        console.error('Error deleting note file:', error);
+      }
+    }
+  }
+};
+
+// Get a note by ID
+export const getNoteById = async (noteId: string): Promise<Note | undefined> => {
+  console.log('Getting note by ID:', noteId);
+  const notes = await getNotes();
+
+  // First try exact ID match
+  let note = notes.find(note => note.id === noteId);
+
+  // If not found, try to find by creating a safe version of the note ID
+  if (!note) {
+    const safeNoteId = noteId.trim().replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    note = notes.find(note => note.id === safeNoteId);
+    console.log('Trying safe note ID:', safeNoteId, note ? 'Found' : 'Not found');
+  }
+
+  // If still not found, try to find by matching the ID with the safe version of the title
+  if (!note) {
+    note = notes.find(note => {
+      const safeTitle = note.title.trim().replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      return safeTitle === noteId || noteId.includes(safeTitle) || safeTitle.includes(noteId);
+    });
+    console.log('Trying partial title match:', note ? 'Found' : 'Not found');
+  }
+
+  return note;
+};
+
+
+# File: src/shared/services/settingsService.ts
+
+import { DEFAULT_HOTKEYS, HotkeyAction } from './hotkeyService';
+
+// Default settings
+const DEFAULT_SETTINGS = {
+  saveLocation: '', // Will be set to app data directory by default in main process
+  autoSave: true,
+  autoSaveInterval: 5, // seconds
+  theme: 'dim', // Default theme (replaces darkMode)
+  hotkeys: DEFAULT_HOTKEYS,
+  autoLaunch: false,
+  minimizeToTray: true,
+  globalHotkeys: {
+    newNote: 'CommandOrControl+Alt+N',
+    toggleApp: 'CommandOrControl+Alt+S'  // canonical
+  }
+};
+
+// Settings type
+export interface AppSettings {
+  saveLocation: string;
+  autoSave: boolean;
+  autoSaveInterval: number;
+  theme: string; // Theme name (replaces darkMode)
+  darkMode?: boolean; // Kept for backward compatibility
+  hotkeys?: Partial<Record<HotkeyAction, string>>;
+  autoLaunch?: boolean;
+  minimizeToTray?: boolean;
+  globalHotkeys?: {
+    newNote: string;
+    toggleApp?: string;  // canonical property name
+    showApp?: string;    // legacy alias, derived programmatically when needed
+  };
+}
+
+// Type for global hotkeys
+export interface Hotkeys {
+  newNote: string;
+  toggleApp?: string;
+  showApp?: string;
+  [key: string]: string | undefined;
+}
+
+/**
+ * Helper function to migrate global hotkeys from legacy showApp to canonical toggleApp
+ * Implements a one-way migration strategy that respects user intent
+ *
+ * @param hk The hotkeys object to migrate
+ * @returns The migrated hotkeys object
+ */
+export function migrateGlobalHotkeys(hk: Hotkeys): Hotkeys {
+  // Create a shallow copy to avoid mutating the original
+  const result = { ...hk };
+
+  // Migrate from showApp to toggleApp if needed (one-way migration only)
+  if (result.showApp && !result.toggleApp) {
+    result.toggleApp = result.showApp;
+    console.log('Migrated from showApp to toggleApp (canonical property)');
+  }
+
+  // Do NOT force-create showApp unless explicitly requested
+  // Main-process code already handles absence of showApp; backward compatibility remains intact
+
+  return result;
+}
+
+// Get settings from localStorage
+export const getSettings = (): AppSettings => {
+  const settingsJson = localStorage.getItem('app_settings');
+  console.log('Raw settings from localStorage:', settingsJson);
+  if (!settingsJson) {
+    console.log('No settings found, returning defaults');
+    return DEFAULT_SETTINGS;
+  }
+
+  try {
+    const settings = JSON.parse(settingsJson);
+    console.log('Parsed settings:', settings);
+    return settings;
+  } catch (error) {
+    console.error('Error parsing settings from localStorage:', error);
+    return DEFAULT_SETTINGS;
+  }
+};
+
+// Event system for settings changes
+type SettingsChangeListener = (settings: AppSettings) => void;
+const settingsChangeListeners: SettingsChangeListener[] = [];
+
+// Subscribe to settings changes
+export const subscribeToSettingsChanges = (listener: SettingsChangeListener): () => void => {
+  settingsChangeListeners.push(listener);
+
+  // Return unsubscribe function
+  return () => {
+    const index = settingsChangeListeners.indexOf(listener);
+    if (index !== -1) {
+      settingsChangeListeners.splice(index, 1);
+    }
+  };
+};
+
+// Notify all listeners of settings changes
+const notifySettingsChange = (settings: AppSettings): void => {
+  settingsChangeListeners.forEach(listener => listener(settings));
+};
+
+// Save settings to localStorage
+export const saveSettings = (settings: AppSettings): void => {
+  console.log('Saving settings to localStorage:', settings);
+
+  // Ensure globalHotkeys is properly set
+  if (!settings.globalHotkeys) {
+    settings = {                        // create a shallow copy first
+      ...settings,
+      globalHotkeys: { ...DEFAULT_SETTINGS.globalHotkeys }
+    };
+    console.log('Added default global hotkeys to settings');
+  } else {
+    // Migrate global hotkeys using the helper function
+    settings.globalHotkeys = migrateGlobalHotkeys(settings.globalHotkeys);
+  }
+
+  // Save to localStorage
+  localStorage.setItem('app_settings', JSON.stringify(settings));
+  console.log('Settings saved to localStorage');
+
+  // Update auto-launch setting in the main process
+  if (settings.autoLaunch !== undefined) {
+    window.settings.setAutoLaunch(settings.autoLaunch)
+      .then(success => {
+        console.log('Auto-launch setting updated:', success);
+      })
+      .catch(error => {
+        console.error('Error updating auto-launch setting:', error);
+      });
+  }
+
+  // Sync settings with the main process
+  console.log('Syncing settings with main process, global hotkeys:', JSON.stringify(settings.globalHotkeys, null, 2));
+
+  // Create a deep copy to ensure we're not passing references
+  const settingsCopy = JSON.parse(JSON.stringify(settings));
+
+  // Log the exact object we're sending to the main process
+  console.log('Full settings object being sent to main process:', JSON.stringify(settingsCopy, null, 2));
+
+  // First sync the settings to the main process
+  window.settings.syncSettings(settingsCopy as unknown as Record<string, unknown>)
+    .then(async success => {
+      console.log('Settings synced with main process:', success);
+
+      // Set up acknowledgment listener before sending the update
+      const acknowledgmentPromise = new Promise<boolean>((resolve) => {
+        // Use type assertion to access the new method
+        type SettingsWithAcknowledgement = typeof window.settings & {
+          onSettingsUpdateAcknowledged?: (callback: (acknowledged: boolean) => void) => () => void;
+        };
+        const onSettingsUpdateAcknowledged = (window.settings as SettingsWithAcknowledgement).onSettingsUpdateAcknowledged;
+
+        if (typeof onSettingsUpdateAcknowledged === 'function') {
+          const cleanup = onSettingsUpdateAcknowledged((acknowledged: boolean) => {
+            console.log('Received settings update acknowledgment:', acknowledged);
+            cleanup(); // Remove the listener once we get a response
+            resolve(acknowledged);
+          });
+
+          // Set a timeout in case we don't get an acknowledgment
+          setTimeout(() => {
+            cleanup(); // Clean up the listener
+            console.warn('No acknowledgment received from main process after 2 seconds');
+            resolve(false);
+          }, import.meta.env.VITE_SETTINGS_ACK_TIMEOUT ?? 5000);
+        } else {
+          // If the function doesn't exist (older app version), resolve immediately
+          console.warn('onSettingsUpdateAcknowledged not available, skipping acknowledgment wait');
+          resolve(true);
+        }
+      });
+
+      // After successful sync, notify the main process to update hotkeys
+      window.settings.settingsUpdated();
+      console.log('Notified main process that settings were updated');
+
+      // Wait for acknowledgment or timeout
+      const acknowledged = await acknowledgmentPromise;
+
+      if (!acknowledged) {
+        console.warn('Settings update was not acknowledged by main process, verifying manually');
+      }
+
+      // Verify settings were saved correctly by explicitly requesting confirmation
+      try {
+        // Get the updated settings from the main process
+        const mainProcessSettings = await window.settings.getMainProcessSettings();
+        console.log('Verification - settings in main process after sync:',
+          JSON.stringify(mainProcessSettings, null, 2));
+
+        if (mainProcessSettings.globalHotkeys) {
+          console.log('Verification - global hotkeys in main process:',
+            JSON.stringify(mainProcessSettings.globalHotkeys, null, 2));
+
+          // Compare with what we sent
+          const mainHotkeys = mainProcessSettings.globalHotkeys as {
+            newNote: string;
+            toggleApp?: string;
+            showApp?: string;
+          };
+
+          const hotkeysMatch =
+            mainHotkeys.newNote === settings.globalHotkeys?.newNote &&
+            (
+              // Check both toggleApp and showApp properties properly
+              (settings.globalHotkeys?.toggleApp !== undefined ?
+                mainHotkeys.toggleApp === settings.globalHotkeys.toggleApp : true) &&
+              (settings.globalHotkeys?.showApp !== undefined ?
+                mainHotkeys.showApp === settings.globalHotkeys.showApp : true)
+            );
+
+          console.log(`Verification - hotkeys match what we sent: ${hotkeysMatch}`);
+
+          // If hotkeys don't match, try to resync them
+          if (!hotkeysMatch) {
+            console.warn('Hotkeys in main process do not match what was sent. Attempting to resync...');
+            await window.settings.syncSettings(settingsCopy as unknown as Record<string, unknown>);
+            window.settings.settingsUpdated();
+            console.log('Settings resynced due to verification mismatch');
+          }
+        } else {
+          console.error('Verification - No global hotkeys found in main process settings!');
+        }
+      } catch (error) {
+        console.error('Error verifying settings in main process:', error);
+      }
+    })
+    .catch(error => {
+      console.error('Error syncing settings with main process:', error);
+    });
+
+  // Notify listeners of the change
+  notifySettingsChange(settings);
+};
+
+// Initialize settings
+export const initSettings = async (): Promise<AppSettings> => {
+  console.log('Initializing settings...');
+  // Get settings from localStorage
+  const storedSettings = getSettings();
+  console.log('Stored settings from localStorage:', storedSettings);
+
+  // Try to get settings from the main process
+  let mainProcessSettings: Record<string, unknown> = {};
+  try {
+    mainProcessSettings = await window.settings.getMainProcessSettings();
+    console.log('Settings from main process:', mainProcessSettings);
+  } catch (error) {
+    console.error('Error getting settings from main process:', error);
+  }
+
+  let needsUpdate = false;
+  const updatedSettings = { ...storedSettings };
+
+  // If we have global hotkeys in the main process but not in localStorage, use those
+  if (mainProcessSettings.globalHotkeys && (!storedSettings.globalHotkeys || !storedSettings.globalHotkeys.newNote)) {
+    console.log('Using global hotkeys from main process');
+    updatedSettings.globalHotkeys = {
+      ...(mainProcessSettings.globalHotkeys as {
+        newNote: string;
+        toggleApp?: string;
+        showApp?: string;
+      })
+    };
+
+    // Migrate global hotkeys using the helper function
+    updatedSettings.globalHotkeys = migrateGlobalHotkeys(updatedSettings.globalHotkeys);
+    needsUpdate = true;
+  }
+
+  // If no save location is set, get the default from the main process
+  if (!storedSettings.saveLocation) {
+    console.log('No save location found, getting default...');
+    try {
+      const defaultLocation = await window.settings.getDefaultSaveLocation();
+      console.log('Default save location:', defaultLocation);
+      updatedSettings.saveLocation = defaultLocation;
+      needsUpdate = true;
+    } catch (error) {
+      console.error('Error getting default save location:', error);
+    }
+  } else {
+    console.log('Using existing save location:', storedSettings.saveLocation);
+  }
+
+  // Check auto-launch status
+  try {
+    const isAutoLaunchEnabled = await window.settings.getAutoLaunch();
+    console.log('Auto-launch status:', isAutoLaunchEnabled);
+
+    // If auto-launch setting doesn't match the actual status, update it
+    if (storedSettings.autoLaunch !== isAutoLaunchEnabled) {
+      updatedSettings.autoLaunch = isAutoLaunchEnabled;
+      needsUpdate = true;
+    }
+  } catch (error) {
+    console.error('Error getting auto-launch status:', error);
+  }
+
+  // Handle migration from darkMode to theme
+  if (updatedSettings.theme === undefined && updatedSettings.darkMode !== undefined) {
+    console.log('Migrating from darkMode to theme...');
+    // If darkMode is true, use 'dim' theme, otherwise use 'light' theme
+    updatedSettings.theme = updatedSettings.darkMode ? 'dim' : 'light';
+    needsUpdate = true;
+  }
+
+  // Ensure theme is set to a valid value
+  if (!updatedSettings.theme || !['dim', 'dark', 'light'].includes(updatedSettings.theme)) {
+    console.log('Setting default theme to dim');
+    updatedSettings.theme = 'dim';
+    needsUpdate = true;
+  }
+
+  // Ensure globalHotkeys is set
+  if (!updatedSettings.globalHotkeys) {
+    console.log('Setting default global hotkeys');
+    updatedSettings.globalHotkeys = { ...DEFAULT_SETTINGS.globalHotkeys };
+    needsUpdate = true;
+  } else {
+    // Migrate global hotkeys using the helper function
+    const migratedHotkeys = migrateGlobalHotkeys(updatedSettings.globalHotkeys);
+
+    // Check if migration changed anything
+    if (JSON.stringify(migratedHotkeys) !== JSON.stringify(updatedSettings.globalHotkeys)) {
+      updatedSettings.globalHotkeys = migratedHotkeys;
+      needsUpdate = true;
+    }
+  }
+
+  // Save updated settings if needed
+  if (needsUpdate) {
+    console.log('Updating settings:', updatedSettings);
+    saveSettings(updatedSettings);
+    return updatedSettings;
+  }
+
+  return storedSettings;
+};
+
+
+# File: electron/preload.ts
+
+import { ipcRenderer, contextBridge } from 'electron'
+
+// --------- Expose some API to the Renderer process ---------
+contextBridge.exposeInMainWorld('ipcRenderer', {
+  on(...args: Parameters<typeof ipcRenderer.on>) {
+    const [channel, listener] = args
+    return ipcRenderer.on(channel, (event, ...args) => listener(event, ...args))
+  },
+  off(...args: Parameters<typeof ipcRenderer.off>) {
+    const [channel, ...omit] = args
+    return ipcRenderer.off(channel, ...omit)
+  },
+  send(...args: Parameters<typeof ipcRenderer.send>) {
+    const [channel, ...omit] = args
+    return ipcRenderer.send(channel, ...omit)
+  },
+  invoke(...args: Parameters<typeof ipcRenderer.invoke>) {
+    const [channel, ...omit] = args
+    return ipcRenderer.invoke(channel, ...omit)
+  },
+})
+
+// Expose window control functions
+contextBridge.exposeInMainWorld('windowControls', {
+  minimize: () => ipcRenderer.invoke('window-minimize'),
+  maximize: () => ipcRenderer.invoke('window-maximize'),
+  close: () => ipcRenderer.invoke('window-close'),
+  moveWindow: (moveX: number, moveY: number) => ipcRenderer.invoke('window-move', moveX, moveY),
+  togglePin: (shouldPin: boolean) => ipcRenderer.invoke('window-toggle-pin', shouldPin),
+  isPinned: () => ipcRenderer.invoke('window-is-pinned'),
+  setPinState: (noteId: string, isPinned: boolean) => ipcRenderer.invoke('window-set-pin-state', noteId, isPinned),
+  setTransparency: (value: number) => ipcRenderer.invoke('window-set-transparency', value),
+})
+
+// Expose specific APIs for note management
+contextBridge.exposeInMainWorld('noteWindow', {
+  openNote: (noteId: string) => ipcRenderer.invoke('open-note', noteId),
+  createNote: () => ipcRenderer.invoke('create-note'),
+  createNoteWithId: (noteId: string) => ipcRenderer.invoke('create-note-with-id', noteId),
+  getNoteId: () => ipcRenderer.invoke('get-note-id'),
+  noteUpdated: (noteId: string, updatedProperties?: Record<string, any>) =>
+    ipcRenderer.send('note-updated', noteId, updatedProperties),
+})
+
+// Expose specific APIs for settings management
+contextBridge.exposeInMainWorld('settings', {
+  openSettings: () => ipcRenderer.invoke('open-settings'),
+  isSettingsWindow: () => ipcRenderer.invoke('is-settings-window'),
+  selectDirectory: () => ipcRenderer.invoke('select-directory'),
+  getDefaultSaveLocation: () => ipcRenderer.invoke('get-default-save-location'),
+  setAutoLaunch: (enabled: boolean) => ipcRenderer.invoke('set-auto-launch', enabled),
+  getAutoLaunch: () => ipcRenderer.invoke('get-auto-launch'),
+  settingsUpdated: () => ipcRenderer.send('settings-updated'),
+  themeChanged: (theme: string) => ipcRenderer.send('theme-changed', theme),
+  syncSettings: (settings: Record<string, unknown>) => ipcRenderer.invoke('sync-settings', settings),
+  getMainProcessSettings: () => ipcRenderer.invoke('get-main-process-settings'),
+  onSettingsUpdateAcknowledged: (callback: (acknowledged: boolean) => void) => {
+    const wrappedCallback = (_: any, acknowledged: boolean) => callback(acknowledged);
+    ipcRenderer.on('settings-update-acknowledged', wrappedCallback);
+    return () => ipcRenderer.removeListener('settings-update-acknowledged', wrappedCallback);
+  },
+})
+
+// Expose file operation APIs
+contextBridge.exposeInMainWorld('fileOps', {
+  saveNoteToFile: (noteId: string, title: string, content: string, saveLocation: string, oldTitle?: string) =>
+    ipcRenderer.invoke('save-note-to-file', noteId, title, content, saveLocation, oldTitle),
+  deleteNoteFile: (noteId: string, title: string, saveLocation: string) =>
+    ipcRenderer.invoke('delete-note-file', noteId, title, saveLocation),
+  listNoteFiles: (directoryPath: string) =>
+    ipcRenderer.invoke('list-note-files', directoryPath),
+  readNoteFile: (filePath: string) =>
+    ipcRenderer.invoke('read-note-file', filePath),
+})
+
+

@@ -15,7 +15,7 @@ import Underline from '@tiptap/extension-underline'
 import BulletList from '@tiptap/extension-bullet-list'
 import OrderedList from '@tiptap/extension-ordered-list'
 import ListItem from '@tiptap/extension-list-item'
-import { useCallback, useEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useState, useRef, forwardRef, useImperativeHandle } from 'react'
 import './Tiptap.css'
 
 interface TiptapProps {
@@ -29,16 +29,20 @@ interface TiptapProps {
   toolbarColor?: string; // Background color for the toolbar
 }
 
-const Tiptap = ({
+export interface TiptapRef {
+  focus: () => void;
+}
+
+const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
   content = '<p></p>',
   onUpdate,
   placeholder = 'Start typing here...',
-  autofocus = true,
+  autofocus = false,
   editable = true,
   editorClass = '',
   backgroundColor,
   toolbarColor,
-}: TiptapProps) => {
+}, ref) => {
   // State to track toolbar visibility
   const [isToolbarVisible, setIsToolbarVisible] = useState(true);
   // Ref to track the editor container for keyboard events
@@ -113,7 +117,7 @@ const Tiptap = ({
       },
       // Enhanced cursor handling
       handleDOMEvents: {
-        focus: (view) => {
+        focus: () => {
           // Force cursor visibility on focus
           const cursor = document.querySelector('.ProseMirror-cursor');
           if (cursor) {
@@ -123,7 +127,7 @@ const Tiptap = ({
           }
           return false;
         },
-        click: (view, event) => {
+        click: () => {
           // Force cursor visibility on click
           const cursor = document.querySelector('.ProseMirror-cursor');
           if (cursor) {
@@ -136,6 +140,15 @@ const Tiptap = ({
       }
     },
   })
+
+  // Expose focus method via ref
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      if (editor) {
+        editor.commands.focus('end');
+      }
+    }
+  }), [editor]);
 
   useEffect(() => {
     if (editor && content) {
@@ -373,7 +386,7 @@ const Tiptap = ({
         editor={editor}
         className={`tiptap-content ${editorClass}`}
         style={{ backgroundColor: backgroundColor || '' }}
-        onClick={(e) => {
+        onClick={() => {
           if (editor && !editor.isFocused) {
             editor.commands.focus('end');
           }
@@ -410,6 +423,8 @@ const Tiptap = ({
       </button>
     </div>
   )
-}
+});
+
+Tiptap.displayName = 'Tiptap';
 
 export default Tiptap

@@ -9,7 +9,7 @@ function SettingsApp() {
     saveLocation: '',
     autoSave: true,
     autoSaveInterval: 5,
-    darkMode: true,
+    theme: 'dim',
   })
   const [isLoading, setIsLoading] = useState(true)
   const [isOpen, setIsOpen] = useState(true)

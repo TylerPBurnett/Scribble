@@ -1,33 +1,24 @@
 import { useState, useRef, useEffect } from 'react';
 import { Note } from '../../shared/types/Note';
 import { deleteNote } from '../../shared/services/noteService';
+import { getNotesSortOption, saveNotesSortOption, SortOption } from '../../shared/services/settingsService';
 import NoteCard from './NoteCard';
-
-// Define sort options
-type SortField = 'title' | 'createdAt' | 'updatedAt';
-type SortDirection = 'asc' | 'desc';
-
-interface SortOption {
-  label: string;
-  field: SortField;
-  direction: SortDirection;
-}
 
 interface NoteListProps {
   notes: Note[];
   onNoteClick: (note: Note) => void;
   activeNoteId?: string;
   onNoteDelete?: (noteId: string) => void;
+  onCollectionUpdate?: () => void;
+  activeCollectionId?: string;
+  activeCollectionName?: string;
+  allNotes?: Note[]; // Add allNotes prop for collection count updates
 }
 
-const NoteList = ({ notes, onNoteClick, activeNoteId, onNoteDelete }: NoteListProps) => {
+const NoteList = ({ notes, onNoteClick, activeNoteId, onNoteDelete, onCollectionUpdate, activeCollectionId, activeCollectionName, allNotes = [] }: NoteListProps) => {
   const [deletedNotes, setDeletedNotes] = useState<string[]>([]);
   const [showSortMenu, setShowSortMenu] = useState(false);
-  const [sortOption, setSortOption] = useState<SortOption>({
-    label: 'Title (A-Z)',
-    field: 'title',
-    direction: 'asc'
-  });
+  const [sortOption, setSortOption] = useState<SortOption>(getNotesSortOption());
   const sortMenuRef = useRef<HTMLDivElement>(null);
 
   // Close sort menu when clicking outside
@@ -74,6 +65,7 @@ const NoteList = ({ notes, onNoteClick, activeNoteId, onNoteDelete }: NoteListPr
   // Handle sort option selection
   const handleSortOptionSelect = (option: SortOption) => {
     setSortOption(option);
+    saveNotesSortOption(option);
     setShowSortMenu(false);
   };
 
@@ -103,33 +95,36 @@ const NoteList = ({ notes, onNoteClick, activeNoteId, onNoteDelete }: NoteListPr
   // Apply sorting to notes
   const sortedFilteredNotes = sortNotes(filteredNotes);
 
-  // Separate pinned notes from other notes
-  const pinnedNotes = sortedFilteredNotes.filter(note => note.pinned);
-  const otherNotes = sortedFilteredNotes.filter(note => !note.pinned);
+  // Separate favorite notes from other notes
+  // Only include notes that are explicitly marked as favorites
+  const favoriteNotes = sortedFilteredNotes.filter(note => note.favorite);
+  // All other notes (including pinned ones) go in the regular notes section
+  const otherNotes = sortedFilteredNotes.filter(note => !note.favorite);
 
   return (
     <div className="notes-container flex-1 px-4 py-4 overflow-y-auto bg-background-notes transition-all duration-300">
-      {/* Pinned Notes Section */}
-      {pinnedNotes.length > 0 && (
+      {/* Favorites Section */}
+      {favoriteNotes.length > 0 && (
         <div className="notes-section mb-4">
           <div className="section-title flex items-center justify-between mb-2">
             <div className="flex items-center gap-2 text-xs font-medium text-text-tertiary uppercase tracking-wider">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                <circle cx="12" cy="10" r="3"></circle>
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
               </svg>
-              <span>Pinned</span>
+              <span>FAVORITES</span>
             </div>
           </div>
           <div className="notes-grid grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 gap-3">
-            {pinnedNotes.map((note) => (
+            {favoriteNotes.map((note) => (
               <NoteCard
                 key={note.id}
                 note={note}
                 onClick={onNoteClick}
                 isActive={note.id === activeNoteId}
                 onDelete={handleNoteDelete}
-                isPinned={true}
+                isFavorite={true}
+                onCollectionUpdate={onCollectionUpdate}
+                allNotes={allNotes}
               />
             ))}
           </div>
@@ -159,6 +154,7 @@ const NoteList = ({ notes, onNoteClick, activeNoteId, onNoteDelete }: NoteListPr
               className="sort-button flex items-center justify-center w-6 h-6 text-text-tertiary rounded-full hover:bg-background-tertiary/30 transition-colors"
               onClick={toggleSortMenu}
               title="Sort notes"
+              tabIndex={-1}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M11 5h10"></path>
@@ -235,14 +231,23 @@ const NoteList = ({ notes, onNoteClick, activeNoteId, onNoteDelete }: NoteListPr
                 />
               </svg>
             </div>
-            <h2 className="text-xl font-semibold mb-2">No notes yet</h2>
-            <p className="text-text-tertiary mb-6">Create your first note to get started</p>
+            <h2 className="text-xl font-semibold mb-2">
+              {activeCollectionId === 'all' || !activeCollectionName 
+                ? 'No notes yet' 
+                : `No notes in ${activeCollectionName}`}
+            </h2>
+            <p className="text-text-tertiary mb-6">
+              {activeCollectionId === 'all' || !activeCollectionName
+                ? 'Create your first note to get started'
+                : `Create a note or add existing notes to ${activeCollectionName}`}
+            </p>
             <button
               className="primary-button flex items-center gap-2 px-4 py-2 bg-primary text-black rounded-md font-medium hover:bg-primary-dark transition-colors"
               onClick={() => {
                 // This is just a placeholder - the actual new note functionality is handled in the parent component
                 console.log('Create new note clicked in empty state');
               }}
+              tabIndex={-1}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -260,6 +265,8 @@ const NoteList = ({ notes, onNoteClick, activeNoteId, onNoteDelete }: NoteListPr
                 onClick={onNoteClick}
                 isActive={note.id === activeNoteId}
                 onDelete={handleNoteDelete}
+                onCollectionUpdate={onCollectionUpdate}
+                allNotes={allNotes}
               />
             ))}
           </div>

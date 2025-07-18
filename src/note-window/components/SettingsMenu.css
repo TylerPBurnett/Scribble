@@ -1,0 +1,127 @@
+/* Settings menu styles */
+.settings-menu-container {
+  /* Force full opacity regardless of parent opacity */
+  opacity: 1 !important;
+  /* Ensure it's on top of everything */
+  z-index: 9999 !important;
+  /* Ensure it's clickable */
+  pointer-events: auto !important;
+  /* Enhanced shadow for depth */
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+  /* Use theme colors */
+  background-color: hsl(var(--popover)) !important;
+  color: hsl(var(--popover-foreground)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  /* Ensure proper positioning */
+  position: absolute !important;
+  /* Ensure the menu doesn't get cut off at screen edges */
+  max-height: calc(100vh - 60px) !important;
+  overflow-y: auto !important;
+  /* Modern rounded corners */
+  border-radius: 12px !important;
+  /* Smooth transitions */
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease !important;
+  /* Consistent font */
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+  font-size: 0.8rem !important;
+  line-height: 1.4 !important;
+}
+
+/* Ensure all menu items are clickable */
+.settings-menu-container * {
+  pointer-events: auto !important;
+}
+
+/* Enhanced hover effects for menu items */
+.settings-menu-container .menu-item:hover {
+  background-color: hsl(var(--accent)) !important;
+  color: hsl(var(--accent-foreground)) !important;
+  transition: all 0.15s ease !important;
+}
+
+/* Ensure non-interactive elements don't get hover effects */
+.settings-menu-container .menu-item {
+  transition: all 0.15s ease !important;
+  border-radius: 6px !important;
+  margin: 2px 4px !important;
+}
+
+/* Enhanced slider styling */
+.settings-menu-container input[type="range"] {
+  width: 100%;
+  height: 6px;
+  -webkit-appearance: none;
+  background: hsl(var(--muted)) !important;
+  border-radius: 3px;
+  outline: none;
+  margin: 10px 0;
+  transition: background-color 0.2s ease !important;
+}
+
+.settings-menu-container input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: hsl(var(--primary)) !important;
+  cursor: pointer;
+  border: 2px solid hsl(var(--background)) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2), 0 0 0 1px hsl(var(--border)) !important;
+  transition: all 0.15s ease !important;
+}
+
+.settings-menu-container input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.1) !important;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3), 0 0 0 2px hsl(var(--primary)) !important;
+}
+
+/* Enhanced spacing for menu items */
+.settings-menu-container > div {
+  padding: 10px 16px;
+}
+
+/* Enhanced section headers */
+.settings-menu-container .section-header {
+  color: hsl(var(--muted-foreground)) !important;
+  font-size: 0.7rem !important;
+  font-weight: 600 !important;
+  margin-bottom: 8px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+}
+
+/* Enhanced keyboard shortcuts */
+.settings-menu-container .keyboard-shortcut {
+  color: hsl(var(--muted-foreground)) !important;
+  font-size: 0.65rem !important;
+  padding: 3px 6px !important;
+  border-radius: 4px !important;
+  background-color: hsl(var(--muted)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace !important;
+  font-weight: 500 !important;
+  transition: all 0.15s ease !important;
+}
+
+/* Add subtle dividers */
+.settings-menu-container .divider {
+  border-color: hsl(var(--border)) !important;
+  margin: 8px 0 !important;
+}
+
+/* Color picker buttons */
+.settings-menu-container .color-button {
+  border: 2px solid hsl(var(--border)) !important;
+  transition: all 0.15s ease !important;
+}
+
+.settings-menu-container .color-button:hover {
+  transform: scale(1.05) !important;
+  border-color: hsl(var(--primary)) !important;
+}
+
+.settings-menu-container .color-button.selected {
+  border-color: hsl(var(--primary)) !important;
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.3) !important;
+}
