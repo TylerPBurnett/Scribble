@@ -83,13 +83,24 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, content]);
 
-  // Load settings on component mount
+  // Load settings on component mount and subscribe to changes
   useEffect(() => {
     // Initial settings load
     const settings = getSettings();
     setAppSettings(settings);
     setAutoSaveEnabled(settings.autoSave);
     setAutoSaveInterval(settings.autoSaveInterval * 1000); // Convert to milliseconds
+
+    // Subscribe to settings changes for immediate hotkey updates
+    const unsubscribe = subscribeToSettingsChanges((newSettings) => {
+      console.log('NoteEditor - Settings changed, updating hotkeys:', JSON.stringify(newSettings.hotkeys, null, 2));
+      setAppSettings(newSettings);
+      setAutoSaveEnabled(newSettings.autoSave);
+      setAutoSaveInterval(newSettings.autoSaveInterval * 1000);
+    });
+
+    // Cleanup subscription on unmount
+    return unsubscribe;
   }, []);
 
   // Define a stable save function that uses refs to access the latest state

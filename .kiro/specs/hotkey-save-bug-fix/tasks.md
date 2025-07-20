@@ -30,7 +30,7 @@
   - Add manual test script to verify the specific bug scenario is fixed
   - _Requirements: 1.4, 2.4, 4.5_
 
-- [ ] 6. Ensure immediate hotkey activation after save
+- [x] 6. Ensure immediate hotkey activation after save
   - Verify that main process sync properly receives and applies hotkey changes
   - Add notification mechanism to update note windows with new hotkeys immediately
   - Test that new hotkeys work without requiring app restart
