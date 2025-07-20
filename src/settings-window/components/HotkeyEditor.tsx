@@ -50,8 +50,18 @@ export function HotkeyEditor({ action, label, currentValue, onChange, theme = 'd
     if (e.shiftKey) keys.push('shift');
     if (e.metaKey) keys.push('meta');
 
-    // Add the actual key (not a modifier)
-    keys.push(e.key.toLowerCase());
+    // Add the actual key (not a modifier) - use e.code to get the physical key
+    // Convert KeyT -> t, KeyA -> a, etc.
+    let physicalKey = e.code;
+    if (physicalKey.startsWith('Key')) {
+      physicalKey = physicalKey.slice(3).toLowerCase();
+    } else if (physicalKey.startsWith('Digit')) {
+      physicalKey = physicalKey.slice(5);
+    } else {
+      // For other keys like Space, Enter, etc., use the key value but fallback to code
+      physicalKey = e.key.length === 1 ? e.key.toLowerCase() : e.code;
+    }
+    keys.push(physicalKey);
 
     // Update the value
     const newValue = keys.join('+');
