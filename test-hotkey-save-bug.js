@@ -88,7 +88,7 @@ function saveSettings(settings) {
   // Verify the save by reading back from localStorage
   const savedSettingsJson = localStorage.getItem('app_settings');
   console.log('Verification - Raw JSON read back from localStorage:', savedSettingsJson);
-  
+
   if (savedSettingsJson) {
     try {
       const savedSettings = JSON.parse(savedSettingsJson);
@@ -111,7 +111,7 @@ function simulateOnSubmit(formValues, hotkeys) {
   console.log('=== HOTKEY SAVE DEBUG: onSubmit started ===');
   console.log('Form values received:', JSON.stringify(formValues, null, 2));
   console.log('Current hotkeys state:', JSON.stringify(hotkeys, null, 2));
-  
+
   // Combine form values with hotkeys (this is where the bug might be)
   const combinedSettings = {
     ...formValues,
@@ -127,7 +127,7 @@ function simulateOnSubmit(formValues, hotkeys) {
 
   console.log('Final combined settings before save:', JSON.stringify(combinedSettings, null, 2));
   console.log('Calling saveSettings with combined settings...');
-  
+
   const saveResult = saveSettings(combinedSettings);
   console.log('=== HOTKEY SAVE DEBUG: onSubmit completed ===');
   return saveResult;
