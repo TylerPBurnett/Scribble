@@ -38,6 +38,11 @@ export function HotkeyEditor({ action, label, currentValue, onChange, theme = 'd
 
     e.preventDefault();
 
+    // Don't process if it's only a modifier key being pressed
+    if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) {
+      return;
+    }
+
     // Get the key combination
     const keys: string[] = [];
     if (e.ctrlKey) keys.push('ctrl');
@@ -45,19 +50,15 @@ export function HotkeyEditor({ action, label, currentValue, onChange, theme = 'd
     if (e.shiftKey) keys.push('shift');
     if (e.metaKey) keys.push('meta');
 
-    // Add the key if it's not a modifier
-    if (!['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) {
-      keys.push(e.key.toLowerCase());
-    }
+    // Add the actual key (not a modifier)
+    keys.push(e.key.toLowerCase());
 
-    // If there's at least one key, update the value
-    if (keys.length > 0) {
-      const newValue = keys.join('+');
-      onChange(action, newValue);
-      setDisplayValue(formatHotkeyForDisplay(newValue));
-      setIsRecording(false);
-      inputRef.current?.blur();
-    }
+    // Update the value
+    const newValue = keys.join('+');
+    onChange(action, newValue);
+    setDisplayValue(formatHotkeyForDisplay(newValue));
+    setIsRecording(false);
+    inputRef.current?.blur();
   };
 
   // Handle click to focus the input

@@ -1,6 +1,6 @@
 .tiptap-editor {
   display: flex;
-  flex-direction: column-reverse; /* Reversed to put toolbar at bottom */
+  flex-direction: column; /* Normal direction to put toolbar at top */
   border: none;
   border-radius: 0;
   overflow: hidden;

@@ -3,6 +3,7 @@ import { Note } from '../../shared/types/Note';
 import Tiptap, { TiptapRef } from './Tiptap';
 import { updateNote, deleteNote } from '../../shared/services/noteService';
 import { getSettings, subscribeToSettingsChanges, AppSettings } from '../../shared/services/settingsService';
+import { getHotkeys, formatHotkeyForDisplay } from '../../shared/services/hotkeyService';
 import { NoteHotkeys } from './NoteHotkeys';
 import { useDebounce } from '../../shared/hooks/useDebounce';
 import './NoteEditor.css';
@@ -80,26 +81,15 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, content, onChange]);
+  }, [title, content]);
 
-  // Load settings on component mount and subscribe to changes
+  // Load settings on component mount
   useEffect(() => {
     // Initial settings load
     const settings = getSettings();
     setAppSettings(settings);
     setAutoSaveEnabled(settings.autoSave);
     setAutoSaveInterval(settings.autoSaveInterval * 1000); // Convert to milliseconds
-
-    // Subscribe to settings changes
-    const unsubscribe = subscribeToSettingsChanges((newSettings) => {
-      console.log('Settings changed in NoteEditor:', newSettings);
-      setAppSettings(newSettings);
-      setAutoSaveEnabled(newSettings.autoSave);
-      setAutoSaveInterval(newSettings.autoSaveInterval * 1000);
-    });
-
-    // Cleanup subscription on unmount
-    return () => unsubscribe();
   }, []);
 
   // Define a stable save function that uses refs to access the latest state
@@ -191,7 +181,7 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
       console.log('Content changed and not focused, marking as dirty');
       setIsDirty(true);
     }
-  }, [content, isTitleFocused, currentNoteRef]);
+  }, [content, isTitleFocused]);
 
   // Check if title has changed from the last saved version
   useEffect(() => {
@@ -200,7 +190,7 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
       console.log('Title changed from saved version, marking as dirty');
       setIsDirty(true);
     }
-  }, [title, currentNoteRef]);
+  }, [title]);
 
   // Effect to adjust input width based on content
   useEffect(() => {
@@ -381,7 +371,7 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
     };
 
     initTransparency();
-  }, [transparency]); // Include transparency as a dependency
+  }, []); // Run only once on mount
 
   // Add keyboard shortcuts for toggling transparency and favorite
   useEffect(() => {
@@ -513,6 +503,8 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
       console.error('Error changing note color:', error);
     }
   };
+
+
 
   // Function to darken a color for the header
   const getDarkerShade = (color: string): string => {
@@ -784,6 +776,32 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
                         </svg>
                       )}
                       <span className="keyboard-shortcut">⌥⌘F</span>
+                    </div>
+                  </div>
+
+                  {/* Toolbar toggle option */}
+                  <div
+                    className="menu-item py-2 px-4 cursor-pointer transition-colors flex items-center justify-between"
+                    onClick={() => {
+                      if (tiptapRef.current?.toggleToolbar) {
+                        tiptapRef.current.toggleToolbar();
+                      }
+                    }}
+                  >
+                    <span>Show Toolbar</span>
+                    <div className="flex items-center gap-2">
+                      {tiptapRef.current?.isToolbarVisible?.() && (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                      )}
+                      <span className="keyboard-shortcut">
+                        {(() => {
+                          const settings = getSettings();
+                          const hotkeys = getHotkeys(settings);
+                          return formatHotkeyForDisplay(hotkeys.toggleToolbar || 'alt+t');
+                        })()}
+                      </span>
                     </div>
                   </div>
 

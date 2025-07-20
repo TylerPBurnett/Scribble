@@ -15,7 +15,10 @@ import Underline from '@tiptap/extension-underline'
 import BulletList from '@tiptap/extension-bullet-list'
 import OrderedList from '@tiptap/extension-ordered-list'
 import ListItem from '@tiptap/extension-list-item'
-import { useCallback, useEffect, useState, useRef, forwardRef, useImperativeHandle } from 'react'
+import { useEffect, useState, useRef, forwardRef, useImperativeHandle } from 'react'
+import EssentialToolbar from './EssentialToolbar'
+import { getSettings, subscribeToSettingsChanges } from '../../shared/services/settingsService'
+import { getHotkeys, formatHotkeyForDisplay } from '../../shared/services/hotkeyService'
 import './Tiptap.css'
 
 interface TiptapProps {
@@ -31,6 +34,8 @@ interface TiptapProps {
 
 export interface TiptapRef {
   focus: () => void;
+  toggleToolbar: () => void;
+  isToolbarVisible: () => boolean;
 }
 
 const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
@@ -141,14 +146,20 @@ const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
     },
   })
 
-  // Expose focus method via ref
+  // Expose focus method and toolbar controls via ref
   useImperativeHandle(ref, () => ({
     focus: () => {
       if (editor) {
         editor.commands.focus('end');
       }
+    },
+    toggleToolbar: () => {
+      setIsToolbarVisible(prev => !prev);
+    },
+    isToolbarVisible: () => {
+      return isToolbarVisible;
     }
-  }), [editor]);
+  }), [editor, isToolbarVisible]);
 
   useEffect(() => {
     if (editor && content) {
@@ -187,42 +198,74 @@ const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
     }
   }, [editor, autofocus]);
 
-  const setLink = useCallback(() => {
-    if (!editor) return;
 
-    const previousUrl = editor.getAttributes('link').href;
-    const url = window.prompt('URL', previousUrl);
 
-    // cancelled
-    if (url === null) {
-      return;
-    }
 
-    // empty
-    if (url === '') {
-      editor.commands.unsetLink();
-      return;
-    }
 
-    // update link
-    editor.commands.setLink({ href: url });
-  }, [editor]);
-
-  const addImage = useCallback(() => {
-    if (!editor) return;
-
-    const url = window.prompt('Image URL');
-
-    if (url) {
-      editor.commands.setImage({ src: url });
-    }
-  }, [editor]);
-
-  // Add keyboard event handler to toggle toolbar
+  // Add keyboard event handler to toggle toolbar using current hotkey
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Toggle toolbar with Alt+T
-      if (e.altKey && e.key === 't') {
+      // Get fresh settings each time to avoid stale state
+      const settings = getSettings();
+      const hotkeys = getHotkeys(settings);
+      const toggleToolbarHotkey = hotkeys.toggleToolbar || 'alt+t';
+      
+      console.log('🔧 Keyboard event - Current hotkey from settings:', toggleToolbarHotkey);
+      console.log('🔧 Key pressed:', {
+        key: e.key,
+        code: e.code,
+        ctrlKey: e.ctrlKey,
+        altKey: e.altKey,
+        shiftKey: e.shiftKey,
+        metaKey: e.metaKey
+      });
+      
+      // Don't process if it's only a modifier key being pressed
+      if (['Control', 'Alt', 'Shift', 'Meta', 'Option', 'Command'].includes(e.key)) {
+        return;
+      }
+      
+      // Parse the hotkey string to check if it matches the current key combination
+      const hotkeyParts = toggleToolbarHotkey.toLowerCase().split('+');
+      const hasCtrl = hotkeyParts.includes('ctrl') || hotkeyParts.includes('control');
+      const hasAlt = hotkeyParts.includes('alt');
+      const hasShift = hotkeyParts.includes('shift');
+      const hasMeta = hotkeyParts.includes('meta') || hotkeyParts.includes('cmd') || hotkeyParts.includes('command');
+      const key = hotkeyParts[hotkeyParts.length - 1]; // Last part is the key
+      
+      console.log('🔧 Parsed hotkey:', {
+        hotkeyParts,
+        hasCtrl,
+        hasAlt,
+        hasShift,
+        hasMeta,
+        key
+      });
+      
+      // Check if the current key combination matches the configured hotkey
+      // On Mac, Option+T generates special characters, so we need to check the code instead
+      const keyMatches = 
+        e.key.toLowerCase() === key || 
+        e.code.toLowerCase() === `key${key}` || 
+        e.code.toLowerCase() === `key${key.toUpperCase()}` ||
+        (key === 't' && e.code === 'KeyT') ||
+        (key === 'c' && e.code === 'KeyC') ||
+        (key === 'n' && e.code === 'KeyN');
+      
+      const modifiersMatch = 
+        e.ctrlKey === hasCtrl &&
+        e.altKey === hasAlt &&
+        e.shiftKey === hasShift &&
+        e.metaKey === hasMeta;
+      
+      console.log('🔧 Match check:', {
+        keyMatches,
+        modifiersMatch,
+        shouldToggle: keyMatches && modifiersMatch
+      });
+      
+      if (keyMatches && modifiersMatch) {
+        console.log('🔧 TOGGLING TOOLBAR!');
         e.preventDefault();
         setIsToolbarVisible(prev => !prev);
       }
@@ -235,7 +278,7 @@ const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, []); // No dependencies to avoid re-renders
 
   // Toggle toolbar visibility
   const toggleToolbar = () => {
@@ -246,141 +289,22 @@ const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
     return null;
   }
 
+  // Determine theme based on editor class
+  const theme = editorClass.includes('dark-theme') ? 'dark' : 'light';
+
   return (
     <div
       className="tiptap-editor"
       ref={editorContainerRef}
       style={{ backgroundColor: backgroundColor || '' }}
     >
-      <div
-        className={`tiptap-toolbar ${isToolbarVisible ? '' : 'hidden'}`}
-        style={{ backgroundColor: toolbarColor || '' }}>
-        <button
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          className={editor.isActive('bold') ? 'is-active' : ''}
-          title="Bold"
-        >
-          <span className="icon">B</span>
-        </button>
-        <button
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          className={editor.isActive('italic') ? 'is-active' : ''}
-          title="Italic"
-        >
-          <span className="icon">I</span>
-        </button>
-        <button
-          onClick={() => editor.commands.toggleUnderline()}
-          className={editor.isActive('underline') ? 'is-active' : ''}
-          title="Underline"
-        >
-          <span className="icon">U</span>
-        </button>
-        <button
-          onClick={() => editor.chain().focus().toggleStrike().run()}
-          className={editor.isActive('strike') ? 'is-active' : ''}
-          title="Strike"
-        >
-          <span className="icon">S</span>
-        </button>
-        <button
-          onClick={() => editor.chain().focus().toggleHighlight().run()}
-          className={editor.isActive('highlight') ? 'is-active' : ''}
-          title="Highlight"
-        >
-          <span className="icon">H</span>
-        </button>
-        <div className="divider"></div>
-        <button
-          onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-          className={editor.isActive('heading', { level: 1 }) ? 'is-active' : ''}
-          title="Heading 1"
-        >
-          <span className="icon">H1</span>
-        </button>
-        <button
-          onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-          className={editor.isActive('heading', { level: 2 }) ? 'is-active' : ''}
-          title="Heading 2"
-        >
-          <span className="icon">H2</span>
-        </button>
-        <button
-          onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-          className={editor.isActive('heading', { level: 3 }) ? 'is-active' : ''}
-          title="Heading 3"
-        >
-          <span className="icon">H3</span>
-        </button>
-        <div className="divider"></div>
-        <button
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          className={editor.isActive('bulletList') ? 'is-active' : ''}
-          title="Bullet List"
-        >
-          <span className="icon">•</span>
-        </button>
-        <button
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          className={editor.isActive('orderedList') ? 'is-active' : ''}
-          title="Ordered List"
-        >
-          <span className="icon">1.</span>
-        </button>
-        <button
-          onClick={() => editor.chain().focus().toggleTaskList().run()}
-          className={editor.isActive('taskList') ? 'is-active' : ''}
-          title="Task List"
-        >
-          <span className="icon">☑</span>
-        </button>
-        <div className="divider"></div>
-        <button
-          onClick={() => editor.commands.setTextAlign('left')}
-          className={editor.isActive({ textAlign: 'left' }) ? 'is-active' : ''}
-          title="Align Left"
-        >
-          <span className="icon">←</span>
-        </button>
-        <button
-          onClick={() => editor.commands.setTextAlign('center')}
-          className={editor.isActive({ textAlign: 'center' }) ? 'is-active' : ''}
-          title="Align Center"
-        >
-          <span className="icon">↔</span>
-        </button>
-        <button
-          onClick={() => editor.commands.setTextAlign('right')}
-          className={editor.isActive({ textAlign: 'right' }) ? 'is-active' : ''}
-          title="Align Right"
-        >
-          <span className="icon">→</span>
-        </button>
-        <div className="divider"></div>
-        <button onClick={setLink} className={editor.isActive('link') ? 'is-active' : ''} title="Link">
-          <span className="icon">🔗</span>
-        </button>
-        <button onClick={addImage} title="Image">
-          <span className="icon">🖼️</span>
-        </button>
-        <button
-          onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-          className={editor.isActive('codeBlock') ? 'is-active' : ''}
-          title="Code Block"
-        >
-          <span className="icon">{'</>'}</span>
-        </button>
-        <button
-          onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          className={editor.isActive('blockquote') ? 'is-active' : ''}
-          title="Blockquote"
-        >
-          <span className="icon">"</span>
-        </button>
-        <button onClick={() => editor.chain().focus().setHorizontalRule().run()} title="Horizontal Rule">
-          <span className="icon">—</span>
-        </button>
-      </div>
+      <EssentialToolbar
+        editor={editor}
+        isVisible={isToolbarVisible}
+        onToggle={toggleToolbar}
+        theme={theme}
+        backgroundColor={backgroundColor}
+      />
 
       <EditorContent
         editor={editor}
@@ -405,22 +329,22 @@ const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
         }}
       />
 
-      {/* Toolbar toggle button */}
-      <button className="toolbar-toggle" onClick={toggleToolbar} title={`${isToolbarVisible ? 'Hide' : 'Show'} toolbar (Alt+T)`}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          {isToolbarVisible ? (
-            <>
-              {/* Hide icon - chevron down */}
-              <polyline points="6 9 12 15 18 9"></polyline>
-            </>
-          ) : (
-            <>
-              {/* Show icon - chevron up */}
-              <polyline points="18 15 12 9 6 15"></polyline>
-            </>
-          )}
-        </svg>
-      </button>
+      {/* Show toolbar toggle button when toolbar is hidden */}
+      {!isToolbarVisible && (
+        <button 
+          className="toolbar-toggle" 
+          onClick={toggleToolbar} 
+          title={`Show toolbar (${(() => {
+            const settings = getSettings();
+            const hotkeys = getHotkeys(settings);
+            return formatHotkeyForDisplay(hotkeys.toggleToolbar || 'alt+t');
+          })()})`}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="18 15 12 9 6 15"/>
+          </svg>
+        </button>
+      )}
     </div>
   )
 });

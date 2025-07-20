@@ -123,7 +123,13 @@ const notifySettingsChange = (settings: AppSettings): void => {
 
 // Save settings to localStorage
 export const saveSettings = (settings: AppSettings): void => {
-  console.log('Saving settings to localStorage:', settings);
+  console.log('=== HOTKEY SAVE DEBUG: saveSettings started ===');
+  console.log('Settings received in saveSettings:', JSON.stringify(settings, null, 2));
+  console.log('Hotkeys property in received settings:', JSON.stringify(settings.hotkeys, null, 2));
+  console.log('Type of hotkeys property:', typeof settings.hotkeys);
+  console.log('Is hotkeys property defined?', settings.hotkeys !== undefined);
+  console.log('Is hotkeys property null?', settings.hotkeys === null);
+  console.log('Number of hotkey entries:', settings.hotkeys ? Object.keys(settings.hotkeys).length : 0);
 
   // Ensure globalHotkeys is properly set
   if (!settings.globalHotkeys) {
@@ -140,9 +146,31 @@ export const saveSettings = (settings: AppSettings): void => {
     settings.globalHotkeys = migrateGlobalHotkeys(settings.globalHotkeys);
   }
 
+  console.log('Settings before localStorage save:', JSON.stringify(settings, null, 2));
+  console.log('Hotkeys before localStorage save:', JSON.stringify(settings.hotkeys, null, 2));
+
   // Save to localStorage
-  localStorage.setItem('app_settings', JSON.stringify(settings));
+  const settingsJson = JSON.stringify(settings);
+  console.log('JSON string being saved to localStorage:', settingsJson);
+  localStorage.setItem('app_settings', settingsJson);
   console.log('Settings saved to localStorage');
+
+  // Verify the save by reading back from localStorage
+  const savedSettingsJson = localStorage.getItem('app_settings');
+  console.log('Verification - Raw JSON read back from localStorage:', savedSettingsJson);
+  
+  if (savedSettingsJson) {
+    try {
+      const savedSettings = JSON.parse(savedSettingsJson);
+      console.log('Verification - Parsed settings from localStorage:', JSON.stringify(savedSettings, null, 2));
+      console.log('Verification - Hotkeys in localStorage:', JSON.stringify(savedSettings.hotkeys, null, 2));
+      console.log('Verification - Do hotkeys match what we saved?', JSON.stringify(savedSettings.hotkeys) === JSON.stringify(settings.hotkeys));
+    } catch (error) {
+      console.error('Verification - Error parsing settings from localStorage:', error);
+    }
+  } else {
+    console.error('Verification - No settings found in localStorage after save!');
+  }
 
   // Update auto-launch setting in the main process
   if (settings.autoLaunch !== undefined) {

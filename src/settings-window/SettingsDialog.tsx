@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
@@ -79,9 +79,19 @@ export function SettingsDialog({
 }: SettingsDialogProps) {
   const { theme } = useTheme();
   const [isSelectingLocation, setIsSelectingLocation] = useState(false);
-  const [hotkeys, setHotkeys] = useState<Record<HotkeyAction, string>>(
-    initialSettings.hotkeys as Record<HotkeyAction, string> || DEFAULT_HOTKEYS
-  );
+  const [hotkeys, setHotkeys] = useState<Record<HotkeyAction, string>>(() => {
+    // Ensure we have a complete hotkey set by merging with defaults
+    const mergedHotkeys = { ...DEFAULT_HOTKEYS, ...initialSettings.hotkeys };
+    console.log('SettingsDialog - Initializing hotkeys state:', JSON.stringify(mergedHotkeys, null, 2));
+    return mergedHotkeys;
+  });
+
+  // Update hotkeys state when initialSettings changes (e.g., when dialog is reopened)
+  useEffect(() => {
+    const mergedHotkeys = { ...DEFAULT_HOTKEYS, ...initialSettings.hotkeys };
+    console.log('SettingsDialog - Updating hotkeys state from initialSettings:', JSON.stringify(mergedHotkeys, null, 2));
+    setHotkeys(mergedHotkeys);
+  }, [initialSettings.hotkeys]);
 
   // Initialize the form with react-hook-form
   const form = useForm<z.infer<typeof formSchema>>({
@@ -103,24 +113,63 @@ export function SettingsDialog({
 
   // Handle form submission
   function onSubmit(values: z.infer<typeof formSchema>) {
+    console.log('=== HOTKEY SAVE DEBUG: onSubmit started ===');
+    console.log('Form values received:', JSON.stringify(values, null, 2));
+    console.log('Current hotkeys state:', JSON.stringify(hotkeys, null, 2));
+    console.log('Initial settings hotkeys:', JSON.stringify(initialSettings.hotkeys, null, 2));
+    
+    // Validate hotkeys state before proceeding
+    if (!hotkeys || typeof hotkeys !== 'object') {
+      console.error('HOTKEY SAVE ERROR: Invalid hotkeys state:', hotkeys);
+      // Fallback to default hotkeys if state is corrupted
+      setHotkeys({ ...DEFAULT_HOTKEYS, ...initialSettings.hotkeys });
+      return;
+    }
+
+    // Ensure all required hotkey actions are present
+    const requiredActions = Object.keys(DEFAULT_HOTKEYS) as HotkeyAction[];
+    const missingActions = requiredActions.filter(action => !hotkeys[action]);
+    if (missingActions.length > 0) {
+      console.warn('HOTKEY SAVE WARNING: Missing hotkey actions:', missingActions);
+      // Fill in missing actions with defaults
+      const completeHotkeys = { ...DEFAULT_HOTKEYS, ...hotkeys };
+      setHotkeys(completeHotkeys);
+      // Use the complete hotkeys for saving
+      var hotkeysTosave = completeHotkeys;
+    } else {
+      var hotkeysTosave = hotkeys;
+    }
+    
     // Combine form values with hotkeys
     const combinedSettings: AppSettings = {
       ...values,
-      hotkeys,
+      hotkeys: hotkeysTosave,
     } as AppSettings;
+
+    console.log('Combined settings after merging hotkeys:', JSON.stringify(combinedSettings, null, 2));
+    console.log('Hotkeys property in combined settings:', JSON.stringify(combinedSettings.hotkeys, null, 2));
+    console.log('Type of hotkeys property:', typeof combinedSettings.hotkeys);
+    console.log('Is hotkeys property defined?', combinedSettings.hotkeys !== undefined);
+    console.log('Is hotkeys property null?', combinedSettings.hotkeys === null);
+    console.log('Number of hotkey entries:', combinedSettings.hotkeys ? Object.keys(combinedSettings.hotkeys).length : 0);
 
     // Ensure both toggleApp and showApp properties are set for backward compatibility
     if (combinedSettings.globalHotkeys) {
+      console.log('Processing globalHotkeys for backward compatibility');
       if (combinedSettings.globalHotkeys.toggleApp && !combinedSettings.globalHotkeys.showApp) {
         combinedSettings.globalHotkeys.showApp = combinedSettings.globalHotkeys.toggleApp;
+        console.log('Set showApp from toggleApp:', combinedSettings.globalHotkeys.showApp);
       } else if (combinedSettings.globalHotkeys.showApp && !combinedSettings.globalHotkeys.toggleApp) {
         combinedSettings.globalHotkeys.toggleApp = combinedSettings.globalHotkeys.showApp;
+        console.log('Set toggleApp from showApp:', combinedSettings.globalHotkeys.toggleApp);
       }
     }
 
+    console.log('Final combined settings before save:', JSON.stringify(combinedSettings, null, 2));
     console.log('Saving settings with global hotkeys:', JSON.stringify(combinedSettings.globalHotkeys, null, 2));
 
     // Force immediate update of global hotkeys
+    console.log('Syncing settings with main process...');
     window.settings.syncSettings(combinedSettings as unknown as Record<string, unknown>)
       .then(success => {
         console.log('Settings synced directly from SettingsDialog:', success);
@@ -131,7 +180,9 @@ export function SettingsDialog({
         console.error('Error syncing settings from SettingsDialog:', error);
       });
 
+    console.log('Calling onSave callback with combined settings...');
     onSave(combinedSettings);
+    console.log('=== HOTKEY SAVE DEBUG: onSubmit completed ===');
     onOpenChange(false);
   }
 

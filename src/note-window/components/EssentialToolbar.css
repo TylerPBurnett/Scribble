@@ -1,0 +1,211 @@
+.essential-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background-color: transparent;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  transition: all 0.2s ease;
+}
+
+.essential-toolbar-content {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.essential-toolbar-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background-color: transparent;
+  color: rgba(0, 0, 0, 0.7);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.essential-toolbar-button:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+  color: rgba(0, 0, 0, 0.9);
+  transform: translateY(-1px);
+}
+
+.essential-toolbar-button:active {
+  transform: translateY(0);
+}
+
+.essential-toolbar-button.is-active {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: rgb(59, 130, 246);
+}
+
+.essential-toolbar-button.is-active:hover {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: rgb(37, 99, 235);
+}
+
+.essential-toolbar-separator {
+  width: 1px;
+  height: 20px;
+  background-color: rgba(0, 0, 0, 0.12);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.essential-toolbar-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 4px;
+  background-color: transparent;
+  color: rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-left: 8px;
+}
+
+.essential-toolbar-toggle:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+  color: rgba(0, 0, 0, 0.7);
+}
+
+/* Dark theme styles */
+.essential-toolbar.dark-theme {
+  background-color: transparent;
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.essential-toolbar.dark-theme .essential-toolbar-button {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.essential-toolbar.dark-theme .essential-toolbar-button:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.essential-toolbar.dark-theme .essential-toolbar-button.is-active {
+  background-color: rgba(59, 130, 246, 0.25);
+  color: rgb(96, 165, 250);
+}
+
+.essential-toolbar.dark-theme .essential-toolbar-button.is-active:hover {
+  background-color: rgba(59, 130, 246, 0.3);
+  color: rgb(147, 197, 253);
+}
+
+.essential-toolbar.dark-theme .essential-toolbar-separator {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.essential-toolbar.dark-theme .essential-toolbar-toggle {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.essential-toolbar.dark-theme .essential-toolbar-toggle:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Responsive design */
+@media (max-width: 600px) {
+  .essential-toolbar {
+    padding: 6px 8px;
+  }
+  
+  .essential-toolbar-button {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .essential-toolbar-content {
+    gap: 2px;
+  }
+  
+  .essential-toolbar-separator {
+    margin: 0 2px;
+  }
+}
+
+@media (max-width: 400px) {
+  .essential-toolbar {
+    padding: 4px 6px;
+  }
+  
+  .essential-toolbar-button {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .essential-toolbar-button svg {
+    width: 14px;
+    height: 14px;
+  }
+  
+  .essential-toolbar-toggle {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .essential-toolbar-toggle svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+/* Smooth animations */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.essential-toolbar {
+  animation: slideDown 0.2s ease-out;
+}
+
+/* Focus styles for accessibility */
+.essential-toolbar-button:focus-visible,
+.essential-toolbar-toggle:focus-visible {
+  outline: 2px solid rgb(59, 130, 246);
+  outline-offset: 2px;
+}
+
+/* Tooltip enhancement */
+.essential-toolbar-button[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: -32px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.essential-toolbar.dark-theme .essential-toolbar-button[title]:hover::after {
+  background-color: rgba(255, 255, 255, 0.9);
+  color: black;
+}
