@@ -77,6 +77,13 @@ export const getNotes = async (): Promise<Note[]> => {
 
         // Convert markdown to HTML for the editor
         const htmlContent = markdownToHtml(markdownContent);
+        
+        // Debug logging for nested list conversion during loading
+        if (markdownContent.includes('-') || markdownContent.includes('1.')) {
+          console.log('🔄 Converting Markdown to HTML (loading):');
+          console.log('Markdown:', markdownContent);
+          console.log('HTML:', htmlContent);
+        }
 
         // Use embedded ID from metadata if available, otherwise fall back to file.id
         // This ensures we use the stable UUID that was embedded in the note
@@ -166,6 +173,13 @@ export const updateNote = async (updatedNote: Note): Promise<Note> => {
 
       // Convert HTML content to Markdown
       const markdownContent = htmlToMarkdown(finalNote.content);
+      
+      // Debug logging for nested list conversion
+      if (finalNote.content.includes('<ol>') || finalNote.content.includes('<ul>')) {
+        console.log('🔄 Converting HTML to Markdown (first save):');
+        console.log('HTML:', finalNote.content);
+        console.log('Markdown:', markdownContent);
+      }
 
       // Add title as H1 at the beginning if it exists
       const titlePrefix = finalNote.title ? `# ${finalNote.title}\n\n` : '';
@@ -218,6 +232,13 @@ export const updateNote = async (updatedNote: Note): Promise<Note> => {
 
       // Convert HTML content to Markdown
       const markdownContent = htmlToMarkdown(finalNote.content);
+      
+      // Debug logging for nested list conversion
+      if (finalNote.content.includes('<ol>') || finalNote.content.includes('<ul>')) {
+        console.log('🔄 Converting HTML to Markdown (update):');
+        console.log('HTML:', finalNote.content);
+        console.log('Markdown:', markdownContent);
+      }
 
       // Add title as H1 at the beginning if it exists
       const titlePrefix = finalNote.title ? `# ${finalNote.title}\n\n` : '';

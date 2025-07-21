@@ -208,4 +208,154 @@
 .essential-toolbar.dark-theme .essential-toolbar-button[title]:hover::after {
   background-color: rgba(255, 255, 255, 0.9);
   color: black;
+}/* Cu
+stom Link Dialog Styles */
+.link-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.link-dialog {
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  min-width: 400px;
+  max-width: 500px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  animation: dialogSlideIn 0.2s ease-out;
+}
+
+.link-dialog h3 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.link-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.selected-text {
+  padding: 8px 12px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #666;
+}
+
+.link-dialog input {
+  padding: 10px 12px;
+  border: 2px solid #e1e5e9;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.link-dialog input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.link-dialog-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.link-dialog-buttons button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancel-button {
+  background-color: #f8f9fa;
+  color: #666;
+}
+
+.cancel-button:hover {
+  background-color: #e9ecef;
+  color: #333;
+}
+
+.submit-button {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.submit-button:hover {
+  background-color: #2563eb;
+}
+
+/* Dark theme for link dialog */
+.essential-toolbar.dark-theme ~ .link-dialog-overlay .link-dialog {
+  background-color: #2d3748;
+  color: white;
+}
+
+.essential-toolbar.dark-theme ~ .link-dialog-overlay .link-dialog h3 {
+  color: white;
+}
+
+.essential-toolbar.dark-theme ~ .link-dialog-overlay .selected-text {
+  background-color: #4a5568;
+  color: #e2e8f0;
+}
+
+.essential-toolbar.dark-theme ~ .link-dialog-overlay .link-dialog input {
+  background-color: #4a5568;
+  border-color: #718096;
+  color: white;
+}
+
+.essential-toolbar.dark-theme ~ .link-dialog-overlay .link-dialog input:focus {
+  border-color: #63b3ed;
+  box-shadow: 0 0 0 3px rgba(99, 179, 237, 0.1);
+}
+
+.essential-toolbar.dark-theme ~ .link-dialog-overlay .cancel-button {
+  background-color: #4a5568;
+  color: #e2e8f0;
+}
+
+.essential-toolbar.dark-theme ~ .link-dialog-overlay .cancel-button:hover {
+  background-color: #718096;
+  color: white;
+}
+
+@keyframes dialogSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Responsive dialog */
+@media (max-width: 500px) {
+  .link-dialog {
+    min-width: 300px;
+    margin: 20px;
+  }
 }

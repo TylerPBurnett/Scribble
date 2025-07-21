@@ -10,15 +10,18 @@ import Placeholder from '@tiptap/extension-placeholder'
 import Image from '@tiptap/extension-image'
 import Link from '@tiptap/extension-link'
 import CodeBlock from '@tiptap/extension-code-block'
+import Code from '@tiptap/extension-code'
+import Strike from '@tiptap/extension-strike'
 import TextAlign from '@tiptap/extension-text-align'
 import Underline from '@tiptap/extension-underline'
-import BulletList from '@tiptap/extension-bullet-list'
-import OrderedList from '@tiptap/extension-ordered-list'
-import ListItem from '@tiptap/extension-list-item'
+
+import Blockquote from '@tiptap/extension-blockquote'
 import { useEffect, useState, useRef, forwardRef, useImperativeHandle } from 'react'
 import EssentialToolbar from './EssentialToolbar'
-import { getSettings, subscribeToSettingsChanges } from '../../shared/services/settingsService'
+import { getSettings } from '../../shared/services/settingsService'
 import { getHotkeys, formatHotkeyForDisplay } from '../../shared/services/hotkeyService'
+import MarkdownShortcuts from './extensions/MarkdownShortcuts'
+import EnhancedListHandling from './extensions/EnhancedListHandling'
 import './Tiptap.css'
 
 interface TiptapProps {
@@ -46,7 +49,6 @@ const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
   editable = true,
   editorClass = '',
   backgroundColor,
-  toolbarColor,
 }, ref) => {
   // State to track toolbar visibility
   const [isToolbarVisible, setIsToolbarVisible] = useState(true);
@@ -56,56 +58,67 @@ const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        // Disable the built-in list extensions from StarterKit
-        // so we can configure them explicitly
-        bulletList: false,
-        orderedList: false,
-        listItem: false,
+        // Keep the built-in list extensions for proper nesting support
+        // We'll add our visual enhancements on top
+        blockquote: false, // We'll configure this explicitly
+        // Disable built-in code and strike to use our enhanced versions
+        code: false,
+        strike: false,
       }),
       Paragraph,
       Text,
       Highlight,
       Typography,
-      // Explicitly configure list extensions
-      BulletList.configure({
-        keepMarks: true,
-        keepAttributes: true,
-      }),
-      OrderedList.configure({
-        keepMarks: true,
-        keepAttributes: true,
-      }),
-      ListItem.configure({
-        HTMLAttributes: {
-          class: 'list-item',
-        },
-      }),
+      // Task list extensions (not included in StarterKit)
       TaskList,
-      TaskItem.configure({
-        nested: true,
+      TaskItem,
+      // Add blockquote support
+      Blockquote.configure({
+        HTMLAttributes: {
+          class: 'blockquote',
+        },
       }),
       Placeholder.configure({
         placeholder,
       }),
       Image,
       Link.configure({
-        openOnClick: true,
+        openOnClick: false,
         HTMLAttributes: {
           rel: 'noopener noreferrer',
           target: '_blank',
         },
       }),
       CodeBlock,
+      // Add explicit Code and Strike extensions for better control
+      Code.configure({
+        HTMLAttributes: {
+          class: 'inline-code',
+        },
+      }),
+      Strike.configure({
+        HTMLAttributes: {
+          class: 'strikethrough',
+        },
+      }),
       TextAlign.configure({
         types: ['heading', 'paragraph'],
       }),
       Underline,
+      // Add our custom extensions
+      // MarkdownShortcuts, // Temporarily disabled to test nesting
+      EnhancedListHandling,
     ],
     content,
     autofocus,
     editable,
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
+      // Debug logging to see what HTML is being saved
+      if (html.includes('<ol>') || html.includes('<ul>')) {
+        console.log('💾 SAVING HTML:', html);
+        console.log('📝 HTML structure:', html.replace(/></g, '>\n<'));
+      }
       onUpdate?.(html);
     },
     editorProps: {
@@ -166,7 +179,25 @@ const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
       // Only update content if it's different from current content
       const currentContent = editor.getHTML();
       if (currentContent !== content) {
+        // Debug logging to see what content is being loaded
+        if (content.includes('<ol>') || content.includes('<ul>')) {
+          console.log('🔄 Loading HTML content:', content);
+          console.log('📥 Content structure:', content.replace(/></g, '>\n<'));
+        }
+        
+        // Set the content
         editor.commands.setContent(content);
+        
+        // Debug logging to see what HTML is generated after loading
+        setTimeout(() => {
+          const newHTML = editor.getHTML();
+          if (newHTML.includes('<ol>') || newHTML.includes('<ul>')) {
+            console.log('✅ HTML after loading:', newHTML);
+            console.log('🔍 Final structure:', newHTML.replace(/></g, '>\n<'));
+          }
+          // Refresh decorations after content is loaded
+          editor.commands.refreshListDecorations();
+        }, 100);
       }
     }
   }, [editor, content]);
@@ -210,16 +241,6 @@ const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
       const hotkeys = getHotkeys(settings);
       const toggleToolbarHotkey = hotkeys.toggleToolbar || 'alt+t';
       
-      console.log('🔧 Keyboard event - Current hotkey from settings:', toggleToolbarHotkey);
-      console.log('🔧 Key pressed:', {
-        key: e.key,
-        code: e.code,
-        ctrlKey: e.ctrlKey,
-        altKey: e.altKey,
-        shiftKey: e.shiftKey,
-        metaKey: e.metaKey
-      });
-      
       // Don't process if it's only a modifier key being pressed
       if (['Control', 'Alt', 'Shift', 'Meta', 'Option', 'Command'].includes(e.key)) {
         return;
@@ -232,15 +253,6 @@ const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
       const hasShift = hotkeyParts.includes('shift');
       const hasMeta = hotkeyParts.includes('meta') || hotkeyParts.includes('cmd') || hotkeyParts.includes('command');
       const key = hotkeyParts[hotkeyParts.length - 1]; // Last part is the key
-      
-      console.log('🔧 Parsed hotkey:', {
-        hotkeyParts,
-        hasCtrl,
-        hasAlt,
-        hasShift,
-        hasMeta,
-        key
-      });
       
       // Check if the current key combination matches the configured hotkey
       // On Mac, Option+T generates special characters, so we need to check the code instead
@@ -258,14 +270,7 @@ const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
         e.shiftKey === hasShift &&
         e.metaKey === hasMeta;
       
-      console.log('🔧 Match check:', {
-        keyMatches,
-        modifiersMatch,
-        shouldToggle: keyMatches && modifiersMatch
-      });
-      
       if (keyMatches && modifiersMatch) {
-        console.log('🔧 TOGGLING TOOLBAR!');
         e.preventDefault();
         setIsToolbarVisible(prev => !prev);
       }

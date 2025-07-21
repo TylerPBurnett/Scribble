@@ -10,7 +10,7 @@
   - Ensure toolbar adapts to light/dark themes
   - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-- [ ] 2. Implement markdown shortcuts extension
+- [x] 2. Implement markdown shortcuts extension
   - Create MarkdownShortcuts Tiptap extension for live markdown syntax conversion
   - Add heading shortcuts: typing `#`, `##`, `###` followed by space converts to headings
   - Add list shortcuts: typing `-`, `*`, `+` followed by space creates bullet lists
@@ -30,7 +30,7 @@
   - Add visual feedback when applying formatting through toolbar
   - _Requirements: 2.1, 2.4, 2.5_
 
-- [ ] 4. Improve list handling and nesting capabilities
+- [x] 4. Improve list handling and nesting capabilities
   - Enhance bullet list and ordered list nesting with proper indentation
   - Improve task list functionality with interactive checkboxes
   - Add keyboard shortcuts for list manipulation (Tab for indent, Shift+Tab for outdent)

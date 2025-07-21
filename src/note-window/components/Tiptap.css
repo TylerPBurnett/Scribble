@@ -492,3 +492,327 @@
     padding: 2px;
   }
 }
+/* Enhanced formatting styles */
+.formatting-feedback {
+  animation: formatFeedback 0.5s ease-out;
+}
+
+@keyframes formatFeedback {
+  0% {
+    background-color: rgba(59, 130, 246, 0.3);
+  }
+  100% {
+    background-color: rgba(59, 130, 246, 0.1);
+  }
+}
+
+.formatting-bold {
+  border-left: 3px solid #f59e0b;
+}
+
+.formatting-italic {
+  border-left: 3px solid #8b5cf6;
+}
+
+.formatting-strikethrough {
+  border-left: 3px solid #ef4444;
+}
+
+.formatting-code {
+  border-left: 3px solid #10b981;
+}
+
+.formatting-link {
+  border-left: 3px solid #3b82f6;
+}
+
+/* Markdown syntax tooltip */
+.markdown-syntax-tooltip {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Enhanced strikethrough styling */
+.ProseMirror s,
+.ProseMirror .strikethrough {
+  text-decoration: line-through;
+  text-decoration-color: currentColor;
+  text-decoration-thickness: 1px;
+}
+
+/* Enhanced inline code styling */
+.ProseMirror code,
+.ProseMirror .inline-code {
+  background-color: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+  padding: 0.1em 0.3em;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.9em;
+  color: #d73a49;
+}
+
+/* Dark theme enhancements for new elements */
+.dark-theme .ProseMirror code,
+.dark-theme .ProseMirror .inline-code {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #ff7b72;
+}
+
+.dark-theme .markdown-syntax-tooltip {
+  background: rgba(0, 0, 0, 0.9);
+  color: #e6e6e6;
+}
+
+/* Enhanced link styling with markdown awareness */
+.ProseMirror a {
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.ProseMirror a:hover {
+  background-color: rgba(59, 130, 246, 0.1);
+  border-radius: 2px;
+  padding: 0 2px;
+  margin: 0 -2px;
+}
+
+.dark-theme .ProseMirror a:hover {
+  background-color: rgba(59, 130, 246, 0.2);
+}
+
+/* Visual feedback for formatting actions */
+.formatting-action-feedback {
+  position: relative;
+}
+
+.formatting-action-feedback::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  border: 2px solid rgba(59, 130, 246, 0.5);
+  border-radius: 4px;
+  pointer-events: none;
+  animation: fadeOut 0.8s ease-out forwards;
+}
+
+@keyframes fadeOut {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.05);
+  }
+}
+
+/* Enhanced List Styling with Visual Nesting Indicators */
+.tiptap-content .list-item-level-1 {
+  border-left: 2px solid rgba(59, 130, 246, 0.3);
+  padding-left: 8px;
+  margin-left: -10px;
+}
+
+.tiptap-content .list-item-level-2 {
+  border-left: 2px solid rgba(16, 185, 129, 0.3);
+  padding-left: 8px;
+  margin-left: -10px;
+}
+
+.tiptap-content .list-item-level-3 {
+  border-left: 2px solid rgba(245, 158, 11, 0.3);
+  padding-left: 8px;
+  margin-left: -10px;
+}
+
+.tiptap-content .list-item-level-4 {
+  border-left: 2px solid rgba(239, 68, 68, 0.3);
+  padding-left: 8px;
+  margin-left: -10px;
+}
+
+.tiptap-content .list-item-level-5 {
+  border-left: 2px solid rgba(139, 92, 246, 0.3);
+  padding-left: 8px;
+  margin-left: -10px;
+}
+
+.tiptap-content .list-item-level-6 {
+  border-left: 2px solid rgba(236, 72, 153, 0.3);
+  padding-left: 8px;
+  margin-left: -10px;
+}
+
+/* Enhanced task list styling */
+.tiptap-content .task-list {
+  list-style-type: none;
+  padding-left: 0;
+  margin: 0.5em 0;
+}
+
+.tiptap-content .task-list-item {
+  display: flex;
+  align-items: flex-start;
+  margin: 0.3em 0;
+  position: relative;
+  padding-left: 1.8em;
+  line-height: 1.4;
+}
+
+.tiptap-content .task-list-item-checkbox {
+  position: absolute;
+  left: 0;
+  top: 0.2em;
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1.1em;
+  height: 1.1em;
+  border: 2px solid rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+  background-color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tiptap-content .task-list-item-checkbox:hover {
+  border-color: rgba(59, 130, 246, 0.6);
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+.tiptap-content .task-list-item-checkbox:checked {
+  background-color: rgba(59, 130, 246, 0.8);
+  border-color: rgba(59, 130, 246, 0.8);
+}
+
+.tiptap-content .task-list-item-checkbox:checked::after {
+  content: '✓';
+  position: absolute;
+  top: -0.1em;
+  left: 0.15em;
+  font-size: 0.8em;
+  color: white;
+  font-weight: bold;
+}
+
+/* Completed task styling */
+.tiptap-content .task-list-item:has(.task-list-item-checkbox:checked) {
+  opacity: 0.7;
+}
+
+.tiptap-content .task-list-item:has(.task-list-item-checkbox:checked) p {
+  text-decoration: line-through;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+/* Enhanced nested list indentation */
+.tiptap-content ul ul,
+.tiptap-content ol ol,
+.tiptap-content ul ol,
+.tiptap-content ol ul {
+  margin: 0.2em 0 0.2em 0;
+  padding-left: 1.5em;
+}
+
+/* Improved list item spacing and alignment */
+.tiptap-content li {
+  position: relative;
+  margin: 0.15em 0;
+  line-height: 1.4;
+}
+
+.tiptap-content li p {
+  margin: 0;
+  line-height: inherit;
+}
+
+/* List reordering visual feedback */
+.list-item-dragging {
+  opacity: 0.5;
+  transform: scale(0.98);
+  transition: all 0.2s ease;
+}
+
+.list-item-drop-target {
+  border-top: 2px solid rgba(59, 130, 246, 0.8);
+  margin-top: 2px;
+}
+
+/* Keyboard navigation feedback */
+.list-item-focused {
+  background-color: rgba(59, 130, 246, 0.1);
+  border-radius: 3px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+}
+
+/* Dark theme enhancements for lists */
+.dark-theme .tiptap-content .list-item-level-1 {
+  border-left-color: rgba(59, 130, 246, 0.5);
+}
+
+.dark-theme .tiptap-content .list-item-level-2 {
+  border-left-color: rgba(16, 185, 129, 0.5);
+}
+
+.dark-theme .tiptap-content .list-item-level-3 {
+  border-left-color: rgba(245, 158, 11, 0.5);
+}
+
+.dark-theme .tiptap-content .list-item-level-4 {
+  border-left-color: rgba(239, 68, 68, 0.5);
+}
+
+.dark-theme .tiptap-content .list-item-level-5 {
+  border-left-color: rgba(139, 92, 246, 0.5);
+}
+
+.dark-theme .tiptap-content .list-item-level-6 {
+  border-left-color: rgba(236, 72, 153, 0.5);
+}
+
+.dark-theme .tiptap-content .task-list-item-checkbox {
+  border-color: rgba(255, 255, 255, 0.4);
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark-theme .tiptap-content .task-list-item-checkbox:hover {
+  border-color: rgba(59, 130, 246, 0.8);
+  background-color: rgba(59, 130, 246, 0.2);
+}
+
+.dark-theme .tiptap-content .task-list-item:has(.task-list-item-checkbox:checked) p {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.dark-theme .list-item-focused {
+  background-color: rgba(59, 130, 246, 0.2);
+}
+
+/* Enhanced List Styling with Visual Nesting Indicators */
+.list-manipulation-hint {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.75em;
+  color: rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.tiptap-content li:hover .list-manipulation-hint {
+  opacity: 1;
+}
+
+.dark-theme .list-manipulation-hint {
+  color: rgba(255, 255, 255, 0.4);
+}
