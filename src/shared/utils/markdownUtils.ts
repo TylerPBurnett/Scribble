@@ -21,21 +21,21 @@ turndownService.addRule('strikethrough', {
 // Add custom rule for task lists to ensure proper formatting
 turndownService.addRule('taskList', {
   filter: function (node) {
-    return node.nodeName === 'UL' && node.getAttribute('data-type') === 'taskList';
+    return node.nodeName === 'UL' && (node as Element).getAttribute('data-type') === 'taskList';
   },
-  replacement: function (content, node) {
+  replacement: function (content) {
     return content;
   }
 });
 
 turndownService.addRule('taskItem', {
   filter: function (node) {
-    return node.nodeName === 'LI' && node.getAttribute('data-type') === 'taskItem';
+    return node.nodeName === 'LI' && (node as Element).getAttribute('data-type') === 'taskItem';
   },
   replacement: function (content, node) {
-    const isChecked = node.getAttribute('data-checked') === 'true';
+    const isChecked = (node as Element).getAttribute('data-checked') === 'true';
     const checkbox = isChecked ? '[x]' : '[ ]';
-    
+
     // Clean up the content - remove the checkbox input and label wrapper
     let cleanContent = content;
     // Remove checkbox input HTML if present
@@ -46,7 +46,7 @@ turndownService.addRule('taskItem', {
     cleanContent = cleanContent.replace(/<\/?span[^>]*>/gi, '');
     // Clean up extra whitespace
     cleanContent = cleanContent.trim();
-    
+
     return `- ${checkbox} ${cleanContent}`;
   }
 });
@@ -170,10 +170,10 @@ function isListItem(line: string): boolean {
 
 // Helper function to check if a line is special (heading, code block, etc.)
 function isSpecialLine(line: string): boolean {
-  return line.startsWith('#') || 
-         line.startsWith('```') || 
-         line.startsWith('>') || 
-         isListItem(line);
+  return line.startsWith('#') ||
+    line.startsWith('```') ||
+    line.startsWith('>') ||
+    isListItem(line);
 }
 
 // Helper function to get the indentation level of a line
@@ -191,12 +191,12 @@ function parseList(lines: string[], startIndex: number): { html: string; nextInd
   while (i < lines.length) {
     const line = lines[i];
     const trimmedLine = line.trim();
-    
+
     if (trimmedLine === '') {
       i++;
       continue;
     }
-    
+
     if (!isListItem(trimmedLine)) {
       break;
     }
@@ -231,7 +231,7 @@ function parseList(lines: string[], startIndex: number): { html: string; nextInd
 
   // Convert list items to HTML with proper nesting
   const html = buildNestedListHtml(listItems);
-  
+
   return { html, nextIndex: i };
 }
 
@@ -241,7 +241,7 @@ function buildNestedListHtml(items: Array<{ level: number; content: string; type
 
   let html = '';
   const stack: Array<{ type: 'ul' | 'ol' | 'task'; level: number }> = [];
-  
+
   for (const item of items) {
     // Close lists that are at a deeper or equal level
     while (stack.length > 0 && stack[stack.length - 1].level >= item.level) {
