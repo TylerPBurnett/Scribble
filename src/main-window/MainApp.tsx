@@ -403,7 +403,7 @@ function MainApp() {
         {/* Content area - main content */}
         <div className="content-area flex flex-1 overflow-hidden">
           {/* Main Content */}
-          <div className="main-content flex flex-col w-full overflow-hidden">
+          <div className="main-content main-content-transparent flex flex-col w-full overflow-hidden">
 
           {/* Header */}
           <AppHeader

@@ -17,21 +17,14 @@
   --transparency-vibrancy-material: dark;
 }
 
-/* Light theme transparency variables - optimized for native vibrancy */
+/* Light theme transparency variables - restore original backdrop-filter look */
 .theme-light {
-  --transparency-backdrop-blur: blur(1px) !important;
-  --transparency-overlay-color: rgba(255, 255, 255, 0.02) !important;
-  --transparency-overlay-opacity: 0.02 !important;
+  --transparency-backdrop-blur: blur(10px) !important;
+  --transparency-overlay-color: rgba(255, 255, 255, 0.4) !important;
+  --transparency-overlay-opacity: 0.4 !important;
 }
 
-/* Clean light theme transparency - bright frosted-glass effect like Arc browser */
-.theme-light .notes-container-transparent::before {
-  /* More sheer white "film" allows more background color to show through */
-  background: rgba(255, 255, 255, 0.4) !important;
-  /* Reduced blur creates sharper, more defined frosted effect, brightness(1.2) lifts dark desktop colors */
-  backdrop-filter: blur(10px) brightness(1.2) !important;
-  -webkit-backdrop-filter: blur(5px) brightness(1.2) !important;
-}
+/* Clean light theme transparency - use CSS variables for consistency */
 
 /* Settings Dialog - Make much more opaque and readable in light theme */
 .theme-light [data-radix-dialog-content],
@@ -132,8 +125,15 @@ div.notes-container.notes-container-transparent,
   transition: all 0.3s ease;
 }
 
-/* Create unified transparent overlay that covers entire content area */
-.notes-container-transparent::before {
+
+
+/* Apply transparency to the parent container that doesn't scroll */
+.main-content-transparent {
+  position: relative;
+  background: transparent;
+}
+
+.main-content-transparent::before {
   content: '';
   position: absolute;
   top: 0;
@@ -144,12 +144,12 @@ div.notes-container.notes-container-transparent,
   /* Use CSS custom properties set by ThemeProvider */
   background: var(--transparency-overlay-color, rgba(40, 42, 54, 0.15));
 
-  /* Use backdrop blur from theme configuration */
+  /* Apply backdrop filter to the non-scrolling parent */
   backdrop-filter: var(--transparency-backdrop-blur, blur(2px)) saturate(1.1) brightness(1.05) contrast(1.02);
   -webkit-backdrop-filter: var(--transparency-backdrop-blur, blur(2px)) saturate(1.1) brightness(1.05) contrast(1.02);
 
-  /* Ensure overlay is behind content but covers everything */
-  z-index: -2;
+  /* Ensure overlay is behind all content */
+  z-index: -10;
   pointer-events: none;
 
   /* Smooth transitions */
@@ -159,22 +159,27 @@ div.notes-container.notes-container-transparent,
   will-change: backdrop-filter, background;
   transform: translateZ(0);
   backface-visibility: hidden;
-
-  /* Add subtle border for better definition */
-  border-radius: inherit;
 }
+
+/* Light theme specific backdrop-filter - minimal blur for sharp transparency */
+.theme-light .main-content-transparent::before {
+  /* Light theme with whiter appearance and adjusted opacity */
+  background: rgba(255, 255, 255, 0.25) !important;
+  backdrop-filter: blur(0.5px) brightness(1.4) saturate(0.6) !important;
+  -webkit-backdrop-filter: blur(0.5px) brightness(1.4) saturate(0.6) !important;
+}
+
+/* Remove backdrop-filter from scrolling container */
+.notes-container-transparent {
+  /* Make the scrolling container completely transparent */
+  background: transparent !important;
+}
+
+/* Remove notes-container pseudo-element - using parent container approach */
 
 /* Removed overlay pseudo-element - using direct background approach */
 
-/* Theme-specific transparency classes - let CSS custom properties handle the differences */
-.theme-light .notes-container-transparent::before,
-.theme-dark .notes-container-transparent::before,
-.theme-dim .notes-container-transparent::before {
-  /* All themes now use the same base implementation with CSS custom properties */
-  background: var(--transparency-overlay-color);
-  backdrop-filter: var(--transparency-backdrop-blur) saturate(1.2) brightness(1.1) contrast(1.05);
-  -webkit-backdrop-filter: var(--transparency-backdrop-blur) saturate(1.2) brightness(1.1) contrast(1.05);
-}
+/* Remove theme-specific pseudo-element backdrop filters - using container-level backdrop-filter instead */
 
 /* Enhanced backdrop-filter with cross-platform support */
 .transparency-backdrop {
@@ -189,24 +194,7 @@ div.notes-container.notes-container-transparent,
   transform: translateZ(0);
 }
 
-/* Add subtle edge enhancement for better theme integration */
-.notes-container-transparent::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(ellipse at center,
-      transparent 0%,
-      var(--transparency-overlay-color) 70%,
-      transparent 100%);
-  opacity: 0.03;
-  pointer-events: none;
-  z-index: -1;
-  border-radius: inherit;
-  mix-blend-mode: soft-light;
-}
+/* Remove notes-container ::after pseudo-element - using parent container approach */
 
 /* Theme-specific gradient overlays for enhanced integration */
 /* Light theme transparency - remove solid background override */
@@ -217,15 +205,7 @@ div.notes-container.notes-container-transparent,
 
 /* Remove debug border */
 
-/* Simplified gradient overlay using CSS custom properties for all themes */
-.notes-container-transparent::after {
-  background: radial-gradient(ellipse at center,
-      transparent 0%,
-      var(--transparency-overlay-color) 60%,
-      transparent 100%);
-  opacity: calc(var(--transparency-overlay-opacity) * 0.5);
-  mix-blend-mode: normal;
-}
+/* Remove duplicate ::after rule - using parent container approach */
 
 /* Advanced overlay styling with multiple layers */
 .transparency-overlay {
