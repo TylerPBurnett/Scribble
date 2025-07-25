@@ -42,10 +42,22 @@ const CollectionTabs: React.FC<CollectionTabsProps> = React.memo(({
   // Handle keyboard navigation for the collection area
   const handleCollectionAreaKeyDown = (e: React.KeyboardEvent) => {
     switch (e.key) {
-      case 'ArrowLeft':
+      case 'Tab':
         e.preventDefault();
         const currentIndex = collections.findIndex(c => c.id === activeCollectionId);
-        const prevIndex = currentIndex > 0 ? currentIndex - 1 : collections.length - 1;
+        const nextIndex = e.shiftKey 
+          ? (currentIndex > 0 ? currentIndex - 1 : collections.length - 1)
+          : (currentIndex < collections.length - 1 ? currentIndex + 1 : 0);
+        const nextCollection = collections[nextIndex];
+        if (nextCollection) {
+          onCollectionChange(nextCollection.id);
+        }
+        break;
+      
+      case 'ArrowLeft':
+        e.preventDefault();
+        const currentIdx = collections.findIndex(c => c.id === activeCollectionId);
+        const prevIndex = currentIdx > 0 ? currentIdx - 1 : collections.length - 1;
         const prevCollection = collections[prevIndex];
         if (prevCollection) {
           onCollectionChange(prevCollection.id);
@@ -54,11 +66,11 @@ const CollectionTabs: React.FC<CollectionTabsProps> = React.memo(({
       
       case 'ArrowRight':
         e.preventDefault();
-        const currentIdx = collections.findIndex(c => c.id === activeCollectionId);
-        const nextIndex = currentIdx < collections.length - 1 ? currentIdx + 1 : 0;
-        const nextCollection = collections[nextIndex];
-        if (nextCollection) {
-          onCollectionChange(nextCollection.id);
+        const currentIdxRight = collections.findIndex(c => c.id === activeCollectionId);
+        const nextIndexRight = currentIdxRight < collections.length - 1 ? currentIdxRight + 1 : 0;
+        const nextCollectionRight = collections[nextIndexRight];
+        if (nextCollectionRight) {
+          onCollectionChange(nextCollectionRight.id);
         }
         break;
       
@@ -102,97 +114,23 @@ const CollectionTabs: React.FC<CollectionTabsProps> = React.memo(({
     // The visual focus will be on the container, and arrow keys will work
   };
 
-  // Keyboard navigation handler for collection tabs
-  const handleTabKeyDown = (e: React.KeyboardEvent, currentIndex: number) => {
-    switch (e.key) {
-      case 'ArrowLeft':
-        e.preventDefault();
-        const prevIndex = currentIndex > 0 ? currentIndex - 1 : collections.length - 1;
-        const prevCollection = collections[prevIndex];
-        if (prevCollection) {
-          onCollectionChange(prevCollection.id);
-          // Focus the previous tab
-          setTimeout(() => {
-            const prevButton = document.querySelector(`[aria-controls="collection-panel-${prevCollection.id}"]`) as HTMLButtonElement;
-            prevButton?.focus();
-          }, 0);
-        }
-        break;
-      
-      case 'ArrowRight':
-        e.preventDefault();
-        const nextIndex = currentIndex < collections.length - 1 ? currentIndex + 1 : 0;
-        const nextCollection = collections[nextIndex];
-        if (nextCollection) {
-          onCollectionChange(nextCollection.id);
-          // Focus the next tab
-          setTimeout(() => {
-            const nextButton = document.querySelector(`[aria-controls="collection-panel-${nextCollection.id}"]`) as HTMLButtonElement;
-            nextButton?.focus();
-          }, 0);
-        }
-        break;
-      
-      case 'Home':
-        e.preventDefault();
-        const firstCollection = collections[0];
-        if (firstCollection) {
-          onCollectionChange(firstCollection.id);
-          setTimeout(() => {
-            const firstButton = document.querySelector(`[aria-controls="collection-panel-${firstCollection.id}"]`) as HTMLButtonElement;
-            firstButton?.focus();
-          }, 0);
-        }
-        break;
-      
-      case 'End':
-        e.preventDefault();
-        const lastCollection = collections[collections.length - 1];
-        if (lastCollection) {
-          onCollectionChange(lastCollection.id);
-          setTimeout(() => {
-            const lastButton = document.querySelector(`[aria-controls="collection-panel-${lastCollection.id}"]`) as HTMLButtonElement;
-            lastButton?.focus();
-          }, 0);
-        }
-        break;
-      
-      case 'Enter':
-      case ' ':
-        e.preventDefault();
-        const currentCollection = collections[currentIndex];
-        if (currentCollection) {
-          onCollectionChange(currentCollection.id);
-        }
-        break;
-      
-      case 'Delete':
-      case 'Backspace':
-        e.preventDefault();
-        const collectionToDelete = collections[currentIndex];
-        if (collectionToDelete && !collectionToDelete.isDefault) {
-          setDeletingCollection(collectionToDelete);
-          setShowDeleteConfirm(true);
-        }
-        break;
-    }
-  };
+
   const [newCollectionName, setNewCollectionName] = useState('');
   const [newCollectionIcon, setNewCollectionIcon] = useState('notes');
   const [newCollectionColor, setNewCollectionColor] = useState('#3b82f6');
 
-  // Memoized computations for better performance
-  const totalNoteCount = useMemo(() => {
-    return collections.reduce((sum, collection) => sum + collection.noteCount, 0);
-  }, [collections]);
+  // Memoized computations for better performance (commented out unused variables)
+  // const totalNoteCount = useMemo(() => {
+  //   return collections.reduce((sum, collection) => sum + collection.noteCount, 0);
+  // }, [collections]);
 
-  const hasCollections = useMemo(() => {
-    return collections.length > 1; // More than just the default "All Notes" collection
-  }, [collections.length]);
+  // const hasCollections = useMemo(() => {
+  //   return collections.length > 1; // More than just the default "All Notes" collection
+  // }, [collections.length]);
 
-  const activeCollection = useMemo(() => {
-    return collections.find(c => c.id === activeCollectionId);
-  }, [collections, activeCollectionId]);
+  // const activeCollection = useMemo(() => {
+  //   return collections.find(c => c.id === activeCollectionId);
+  // }, [collections, activeCollectionId]);
 
   // Helper function to render SVG icons
   const renderIcon = (iconKey: string, className: string = "w-4 h-4") => {
@@ -405,14 +343,15 @@ const CollectionTabs: React.FC<CollectionTabsProps> = React.memo(({
           onKeyDown={handleCollectionAreaKeyDown}
           onFocus={handleCollectionAreaFocus}
           ref={collectionAreaRef}
+          style={{ outline: 'none' }}
         >
           <div className="flex items-center gap-1 min-w-max">
-            {collections.map((collection, index) => (
+            {collections.map((collection) => (
               <button
                 key={collection.id}
                 onClick={() => onCollectionChange(collection.id)}
                 onContextMenu={(e) => handleRightClick(e, collection)}
-                onKeyDown={(e) => handleTabKeyDown(e, index)}
+
                 role="tab"
                 aria-selected={activeCollectionId === collection.id}
                 aria-controls={`collection-panel-${collection.id}`}
@@ -421,7 +360,7 @@ const CollectionTabs: React.FC<CollectionTabsProps> = React.memo(({
                 ref={activeCollectionId === collection.id ? activeTabRef : null}
                 className={`
                   group relative flex items-center gap-2 px-3 py-1.5 text-sm font-medium transition-all duration-200 whitespace-nowrap
-                  focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-1 focus:ring-offset-background-titlebar
+                  focus:outline-none
                   ${activeCollectionId === collection.id
                     ? `
                       bg-background/95 backdrop-blur-sm text-foreground shadow-sm border-b-2 border-primary
@@ -505,7 +444,7 @@ const CollectionTabs: React.FC<CollectionTabsProps> = React.memo(({
                 light:hover:bg-gray-50 light:text-gray-500 light:hover:text-gray-700
                 dark:hover:bg-white/5 dark:text-gray-500 dark:hover:text-gray-300
                 dim:hover:bg-white/5 dim:text-gray-500 dim:hover:text-gray-300
-                focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-1 focus:ring-offset-background-titlebar
+                focus:outline-none
               `}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

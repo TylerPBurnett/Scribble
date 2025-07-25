@@ -14,6 +14,12 @@
   color: #e0e0e0;
 }
 
+/* Make app background transparent for light theme */
+.theme-light .app {
+  background-color: transparent;
+  color: hsl(210, 10%, 23%);
+}
+
 .app-logo {
   display: flex;
   align-items: center;
@@ -49,7 +55,13 @@
   gap: 12px;
 }
 
-.new-note-btn, .settings-btn {
+.theme-light .app-actions {
+  background-color: transparent;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.new-note-btn,
+.settings-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -102,6 +114,11 @@
   border-bottom: 1px solid #2a3a4a;
 }
 
+.theme-light .search-container {
+  background-color: transparent;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
 .search-input {
   width: 100%;
   padding: 10px 16px;
@@ -141,6 +158,38 @@
   border-top: 1px solid #2a3a4a;
   font-size: 12px;
   color: #777;
+}
+
+.theme-light .app-footer {
+  background-color: transparent;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  color: hsl(210, 10%, 50%);
+}
+
+/* Light theme button styling */
+.theme-light .settings-btn {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: hsl(210, 10%, 23%);
+}
+
+.theme-light .settings-btn:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Light theme search input styling */
+.theme-light .search-input {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: hsl(210, 10%, 23%);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.theme-light .search-input:focus {
+  background-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+}
+
+.theme-light .search-input::placeholder {
+  color: hsl(210, 10%, 50%);
 }
 
 .save-location {

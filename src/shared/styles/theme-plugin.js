@@ -62,7 +62,7 @@ module.exports = plugin(function({ addBase, addVariant }) {
   };
 
   const lightTheme = {
-    '--background': '0 0% 100%',
+    '--background': '0 0% 100% / 0',
     '--foreground': '0 0% 20%',
     '--card': '210 20% 98%',
     '--card-foreground': '0 0% 20%',
@@ -81,7 +81,7 @@ module.exports = plugin(function({ addBase, addVariant }) {
     '--border': '220 13% 91%',
     '--input': '220 13% 91%',
     '--ring': '224 71.4% 45%',
-    '--background-notes': '0 0% 100%',
+    '--background-notes': '0 0% 100% / 0',
     '--background-titlebar': '210 20% 98%',
     '--background-sidebar': '210 20% 98%',
   };

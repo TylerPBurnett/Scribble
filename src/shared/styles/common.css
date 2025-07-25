@@ -5,3 +5,379 @@
   padding: 0;
   overflow: hidden;
 }
+
+/* ===== TRANSPARENCY STYLES ===== */
+
+/* CSS Custom Properties for Transparency */
+:root {
+  /* Default transparency values - will be overridden by theme provider */
+  --transparency-backdrop-blur: blur(20px);
+  --transparency-overlay-color: rgba(40, 42, 54, 0.3);
+  --transparency-overlay-opacity: 0.3;
+  --transparency-vibrancy-material: dark;
+}
+
+/* Light theme transparency variables - optimized for native vibrancy */
+.theme-light {
+  --transparency-backdrop-blur: blur(1px) !important;
+  --transparency-overlay-color: rgba(255, 255, 255, 0.02) !important;
+  --transparency-overlay-opacity: 0.02 !important;
+}
+
+/* Clean light theme transparency - bright frosted-glass effect like Arc browser */
+.theme-light .notes-container-transparent::before {
+  /* More sheer white "film" allows more background color to show through */
+  background: rgba(255, 255, 255, 0.4) !important;
+  /* Reduced blur creates sharper, more defined frosted effect, brightness(1.2) lifts dark desktop colors */
+  backdrop-filter: blur(10px) brightness(1.2) !important;
+  -webkit-backdrop-filter: blur(5px) brightness(1.2) !important;
+}
+
+/* Settings Dialog - Make much more opaque and readable in light theme */
+.theme-light [data-radix-dialog-content],
+.theme-light [role="dialog"],
+.theme-light .settings-window {
+  /* Nearly solid white background for maximum readability */
+  background-color: rgba(255, 255, 255, 0.99) !important;
+  backdrop-filter: blur(3px) !important;
+  -webkit-backdrop-filter: blur(3px) !important;
+}
+
+/* Settings Dialog sections - Make form elements nearly solid */
+.theme-light [data-radix-dialog-content] .backdrop-blur-sm,
+.theme-light [data-radix-dialog-content] .space-y-6,
+.theme-light [role="dialog"] .backdrop-blur-sm,
+.theme-light .settings-content {
+  /* Nearly solid background for form sections */
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Settings Dialog inputs and buttons - Ensure they're fully opaque */
+.theme-light [data-radix-dialog-content] input,
+.theme-light [data-radix-dialog-content] button,
+.theme-light [role="dialog"] input,
+.theme-light [role="dialog"] button {
+  background-color: rgba(255, 255, 255, 1) !important;
+  border: 1px solid rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Settings Dialog - Increase contrast for text and labels in light theme */
+.theme-light [data-radix-dialog-content] h1,
+.theme-light [data-radix-dialog-content] h2,
+.theme-light [data-radix-dialog-content] h3,
+.theme-light [role="dialog"] h1,
+.theme-light [role="dialog"] h2,
+.theme-light [role="dialog"] h3 {
+  /* Dark headings for strong contrast */
+  color: rgba(0, 0, 0, 0.9) !important;
+  font-weight: 600 !important;
+}
+
+.theme-light [data-radix-dialog-content] label,
+.theme-light [data-radix-dialog-content] .text-base,
+.theme-light [role="dialog"] label,
+.theme-light [role="dialog"] .text-base {
+  /* Dark labels for better readability */
+  color: rgba(0, 0, 0, 0.8) !important;
+  font-weight: 500 !important;
+}
+
+.theme-light [data-radix-dialog-content] p,
+.theme-light [data-radix-dialog-content] .text-sm,
+.theme-light [role="dialog"] p,
+.theme-light [role="dialog"] .text-sm {
+  /* Medium dark text for descriptions */
+  color: rgba(0, 0, 0, 0.7) !important;
+}
+
+.theme-light [data-radix-dialog-content] input {
+  /* Dark text in input fields with light gray background */
+  color: rgba(0, 0, 0, 0.9) !important;
+  background-color: rgba(248, 250, 252, 1) !important;
+  border: 1px solid rgba(0, 0, 0, 0.3) !important;
+}
+
+.theme-light [data-radix-dialog-content] input::placeholder {
+  /* Darker placeholder text */
+  color: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Base transparency class for containers */
+.transparency-container {
+  position: relative;
+  background: transparent;
+}
+
+/* Main transparency effect class - UNIFIED OVERLAY IMPLEMENTATION */
+div.notes-container.notes-container-transparent,
+.notes-container.notes-container-transparent,
+.notes-container-transparent {
+  position: relative !important;
+
+  /* Remove any background from the container itself */
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+
+  /* Ensure proper layering */
+  isolation: isolate !important;
+  z-index: 1 !important;
+
+  /* Enable transparency for Electron */
+  -webkit-app-region: no-drag;
+
+  /* Smooth transitions */
+  transition: all 0.3s ease;
+}
+
+/* Create unified transparent overlay that covers entire content area */
+.notes-container-transparent::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+
+  /* Use CSS custom properties set by ThemeProvider */
+  background: var(--transparency-overlay-color, rgba(40, 42, 54, 0.15));
+
+  /* Use backdrop blur from theme configuration */
+  backdrop-filter: var(--transparency-backdrop-blur, blur(2px)) saturate(1.1) brightness(1.05) contrast(1.02);
+  -webkit-backdrop-filter: var(--transparency-backdrop-blur, blur(2px)) saturate(1.1) brightness(1.05) contrast(1.02);
+
+  /* Ensure overlay is behind content but covers everything */
+  z-index: -2;
+  pointer-events: none;
+
+  /* Smooth transitions */
+  transition: background 0.3s ease, backdrop-filter 0.3s ease;
+
+  /* Ensure proper rendering and performance */
+  will-change: backdrop-filter, background;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+
+  /* Add subtle border for better definition */
+  border-radius: inherit;
+
+  /* Use backdrop blur from theme configuration */
+  backdrop-filter: var(--transparency-backdrop-blur, blur(2px)) saturate(1.1) brightness(1.05) contrast(1.02);
+  -webkit-backdrop-filter: var(--transparency-backdrop-blur, blur(2px)) saturate(1.1) brightness(1.05) contrast(1.02);
+}
+
+/* Removed overlay pseudo-element - using direct background approach */
+
+/* Theme-specific transparency classes - let CSS custom properties handle the differences */
+.theme-light .notes-container-transparent::before,
+.theme-dark .notes-container-transparent::before,
+.theme-dim .notes-container-transparent::before {
+  /* All themes now use the same base implementation with CSS custom properties */
+  background: var(--transparency-overlay-color);
+  backdrop-filter: var(--transparency-backdrop-blur) saturate(1.2) brightness(1.1) contrast(1.05);
+  -webkit-backdrop-filter: var(--transparency-backdrop-blur) saturate(1.2) brightness(1.1) contrast(1.05);
+}
+
+/* Enhanced backdrop-filter with cross-platform support */
+.transparency-backdrop {
+  /* Multi-vendor backdrop filter support with minimal blur for text readability */
+  backdrop-filter: blur(2px) saturate(1.1) brightness(1.05) contrast(1.02);
+  -webkit-backdrop-filter: blur(2px) saturate(1.1) brightness(1.05) contrast(1.02);
+  -moz-backdrop-filter: blur(2px) saturate(1.1) brightness(1.05) contrast(1.02);
+  -ms-backdrop-filter: blur(2px) saturate(1.1) brightness(1.05) contrast(1.02);
+
+  /* Ensure proper rendering */
+  will-change: backdrop-filter;
+  transform: translateZ(0);
+}
+
+/* Add subtle edge enhancement for better theme integration */
+.notes-container-transparent::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(ellipse at center,
+      transparent 0%,
+      var(--transparency-overlay-color) 70%,
+      transparent 100%);
+  opacity: 0.03;
+  pointer-events: none;
+  z-index: -1;
+  border-radius: inherit;
+  mix-blend-mode: soft-light;
+}
+
+/* Theme-specific gradient overlays for enhanced integration */
+/* Light theme transparency - remove solid background override */
+.theme-light .notes-container-transparent {
+  background: transparent !important;
+  border: none;
+}
+
+/* Remove debug border */
+
+/* Simplified gradient overlay using CSS custom properties for all themes */
+.notes-container-transparent::after {
+  background: radial-gradient(ellipse at center,
+      transparent 0%,
+      var(--transparency-overlay-color) 60%,
+      transparent 100%);
+  opacity: calc(var(--transparency-overlay-opacity) * 0.5);
+  mix-blend-mode: normal;
+}
+
+/* Advanced overlay styling with multiple layers */
+.transparency-overlay {
+  position: relative;
+}
+
+.transparency-overlay::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--transparency-overlay-color);
+  opacity: var(--transparency-overlay-opacity);
+  pointer-events: none;
+  z-index: -2;
+  mix-blend-mode: normal;
+}
+
+.transparency-overlay::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(180deg,
+      transparent 0%,
+      var(--transparency-overlay-color) 100%);
+  opacity: 0.1;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Z-index layering system for transparency effects */
+.transparency-layer-base {
+  z-index: 0;
+}
+
+.transparency-layer-backdrop {
+  z-index: -3;
+}
+
+.transparency-layer-overlay {
+  z-index: -2;
+}
+
+.transparency-layer-gradient {
+  z-index: -1;
+}
+
+.transparency-layer-content {
+  z-index: 1;
+  position: relative;
+}
+
+/* Ensure all content within transparent container appears above the overlay */
+.notes-container-transparent>* {
+  position: relative;
+  z-index: 1;
+}
+
+/* Specifically ensure section titles and content are above the overlay */
+.notes-container-transparent .notes-section,
+.notes-container-transparent .section-title,
+.notes-container-transparent .notes-grid,
+.notes-container-transparent .empty-state {
+  position: relative;
+  z-index: 2;
+}
+
+/* Ensure section titles are completely unaffected by any backdrop filters */
+.section-title,
+.notes-container-transparent .section-title,
+.theme-light .section-title,
+.theme-dark .section-title,
+.theme-dim .section-title {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  filter: none !important;
+  text-shadow: none !important;
+  position: relative;
+  z-index: 10;
+}
+
+/* Enhance note cards to work better with transparency */
+.notes-container-transparent .notes-grid>* {
+  /* Add subtle backdrop to note cards for better contrast without blur */
+  backdrop-filter: brightness(1.02) contrast(1.01);
+  -webkit-backdrop-filter: brightness(1.02) contrast(1.01);
+}
+
+/* Improve section titles visibility on transparent background */
+.notes-container-transparent .section-title {
+  /* Remove any filters that might cause blur */
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  filter: none !important;
+  /* Ensure crisp text rendering */
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.theme-light .notes-container-transparent .section-title {
+  /* Remove text shadow that might cause blur appearance */
+  text-shadow: none;
+}
+
+/* Removed duplicate rules - using single definitive rule above */
+
+/* Remove overlay pseudo-element since we're using direct background approach */
+
+/* Removed secondary overlay - using single background approach */
+
+/* Removed all conflicting media queries and fallbacks - using single definitive rule */
+
+/* ===== COLLECTION TABS STYLES ===== */
+
+/* Remove focus outlines and gaps from collection tabs */
+.collection-tabs {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.collection-tabs [role="tablist"] {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.collection-tabs [role="tab"] {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.collection-tabs [role="tab"]:focus {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  ring: none !important;
+}
+
+.collection-tabs [role="tab"]:focus-visible {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  ring: none !important;
+}

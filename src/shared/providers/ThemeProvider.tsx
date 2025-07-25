@@ -48,6 +48,45 @@ export const ThemeProvider = ({
     document.documentElement.classList.remove('theme-dim', 'theme-dark', 'theme-light');
     document.documentElement.classList.add(`theme-${theme}`);
     
+    // Apply transparency CSS variables
+    const currentTheme = themes[theme];
+    if (currentTheme?.transparency) {
+      const { transparency } = currentTheme;
+      const root = document.documentElement;
+      
+      console.log('Setting transparency variables:', transparency);
+      
+      // Set CSS custom properties for transparency
+      root.style.setProperty('--transparency-backdrop-blur', transparency.backdropBlur);
+      root.style.setProperty('--transparency-overlay-color', transparency.overlayColor);
+      root.style.setProperty('--transparency-overlay-opacity', transparency.overlayOpacity.toString());
+      root.style.setProperty('--transparency-vibrancy-material', transparency.vibrancyMaterial);
+      
+      // Add theme-specific transparency class for enhanced styling
+      root.classList.remove('transparency-light', 'transparency-dark', 'transparency-dim');
+      root.classList.add(`transparency-${theme}`);
+      
+      // Add transparency class to document element
+      root.classList.add('transparency-enabled');
+      
+      // Enable window transparency in Electron if available
+      if (window.ipcRenderer) {
+        try {
+          window.ipcRenderer.invoke('set-window-transparency', true);
+        } catch (error) {
+          console.error('Error enabling window transparency:', error);
+        }
+      }
+      
+      console.log('Transparency variables set:', {
+        backdropBlur: transparency.backdropBlur,
+        overlayColor: transparency.overlayColor,
+        overlayOpacity: transparency.overlayOpacity,
+        vibrancyMaterial: transparency.vibrancyMaterial
+      });
+      console.log('Check CSS custom properties in dev tools.');
+    }
+    
     // Update settings if needed
     const currentSettings = getSettings();
     if (currentSettings.theme !== theme) {
@@ -64,6 +103,14 @@ export const ThemeProvider = ({
           console.log('Notifying main process of theme change:', theme);
           // Notify the main process that the theme has changed
           window.ipcRenderer.send('theme-changed', theme);
+          
+          // Also notify about vibrancy changes for transparency effects
+          if (currentTheme?.transparency) {
+            window.ipcRenderer.send('vibrancy-changed', {
+              theme,
+              material: currentTheme.transparency.vibrancyMaterial
+            });
+          }
         } catch (error) {
           console.error('Error notifying theme change:', error);
         }
@@ -80,14 +127,28 @@ export const ThemeProvider = ({
       setThemeState(newTheme);
     };
 
-    // Add event listener
+    const handleVibrancyChanged = (_event: any, vibrancyData: { theme: ThemeName; material: string }) => {
+      console.log('Vibrancy changed from main process:', vibrancyData);
+      // Update transparency settings if the theme matches
+      if (vibrancyData.theme === theme) {
+        const currentTheme = themes[vibrancyData.theme];
+        if (currentTheme?.transparency) {
+          const root = document.documentElement;
+          root.style.setProperty('--transparency-vibrancy-material', vibrancyData.material);
+        }
+      }
+    };
+
+    // Add event listeners
     window.ipcRenderer.on('theme-changed', handleThemeChanged);
+    window.ipcRenderer.on('vibrancy-changed', handleVibrancyChanged);
 
     // Clean up
     return () => {
       window.ipcRenderer.off('theme-changed', handleThemeChanged);
+      window.ipcRenderer.off('vibrancy-changed', handleVibrancyChanged);
     };
-  }, []);
+  }, [theme]);
 
   // Set theme function
   const setTheme = (newTheme: ThemeName) => {
