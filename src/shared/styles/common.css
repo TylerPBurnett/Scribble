@@ -162,10 +162,6 @@ div.notes-container.notes-container-transparent,
 
   /* Add subtle border for better definition */
   border-radius: inherit;
-
-  /* Use backdrop blur from theme configuration */
-  backdrop-filter: var(--transparency-backdrop-blur, blur(2px)) saturate(1.1) brightness(1.05) contrast(1.02);
-  -webkit-backdrop-filter: var(--transparency-backdrop-blur, blur(2px)) saturate(1.1) brightness(1.05) contrast(1.02);
 }
 
 /* Removed overlay pseudo-element - using direct background approach */
@@ -350,6 +346,125 @@ div.notes-container.notes-container-transparent,
 
 /* ===== COLLECTION TABS STYLES ===== */
 
+/* Light theme section titles - make black for better visibility and match collection tabs font */
+/* Override all possible selectors with maximum specificity */
+.theme-light .section-title,
+.theme-light .notes-container .section-title,
+.theme-light .notes-container-transparent .section-title,
+.theme-light h1,
+.theme-light h2,
+.theme-light h3,
+.theme-light h4,
+.theme-light h5,
+.theme-light h6,
+.theme-light [class*="section"],
+.theme-light [class*="title"],
+.theme-light [class*="header"] {
+  color: rgba(0, 0, 0, 0.9) !important;
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif !important;
+  font-weight: 400 !important;
+  font-size: 16px !important;
+  line-height: 1.5 !important;
+}
+
+/* Ultra-specific override for any text that might be section titles */
+html.theme-light body .section-title,
+html.theme-light body h1,
+html.theme-light body h2,
+html.theme-light body h3,
+html.theme-light body *[class*="section"],
+html.theme-light body *[class*="title"] {
+  color: rgba(0, 0, 0, 0.9) !important;
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif !important;
+  font-weight: 400 !important;
+  font-size: 16px !important;
+  line-height: 1.5 !important;
+}
+
+/* Brute force approach - target any element in light theme that might be a section title */
+.theme-light * {
+  --section-title-color: rgba(0, 0, 0, 0.9) !important;
+}
+
+/* Targeted section titles with capitalization and collection tabs font */
+.theme-light .section-title,
+.theme-light .notes-container .section-title,
+.theme-light .notes-container-transparent .section-title,
+.theme-light h1,
+.theme-light h2,
+.theme-light h3,
+.theme-light h4,
+.theme-light h5,
+.theme-light h6,
+.theme-light *[class*="section"]:not(input):not(textarea):not(button):not(a),
+.theme-light *[class*="title"]:not(input):not(textarea):not(button):not(a),
+.theme-light *[class*="header"]:not(input):not(textarea):not(button):not(a),
+.theme-light *[class*="favorite"]:not(input):not(textarea):not(button):not(a),
+.theme-light *[class*="Favorite"]:not(input):not(textarea):not(button):not(a),
+.theme-light *[class*="FAVORITE"]:not(input):not(textarea):not(button):not(a) {
+  text-transform: capitalize !important;
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif !important;
+  font-weight: 400 !important;
+  font-size: 16px !important;
+  line-height: 1.5 !important;
+  color: rgba(0, 0, 0, 0.9) !important;
+}
+
+/* BRUTE FORCE: Target the first few elements that might contain section titles */
+.theme-light .notes-container>*:first-child,
+.theme-light .notes-container>*:nth-child(2),
+.theme-light .notes-container>*:nth-child(3),
+.theme-light .notes-container-transparent>*:first-child,
+.theme-light .notes-container-transparent>*:nth-child(2),
+.theme-light .notes-container-transparent>*:nth-child(3) {
+  text-transform: capitalize !important;
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif !important;
+  font-weight: 400 !important;
+  font-size: 16px !important;
+  line-height: 1.5 !important;
+  color: rgba(0, 0, 0, 0.9) !important;
+}
+
+/* MAXIMUM SPECIFICITY: Try to override any existing styles */
+html body .theme-light *,
+html body .theme-light *::before,
+html body .theme-light *::after {
+  text-transform: capitalize !important;
+  color: rgba(0, 0, 0, 0.9) !important;
+}
+
+/* Override for inputs, buttons, and links to keep them normal */
+html body .theme-light input,
+html body .theme-light textarea,
+html body .theme-light button,
+html body .theme-light a {
+  text-transform: none !important;
+}
+
+/* MAXIMUM SPECIFICITY: Override Tailwind uppercase class */
+html body .theme-light .section-title .flex.items-center.gap-2.text-xs.font-medium.text-text-tertiary.uppercase.tracking-wider span,
+html body .theme-light .section-title .uppercase span,
+html body .theme-light .uppercase span,
+html body .theme-light span {
+  text-transform: capitalize !important;
+  color: rgba(0, 0, 0, 0.9) !important;
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif !important;
+  font-weight: 400 !important;
+  font-size: 16px !important;
+  line-height: 1.5 !important;
+}
+
+/* Nuclear override for any uppercase class in light theme */
+html body .theme-light .uppercase,
+html body .theme-light .uppercase * {
+  text-transform: capitalize !important;
+}
+
+/* Keep other text with normal color but don't force font changes */
+.theme-light *:not(.section-title):not([class*="section"]):not([class*="title"]):not([class*="header"]):not(input):not(textarea):not(button):not(a) {
+  color: rgba(0, 0, 0, 0.9) !important;
+}
+
 /* Remove focus outlines and gaps from collection tabs */
 .collection-tabs {
   margin-bottom: 0 !important;
@@ -372,12 +487,10 @@ div.notes-container.notes-container-transparent,
   outline: none !important;
   border: none !important;
   box-shadow: none !important;
-  ring: none !important;
 }
 
 .collection-tabs [role="tab"]:focus-visible {
   outline: none !important;
   border: none !important;
   box-shadow: none !important;
-  ring: none !important;
 }
