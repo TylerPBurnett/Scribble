@@ -115,16 +115,10 @@ export default {
       },
       fontFamily: {
         sans: [
-          'Inter',
-          '-apple-system',
-          'BlinkMacSystemFont',
+          'Chirp',
           'Segoe UI',
-          'Roboto',
-          'Oxygen',
-          'Ubuntu',
-          'Cantarell',
-          'Open Sans',
           'Helvetica Neue',
+          'Arial',
           'sans-serif'
         ],
         twitter: [

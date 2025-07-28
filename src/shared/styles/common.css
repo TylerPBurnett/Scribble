@@ -26,34 +26,47 @@
 
 /* Clean light theme transparency - use CSS variables for consistency */
 
-/* Settings Dialog - Make much more opaque and readable in light theme */
+/* Settings Dialog - Professional light theme styling */
 .theme-light [data-radix-dialog-content],
 .theme-light [role="dialog"],
 .theme-light .settings-window {
-  /* Nearly solid white background for maximum readability */
-  background-color: rgba(255, 255, 255, 0.99) !important;
-  backdrop-filter: blur(3px) !important;
-  -webkit-backdrop-filter: blur(3px) !important;
+  /* Clean white background with subtle transparency */
+  background-color: rgba(255, 255, 255, 0.98) !important;
+  backdrop-filter: blur(2px) !important;
+  -webkit-backdrop-filter: blur(2px) !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
 }
 
-/* Settings Dialog sections - Make form elements nearly solid */
+/* Settings Dialog sections - Clean form styling */
 .theme-light [data-radix-dialog-content] .backdrop-blur-sm,
 .theme-light [data-radix-dialog-content] .space-y-6,
 .theme-light [role="dialog"] .backdrop-blur-sm,
 .theme-light .settings-content {
-  /* Nearly solid background for form sections */
-  background-color: rgba(255, 255, 255, 0.95) !important;
+  /* Clean section backgrounds */
+  background-color: rgba(249, 250, 251, 0.8) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+  border: 1px solid rgba(229, 231, 235, 0.8) !important;
 }
 
-/* Settings Dialog inputs and buttons - Ensure they're fully opaque */
+/* Settings Dialog inputs and buttons - Professional styling */
 .theme-light [data-radix-dialog-content] input,
-.theme-light [data-radix-dialog-content] button,
-.theme-light [role="dialog"] input,
-.theme-light [role="dialog"] button {
+.theme-light [role="dialog"] input {
+  background-color: rgba(249, 250, 251, 1) !important;
+  border: 1px solid rgba(209, 213, 219, 1) !important;
+  transition: all 0.2s ease !important;
+}
+
+.theme-light [data-radix-dialog-content] input:focus,
+.theme-light [role="dialog"] input:focus {
   background-color: rgba(255, 255, 255, 1) !important;
-  border: 1px solid rgba(0, 0, 0, 0.2) !important;
+  border: 1px solid rgba(59, 130, 246, 1) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+
+.theme-light [data-radix-dialog-content] button,
+.theme-light [role="dialog"] button {
+  transition: all 0.2s ease !important;
 }
 
 /* Settings Dialog - Increase contrast for text and labels in light theme */
@@ -473,4 +486,216 @@ html body .theme-light .uppercase * {
   outline: none !important;
   border: none !important;
   box-shadow: none !important;
+}
+
+/* Switch component improvements - theme-specific styling */
+.theme-light [data-state="checked"] {
+  background-color: rgb(59, 130, 246) !important;
+}
+
+.theme-light [data-state="unchecked"] {
+  background-color: rgb(229, 231, 235) !important;
+}
+
+.theme-dark [data-state="checked"],
+.theme-dim [data-state="checked"] {
+  background-color: hsl(var(--primary)) !important;
+}
+
+.theme-dark [data-state="unchecked"],
+.theme-dim [data-state="unchecked"] {
+  background-color: hsl(var(--secondary)) !important;
+}
+
+/* Switch thumb (the white circle) styling for all themes - comprehensive targeting */
+.theme-light button[role="switch"] span,
+.theme-light button[role="switch"]>span,
+.theme-light [role="switch"] span,
+.theme-light [role="switch"]>span,
+.theme-dark button[role="switch"] span,
+.theme-dark button[role="switch"]>span,
+.theme-dark [role="switch"] span,
+.theme-dark [role="switch"]>span,
+.theme-dim button[role="switch"] span,
+.theme-dim button[role="switch"]>span,
+.theme-dim [role="switch"] span,
+.theme-dim [role="switch"]>span {
+  background-color: white !important;
+}
+
+/* Additional switch thumb targeting for Radix UI components */
+.theme-light [data-radix-switch-thumb],
+.theme-light [data-state="checked"] [data-radix-switch-thumb],
+.theme-light [data-state="unchecked"] [data-radix-switch-thumb],
+.theme-dark [data-radix-switch-thumb],
+.theme-dark [data-state="checked"] [data-radix-switch-thumb],
+.theme-dark [data-state="unchecked"] [data-radix-switch-thumb],
+.theme-dim [data-radix-switch-thumb],
+.theme-dim [data-state="checked"] [data-radix-switch-thumb],
+.theme-dim [data-state="unchecked"] [data-radix-switch-thumb] {
+  background-color: white !important;
+}
+
+/* Generic switch thumb class targeting */
+.theme-light .switch-thumb,
+.theme-light [class*="thumb"],
+.theme-dark .switch-thumb,
+.theme-dark [class*="thumb"],
+.theme-dim .switch-thumb,
+.theme-dim [class*="thumb"] {
+  background-color: white !important;
+}
+
+/* Ensure proper contrast and visibility */
+.theme-light button[role="switch"]:focus-visible {
+  outline: 2px solid rgb(59, 130, 246) !important;
+  outline-offset: 2px !important;
+}
+
+/* Dialog close button visibility fixes for dark and dim themes */
+.theme-dark [data-radix-dialog-close],
+.theme-dim [data-radix-dialog-close],
+.theme-dark button[aria-label*="Close"],
+.theme-dim button[aria-label*="Close"],
+.theme-dark [role="dialog"] button[type="button"]:first-child,
+.theme-dim [role="dialog"] button[type="button"]:first-child {
+  color: rgba(255, 255, 255, 0.8) !important;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 6px !important;
+  transition: all 0.2s ease !important;
+}
+
+.theme-dark [data-radix-dialog-close]:hover,
+.theme-dim [data-radix-dialog-close]:hover,
+.theme-dark button[aria-label*="Close"]:hover,
+.theme-dim button[aria-label*="Close"]:hover,
+.theme-dark [role="dialog"] button[type="button"]:first-child:hover,
+.theme-dim [role="dialog"] button[type="button"]:first-child:hover {
+  color: rgba(255, 255, 255, 1) !important;
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* More specific targeting for dialog close buttons */
+.theme-dark [data-radix-dialog-content] button[data-radix-dialog-close],
+.theme-dim [data-radix-dialog-content] button[data-radix-dialog-close] {
+  color: rgba(255, 255, 255, 0.8) !important;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.theme-dark [data-radix-dialog-content] button[data-radix-dialog-close]:hover,
+.theme-dim [data-radix-dialog-content] button[data-radix-dialog-close]:hover {
+  color: rgba(255, 255, 255, 1) !important;
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Generic close button styling for dark themes - exclude switches */
+.theme-dark button[type="button"]:has(svg):not([role="switch"]),
+.theme-dim button[type="button"]:has(svg):not([role="switch"]) {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.theme-dark button[type="button"]:has(svg):not([role="switch"]):hover,
+.theme-dim button[type="button"]:has(svg):not([role="switch"]):hover {
+  color: rgba(255, 255, 255, 1) !important;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Settings dialog specific improvements for light theme */
+.theme-light [data-radix-dialog-content] {
+  /* Ensure proper text contrast */
+  color: rgb(17, 24, 39) !important;
+}
+
+.theme-light [data-radix-dialog-content] h1,
+.theme-light [data-radix-dialog-content] h2,
+.theme-light [data-radix-dialog-content] h3,
+.theme-light [data-radix-dialog-content] h4 {
+  color: rgb(17, 24, 39) !important;
+  font-weight: 600 !important;
+}
+
+.theme-light [data-radix-dialog-content] label {
+  color: rgb(55, 65, 81) !important;
+  font-weight: 500 !important;
+}
+
+.theme-light [data-radix-dialog-content] p,
+.theme-light [data-radix-dialog-content] .text-sm {
+  color: rgb(107, 114, 128) !important;
+}
+
+/* Form sections with distinct grey backgrounds */
+.theme-light [data-radix-dialog-content] .space-y-6.p-6 {
+  background: linear-gradient(135deg, rgba(229, 231, 235, 0.95) 0%, rgba(209, 213, 219, 0.85) 100%) !important;
+  border: 1px solid rgba(156, 163, 175, 0.8) !important;
+  box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.08), 0 1px 2px 0 rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Individual form items with clean white backgrounds */
+.theme-light [data-radix-dialog-content] .rounded-lg.border.p-5 {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border: 1px solid rgba(209, 213, 219, 0.8) !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px 0 rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Hover effects for interactive elements */
+.theme-light [data-radix-dialog-content] .rounded-lg.border.p-5:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.12), 0 2px 4px -1px rgba(0, 0, 0, 0.08) !important;
+  border-color: rgba(156, 163, 175, 1) !important;
+  transform: translateY(-1px) !important;
+  transition: all 0.2s ease !important;
+}
+
+/* Footer styling */
+.theme-light [data-radix-dialog-content] .border-t.pt-8 {
+  background: linear-gradient(to right, rgba(229, 231, 235, 0.8), rgba(209, 213, 219, 0.7)) !important;
+  border-top: 1px solid rgba(156, 163, 175, 0.8) !important;
+}
+
+/* Enhanced visual hierarchy for light theme settings */
+.theme-light [data-radix-dialog-content] {
+  /* Main dialog background with subtle texture */
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(249, 250, 251, 0.95) 100%) !important;
+}
+
+/* Section containers - distinct grey background */
+.theme-light [data-radix-dialog-content] .space-y-6.p-6.rounded-lg {
+  /* More pronounced grey background for parent containers */
+  background: linear-gradient(135deg, rgba(229, 231, 235, 0.95) 0%, rgba(209, 213, 219, 0.90) 100%) !important;
+  border: 1px solid rgba(156, 163, 175, 0.9) !important;
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.6), 0 2px 4px 0 rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Form items within sections - clean white backgrounds */
+.theme-light [data-radix-dialog-content] .space-y-6.p-6 .rounded-lg.border.p-5 {
+  /* Bright white background for form items */
+  background: rgba(255, 255, 255, 0.98) !important;
+  border: 1px solid rgba(209, 213, 219, 0.6) !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px 0 rgba(0, 0, 0, 0.03) !important;
+  transition: all 0.2s ease !important;
+}
+
+/* Enhanced hover effects for form items */
+.theme-light [data-radix-dialog-content] .space-y-6.p-6 .rounded-lg.border.p-5:hover {
+  background: rgba(255, 255, 255, 1) !important;
+  border-color: rgba(156, 163, 175, 0.8) !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Section headers with better contrast */
+.theme-light [data-radix-dialog-content] .space-y-6.p-6 h3 {
+  color: rgb(31, 41, 55) !important;
+  font-weight: 600 !important;
+  border-bottom-color: rgba(209, 213, 219, 0.8) !important;
+}
+
+/* Subsection headers */
+.theme-light [data-radix-dialog-content] .space-y-6.p-6 h4 {
+  color: rgb(55, 65, 81) !important;
+  font-weight: 600 !important;
 }

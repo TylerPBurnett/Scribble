@@ -5,18 +5,14 @@ import * as z from 'zod';
 import { Folder } from 'lucide-react';
 import { AppSettings } from '../shared/services/settingsService';
 import { DEFAULT_HOTKEYS, HotkeyAction } from '../shared/services/hotkeyService';
-import { ThemeName, useTheme } from '../shared/services/themeService';
+import { useTheme } from '../shared/services/themeService';
 import { HotkeysSection } from './components/HotkeysSection';
-import { SystemSection } from './components/SystemSection';
-import { ThemesSection } from './components/ThemesSection';
+import { ApplicationSettingsSection } from './components/ApplicationSettingsSection';
 
 import {
   Dialog,
   DialogContent as BaseDialogContent,
-  DialogDescription,
   DialogFooter,
-  DialogHeader,
-  DialogTitle,
 } from '@/components/ui/dialog';
 import { forwardRef } from "react";
 import { cn } from "@/lib/utils";
@@ -51,7 +47,6 @@ const formSchema = z.object({
     message: 'Save location is required.',
   }),
   autoSave: z.boolean(),
-  autoSaveInterval: z.number().min(1).max(60),
   theme: z.string(), // Theme name instead of darkMode
   // System integration settings
   autoLaunch: z.boolean().optional(),
@@ -99,7 +94,6 @@ export function SettingsDialog({
     defaultValues: {
       saveLocation: initialSettings.saveLocation,
       autoSave: initialSettings.autoSave,
-      autoSaveInterval: initialSettings.autoSaveInterval,
       theme: initialSettings.theme || 'dim',
       autoLaunch: initialSettings.autoLaunch || false,
       minimizeToTray: initialSettings.minimizeToTray || true,
@@ -117,7 +111,7 @@ export function SettingsDialog({
     console.log('Form values received:', JSON.stringify(values, null, 2));
     console.log('Current hotkeys state:', JSON.stringify(hotkeys, null, 2));
     console.log('Initial settings hotkeys:', JSON.stringify(initialSettings.hotkeys, null, 2));
-    
+
     // Validate hotkeys state before proceeding
     if (!hotkeys || typeof hotkeys !== 'object') {
       console.error('HOTKEY SAVE ERROR: Invalid hotkeys state:', hotkeys);
@@ -139,10 +133,11 @@ export function SettingsDialog({
     } else {
       var hotkeysTosave = hotkeys;
     }
-    
-    // Combine form values with hotkeys
+
+    // Combine form values with hotkeys and preserve autoSaveInterval
     const combinedSettings: AppSettings = {
       ...values,
+      autoSaveInterval: initialSettings.autoSaveInterval, // Keep the original interval
       hotkeys: hotkeysTosave,
     } as AppSettings;
 
@@ -209,159 +204,142 @@ export function SettingsDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange} modal={true}>
       <DialogContent
-        className={`sm:max-w-[800px] max-h-[calc(100vh-80px)] overflow-y-auto backdrop-blur-md font-twitter
+        className={`sm:max-w-[800px] max-h-[calc(100vh-80px)] flex flex-col font-twitter
           ${theme === 'light'
-            ? 'bg-background/95 text-foreground outline outline-1 outline-primary/20'
-            : 'bg-background/80 outline outline-1 outline-primary/30'}
-          rounded-lg shadow-[0_0_20px_rgba(0,0,0,0.3),0_0_6px_rgba(245,158,11,0.15)]`}
+            ? 'bg-white/98 text-gray-900 border border-gray-200/80 shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_10px_10px_-5px_rgba(0,0,0,0.04)] backdrop-blur-sm'
+            : 'bg-background/80 outline outline-1 outline-primary/30 backdrop-blur-md shadow-[0_0_20px_rgba(0,0,0,0.3),0_0_6px_rgba(245,158,11,0.15)]'}
+          rounded-xl`}
       >
 
-        <DialogHeader className="mb-8">
-          <DialogTitle className={`text-3xl font-semibold ${theme === 'light' ? 'text-black' : 'text-foreground'}`}>Settings</DialogTitle>
-          <DialogDescription className={`mt-2 text-base ${theme === 'light' ? 'text-black/80' : 'text-muted-foreground'}`}>
-            Configure your Scribble application preferences.
-          </DialogDescription>
-        </DialogHeader>
-
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 py-4">
-            {/* Storage Section */}
-            <div className="space-y-6 backdrop-blur-sm p-6">
-              <h3 className={`text-2xl font-semibold border-b border-border/50 pb-4 ${theme === 'light' ? 'text-black' : 'text-foreground'}`}>Storage</h3>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
+            {/* Scrollable content area */}
+            <div className="flex-1 overflow-y-auto space-y-3 pt-3 pr-2 pl-0">
+              {/* File Management Section */}
+              <div className={`rounded-lg border ${theme === 'light' ? 'bg-gray-200/90 border-gray-300/70' : 'bg-background/30 border-border/30'}`}>
+                <div className={`px-3 py-2 border-b ${theme === 'light' ? 'border-gray-200/60' : 'border-border/30'}`}>
+                  <h3 className={`text-base font-medium ${theme === 'light' ? 'text-gray-900' : 'text-foreground'}`}>File Management</h3>
+                </div>
+                <div className="p-3 space-y-3">
+                  {/* Save Location */}
+                  <FormField
+                    control={form.control}
+                    name="saveLocation"
+                    render={({ field }) => (
+                      <FormItem className={`flex flex-col space-y-2 rounded-lg border p-5 ${theme === 'light' ? 'bg-white border-gray-200 shadow-sm' : 'backdrop-blur-sm border-border/30 bg-black/20'}`}>
+                        <FormLabel className={`text-sm font-medium ${theme === 'light' ? 'text-gray-900' : 'text-foreground'}`}>Save Location</FormLabel>
+                        <FormDescription className={`text-xs ${theme === 'light' ? 'text-gray-600' : 'text-muted-foreground'}`}>
+                          Choose where to save your notes
+                        </FormDescription>
+                        <div className="flex gap-2">
+                          <FormControl>
+                            <Input
+                              {...field}
+                              readOnly
+                              className={`flex-1 text-sm ${theme === 'light' ? 'bg-gray-50 border-gray-300 text-gray-900' : 'bg-secondary border-border/50 text-secondary-foreground'}`}
+                            />
+                          </FormControl>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleSaveLocationSelect}
+                            disabled={isSelectingLocation}
+                            className={`shrink-0 px-3 ${theme === 'light' ? 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50' : 'border-border/50 bg-secondary hover:bg-secondary/90'}`}
+                          >
+                            {isSelectingLocation ? (
+                              <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                            ) : (
+                              <Folder size={16} />
+                            )}
+                          </Button>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={form.control}
-                name="saveLocation"
-                render={({ field }) => (
-                  <FormItem className="backdrop-blur-sm p-5 rounded-lg border border-border/30 bg-black/20">
-                    <FormLabel className={`text-base font-medium ${theme === 'light' ? 'text-black' : 'text-foreground'}`}>Save Location</FormLabel>
-                    <div className="flex gap-2 mt-3">
-                      <FormControl>
-                        <Input
-                          {...field}
-                          readOnly
-                          className={`bg-secondary border border-border/50 flex-1 focus:border-primary/50 focus:ring-1 focus:ring-primary/30 shadow-sm ${theme === 'light' ? 'text-black' : 'text-secondary-foreground'}`}
-                        />
-                      </FormControl>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleSaveLocationSelect}
-                        disabled={false}
-                        className={`group shrink-0 px-4 py-2 border-border/50 bg-secondary hover:bg-secondary/90 font-medium shadow-sm transition-all duration-200 active:scale-95 ${theme === 'light' ? 'text-black' : 'text-secondary-foreground'} flex items-center gap-2 hover:border-primary/30 hover:shadow-md`}
-                      >
-                        {isSelectingLocation ? (
-                          <svg className="animate-spin h-4 w-4 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                        ) : (
-                          <Folder size={16} className="opacity-80 group-hover:text-primary transition-colors duration-200" />
-                        )}
-                        {isSelectingLocation ? 'Selecting...' : 'Browse...'}
-                      </Button>
-                    </div>
-                    <FormDescription className={`mt-3 text-sm ${theme === 'light' ? 'text-black/70' : 'text-muted-foreground'}`}>
-                      Choose where to save your notes
-                    </FormDescription>
-                  </FormItem>
-                )}
-              />
+                  {/* Auto Save */}
+                  <FormField
+                    control={form.control}
+                    name="autoSave"
+                    render={({ field }) => (
+                      <FormItem className={`flex flex-row items-start justify-between rounded-lg border p-5 ${theme === 'light' ? 'bg-white border-gray-200 shadow-sm' : 'backdrop-blur-sm border-border/30 bg-black/20'}`}>
+                        <div className="flex-1 min-w-0 pr-4">
+                          <FormLabel className={`text-sm font-medium ${theme === 'light' ? 'text-gray-900' : 'text-foreground'}`}>Auto Save</FormLabel>
+                          <FormDescription className={`text-xs mt-1 ${theme === 'light' ? 'text-gray-600' : 'text-muted-foreground'}`}>
+                            Automatically save notes while typing
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <div className="flex items-center shrink-0">
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              className=""
+                            />
+                            <span className={`ml-2 text-sm font-medium ${field.value ? (theme === 'light' ? 'text-blue-600' : 'text-primary') : (theme === 'light' ? 'text-gray-500' : 'text-muted-foreground')}`}>
+                              {field.value ? 'On' : 'Off'}
+                            </span>
+                          </div>
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              {/* Application Settings Section */}
+              <ApplicationSettingsSection form={form} theme={theme} />
+
+              {/* Keyboard Shortcuts Section */}
+              <div className={`rounded-lg border ${theme === 'light' ? 'bg-gray-200/90 border-gray-300/70' : 'bg-background/30 border-border/30'}`}>
+                <div className={`px-3 py-2 border-b ${theme === 'light' ? 'border-gray-200/60' : 'border-border/30'} flex items-center justify-between`}>
+                  <h3 className={`text-base font-medium ${theme === 'light' ? 'text-gray-900' : 'text-foreground'}`}>Keyboard Shortcuts</h3>
+                  <button
+                    className={`flex items-center gap-1 px-3 py-1 text-sm rounded-md transition-colors ${theme === 'light' ? 'bg-gray-100 hover:bg-gray-200 text-gray-700' : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleHotkeyChange(DEFAULT_HOTKEYS);
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-80">
+                      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                      <path d="M3 3v5h5"></path>
+                    </svg>
+                    <span>Reset</span>
+                  </button>
+                </div>
+                <div className="p-3">
+                  <HotkeysSection
+                    hotkeys={hotkeys}
+                    onChange={handleHotkeyChange}
+                    theme={theme}
+                  />
+                </div>
+              </div>
             </div>
 
-            {/* Auto Save Section */}
-            <div className="space-y-6 backdrop-blur-sm p-6">
-              <h3 className={`text-2xl font-semibold border-b border-border/50 pb-4 ${theme === 'light' ? 'text-black' : 'text-foreground'}`}>Auto Save</h3>
-
-              <FormField
-                control={form.control}
-                name="autoSave"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border/30 p-5 backdrop-blur-sm bg-black/20">
-                    <div className="space-y-2">
-                      <FormLabel className={`text-base font-medium ${theme === 'light' ? 'text-black' : 'text-foreground'}`}>Auto Save</FormLabel>
-                      <FormDescription className={`text-sm ${theme === 'light' ? 'text-black/70' : 'text-muted-foreground'}`}>
-                        Automatically save notes while typing
-                      </FormDescription>
-                    </div>
-                    <FormControl>
-                      <div className="flex items-center">
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          className=""
-                        />
-                        <span className={`ml-2 text-sm font-medium ${field.value ? 'text-primary' : 'text-muted-foreground'}`}>
-                          {field.value ? 'On' : 'Off'}
-                        </span>
-                      </div>
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              {form.watch('autoSave') && (
-                <FormField
-                  control={form.control}
-                  name="autoSaveInterval"
-                  render={({ field }) => (
-                    <FormItem className="backdrop-blur-sm p-5 rounded-lg border border-border/30 mt-4 bg-black/20">
-                      <FormLabel className={`text-base font-medium ${theme === 'light' ? 'text-black' : 'text-foreground'}`}>Auto Save Interval (seconds)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min={1}
-                          max={60}
-                          className={`bg-secondary border border-border/50 mt-3 w-full md:w-1/3 focus:border-primary/50 focus:ring-1 focus:ring-primary/30 shadow-sm ${theme === 'light' ? 'text-black' : 'text-secondary-foreground'}`}
-                          {...field}
-                          onChange={(e) => field.onChange(Number(e.target.value))}
-                        />
-                      </FormControl>
-                      <FormDescription className={`mt-3 text-sm ${theme === 'light' ? 'text-black/70' : 'text-muted-foreground'}`}>
-                        How often to automatically save notes (1-60 seconds)
-                      </FormDescription>
-                    </FormItem>
-                  )}
-                />
-              )}
-            </div>
-
-            {/* Appearance Section */}
-            <div className="space-y-6 backdrop-blur-sm p-6">
-              <ThemesSection
-                currentTheme={form.watch('theme') as ThemeName}
-                onChange={(theme) => form.setValue('theme', theme)}
-              />
-            </div>
-
-            {/* System Integration Section */}
-            <SystemSection form={form} theme={theme} />
-
-            {/* Hotkeys Section */}
-            <div className="space-y-6 backdrop-blur-sm p-6">
-              <HotkeysSection
-                hotkeys={hotkeys}
-                onChange={handleHotkeyChange}
-                theme={theme}
-              />
-            </div>
-
-            <DialogFooter className="pt-8 border-t border-border/50 mt-6 backdrop-blur-sm p-4 rounded-b-lg -mx-6 -mb-6">
+            {/* Modern compact footer */}
+            <div className={`flex-shrink-0 flex items-center justify-end gap-2 py-3 px-4 border-t backdrop-blur-sm -mx-6 -mb-6 ${theme === 'light' ? 'border-gray-200/80 bg-white/80' : 'border-border/40 bg-background/60'}`}>
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 onClick={() => onOpenChange(false)}
-                className={`px-6 py-2.5 border-border/50 bg-secondary hover:bg-secondary/90 font-medium shadow-sm transition-all duration-200 active:scale-95 ${theme === 'light' ? 'text-black' : 'text-secondary-foreground'}`}
+                className={`px-3 py-1.5 text-sm font-medium transition-all duration-200 hover:scale-105 ${theme === 'light' ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'}`}
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                className="px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-md transition-all duration-200 active:scale-95 border-0"
+                className={`px-4 py-1.5 text-sm font-medium transition-all duration-200 hover:scale-105 ${theme === 'light' ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md' : 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm hover:shadow-md'}`}
               >
                 Save Changes
               </Button>
-            </DialogFooter>
+            </div>
           </form>
         </Form>
       </DialogContent>

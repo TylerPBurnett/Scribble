@@ -390,7 +390,7 @@ function MainApp() {
   return (
     <ThemeProvider initialSettings={appSettings}>
       <ToastProvider>
-        <div className="app-container flex flex-col h-screen text-text">
+        <div className="app-container flex flex-col h-screen text-text font-twitter">
         {/* Title Bar - Now spans the full width */}
         <TitleBar
           title=""

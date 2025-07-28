@@ -3,6 +3,8 @@ import { Check, RefreshCw } from 'lucide-react';
 import { Theme, ThemeName, themes } from '../../shared/styles/theme';
 import { useTheme } from '../../shared/providers/ThemeProvider';
 
+
+
 interface ThemesSectionProps {
   currentTheme: ThemeName;
   onChange: (theme: ThemeName) => void;
@@ -19,6 +21,46 @@ export function ThemesSection({ currentTheme, onChange }: ThemesSectionProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   // State to track the current theme display
   const [displayTheme, setDisplayTheme] = useState(currentTheme);
+
+  // Inject CSS styles for theme cards
+  useEffect(() => {
+    const styleId = 'theme-card-styles';
+    let styleElement = document.getElementById(styleId) as HTMLStyleElement;
+    
+    if (!styleElement) {
+      styleElement = document.createElement('style');
+      styleElement.id = styleId;
+      document.head.appendChild(styleElement);
+    }
+    
+    styleElement.textContent = `
+      .theme-card-dark .theme-card-title,
+      .theme-card-dim .theme-card-title {
+        color: #ffffff !important;
+      }
+      
+      .theme-card-dark .theme-card-description,
+      .theme-card-dim .theme-card-description {
+        color: rgba(255, 255, 255, 0.7) !important;
+      }
+      
+      .theme-card-light .theme-card-title {
+        color: #333333 !important;
+      }
+      
+      .theme-card-light .theme-card-description {
+        color: rgba(51, 51, 51, 0.7) !important;
+      }
+    `;
+    
+    return () => {
+      // Clean up on unmount
+      const element = document.getElementById(styleId);
+      if (element) {
+        element.remove();
+      }
+    };
+  }, []);
 
   // Handle theme selection
   const handleThemeSelect = (theme: ThemeName) => {
@@ -81,10 +123,10 @@ export function ThemesSection({ currentTheme, onChange }: ThemesSectionProps) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-2xl font-semibold text-foreground border-b border-border pb-4">Themes</h3>
+        <h3 className="text-base font-medium text-foreground border-b border-border pb-4">Themes</h3>
         <button
           onClick={forceRefresh}
-          className="flex items-center gap-1 px-3 py-1 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
+          className="flex items-center gap-1 px-3 py-1 text-sm rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
           disabled={isRefreshing}
         >
           <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -95,10 +137,11 @@ export function ThemesSection({ currentTheme, onChange }: ThemesSectionProps) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {themeOptions.map((theme) => (
           <ThemeCard
-            key={`${theme.name}-${refreshKey}`}
+            key={`${theme.name}-${refreshKey}-${currentTheme}`}
             theme={theme}
             isSelected={displayTheme === theme.name}
             onSelect={() => handleThemeSelect(theme.name)}
+            currentAppTheme={currentTheme}
           />
         ))}
       </div>
@@ -110,9 +153,10 @@ interface ThemeCardProps {
   theme: Theme;
   isSelected: boolean;
   onSelect: () => void;
+  currentAppTheme: ThemeName;
 }
 
-function ThemeCard({ theme, isSelected, onSelect }: ThemeCardProps) {
+function ThemeCard({ theme, isSelected, onSelect, currentAppTheme }: ThemeCardProps) {
   // Get border color based on selection state
   const getBorderColor = () => {
     if (isSelected) {
@@ -127,6 +171,30 @@ function ThemeCard({ theme, isSelected, onSelect }: ThemeCardProps) {
       return `0 4px 12px ${theme.preview.primary}40`;
     }
     return 'none';
+  };
+
+  // Get text color for theme info - ensure dark/dim themes always show light text
+  const getInfoTextColor = () => {
+    // Force white text for dark/dim themes - using RGB for better compatibility
+    if (theme.name === 'dark' || theme.name === 'dim') {
+      console.log(`FORCING WHITE TEXT for theme ${theme.name}`);
+      return 'rgb(255, 255, 255)';
+    }
+    const color = theme.preview.foreground;
+    console.log(`Theme ${theme.name} (app theme: ${currentAppTheme}) - Info text color:`, color);
+    return color;
+  };
+
+  // Get description text color - ensure dark/dim themes always show muted light text
+  const getDescriptionTextColor = () => {
+    // Force muted white text for dark/dim themes - using RGBA for better compatibility
+    if (theme.name === 'dark' || theme.name === 'dim') {
+      console.log(`FORCING MUTED WHITE TEXT for theme ${theme.name}`);
+      return 'rgba(255, 255, 255, 0.7)';
+    }
+    const color = `color-mix(in srgb, ${theme.preview.foreground} 70%, transparent)`;
+    console.log(`Theme ${theme.name} (app theme: ${currentAppTheme}) - Description text color:`, color);
+    return color;
   };
 
   return (
@@ -208,23 +276,53 @@ function ThemeCard({ theme, isSelected, onSelect }: ThemeCardProps) {
       </div>
 
       {/* Theme info */}
-      <div style={{
-        padding: '1rem',
-        backgroundColor: theme.preview.card,
-        color: theme.preview.foreground
-      }}>
+      <div 
+        className={`theme-card-info theme-card-${theme.name}`}
+        style={{
+          padding: '1rem',
+          backgroundColor: theme.preview.card,
+          color: getInfoTextColor(),
+          // Additional properties to force color inheritance
+          WebkitTextFillColor: getInfoTextColor(),
+          textShadow: 'none',
+          // Ensure no color inheritance from parent
+          colorScheme: 'normal'
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <h4 style={{
-              fontWeight: '500',
-              color: theme.preview.foreground,
-              margin: 0
-            }}>{theme.label}</h4>
-            <p style={{
-              fontSize: '0.875rem',
-              color: `color-mix(in srgb, ${theme.preview.foreground} 70%, transparent)`,
-              margin: '0.25rem 0 0 0'
-            }}>{theme.description}</p>
+            <h4 
+              className={`theme-card-title theme-card-title-${theme.name}`}
+              data-theme={theme.name}
+              data-forced-color={theme.name === 'dark' || theme.name === 'dim' ? 'white' : 'original'}
+              style={{
+                fontWeight: '500',
+                color: getInfoTextColor(),
+                margin: 0,
+                // Force the color with additional CSS properties
+                WebkitTextFillColor: getInfoTextColor(),
+                textShadow: 'none',
+                // Additional properties to ensure color is applied
+                colorScheme: 'normal',
+                opacity: 1
+              }}
+            >{theme.label}</h4>
+            <p 
+              className={`theme-card-description theme-card-description-${theme.name}`}
+              data-theme={theme.name}
+              data-forced-color={theme.name === 'dark' || theme.name === 'dim' ? 'white' : 'original'}
+              style={{
+                fontSize: '0.875rem',
+                color: getDescriptionTextColor(),
+                margin: '0.25rem 0 0 0',
+                // Force the color with additional CSS properties
+                WebkitTextFillColor: getDescriptionTextColor(),
+                textShadow: 'none',
+                // Additional properties to ensure color is applied
+                colorScheme: 'normal',
+                opacity: 1
+              }}
+            >{theme.description}</p>
           </div>
 
           {isSelected && (
