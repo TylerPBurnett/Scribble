@@ -5,3 +5,697 @@
   padding: 0;
   overflow: hidden;
 }
+
+/* ===== TRANSPARENCY STYLES ===== */
+
+/* CSS Custom Properties for Transparency */
+:root {
+  /* Default transparency values - will be overridden by theme provider */
+  --transparency-backdrop-blur: blur(20px);
+  --transparency-overlay-color: rgba(40, 42, 54, 0.3);
+  --transparency-overlay-opacity: 0.3;
+  --transparency-vibrancy-material: dark;
+}
+
+/* Light theme transparency variables - restore original backdrop-filter look */
+.theme-light {
+  --transparency-backdrop-blur: blur(10px) !important;
+  --transparency-overlay-color: rgba(255, 255, 255, 0.4) !important;
+  --transparency-overlay-opacity: 0.4 !important;
+}
+
+/* Clean light theme transparency - use CSS variables for consistency */
+
+/* Settings Dialog - Professional light theme styling */
+.theme-light [data-radix-dialog-content],
+.theme-light [role="dialog"],
+.theme-light .settings-window {
+  /* Clean white background with subtle transparency */
+  background-color: rgba(255, 255, 255, 0.98) !important;
+  backdrop-filter: blur(2px) !important;
+  -webkit-backdrop-filter: blur(2px) !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Settings Dialog sections - Clean form styling */
+.theme-light [data-radix-dialog-content] .backdrop-blur-sm,
+.theme-light [data-radix-dialog-content] .space-y-6,
+.theme-light [role="dialog"] .backdrop-blur-sm,
+.theme-light .settings-content {
+  /* Clean section backgrounds */
+  background-color: rgba(249, 250, 251, 0.8) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid rgba(229, 231, 235, 0.8) !important;
+}
+
+/* Settings Dialog inputs and buttons - Professional styling */
+.theme-light [data-radix-dialog-content] input,
+.theme-light [role="dialog"] input {
+  background-color: rgba(249, 250, 251, 1) !important;
+  border: 1px solid rgba(209, 213, 219, 1) !important;
+  transition: all 0.2s ease !important;
+}
+
+.theme-light [data-radix-dialog-content] input:focus,
+.theme-light [role="dialog"] input:focus {
+  background-color: rgba(255, 255, 255, 1) !important;
+  border: 1px solid rgba(59, 130, 246, 1) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+
+.theme-light [data-radix-dialog-content] button,
+.theme-light [role="dialog"] button {
+  transition: all 0.2s ease !important;
+}
+
+/* Settings Dialog - Increase contrast for text and labels in light theme */
+.theme-light [data-radix-dialog-content] h1,
+.theme-light [data-radix-dialog-content] h2,
+.theme-light [data-radix-dialog-content] h3,
+.theme-light [role="dialog"] h1,
+.theme-light [role="dialog"] h2,
+.theme-light [role="dialog"] h3 {
+  /* Dark headings for strong contrast */
+  color: rgba(0, 0, 0, 0.9) !important;
+  font-weight: 600 !important;
+}
+
+.theme-light [data-radix-dialog-content] label,
+.theme-light [data-radix-dialog-content] .text-base,
+.theme-light [role="dialog"] label,
+.theme-light [role="dialog"] .text-base {
+  /* Dark labels for better readability */
+  color: rgba(0, 0, 0, 0.8) !important;
+  font-weight: 500 !important;
+}
+
+.theme-light [data-radix-dialog-content] p,
+.theme-light [data-radix-dialog-content] .text-sm,
+.theme-light [role="dialog"] p,
+.theme-light [role="dialog"] .text-sm {
+  /* Medium dark text for descriptions */
+  color: rgba(0, 0, 0, 0.7) !important;
+}
+
+.theme-light [data-radix-dialog-content] input {
+  /* Dark text in input fields with light gray background */
+  color: rgba(0, 0, 0, 0.9) !important;
+  background-color: rgba(248, 250, 252, 1) !important;
+  border: 1px solid rgba(0, 0, 0, 0.3) !important;
+}
+
+.theme-light [data-radix-dialog-content] input::placeholder {
+  /* Darker placeholder text */
+  color: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Base transparency class for containers */
+.transparency-container {
+  position: relative;
+  background: transparent;
+}
+
+/* Main transparency effect class - UNIFIED OVERLAY IMPLEMENTATION */
+div.notes-container.notes-container-transparent,
+.notes-container.notes-container-transparent,
+.notes-container-transparent {
+  position: relative !important;
+
+  /* Remove any background from the container itself */
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+
+  /* Ensure proper layering */
+  isolation: isolate !important;
+  z-index: 1 !important;
+
+  /* Enable transparency for Electron */
+  -webkit-app-region: no-drag;
+
+  /* Smooth transitions */
+  transition: all 0.3s ease;
+}
+
+
+
+/* Apply transparency to the parent container that doesn't scroll */
+.main-content-transparent {
+  position: relative;
+  background: transparent;
+}
+
+.main-content-transparent::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+
+  /* Use CSS custom properties set by ThemeProvider */
+  background: var(--transparency-overlay-color, rgba(40, 42, 54, 0.15));
+
+  /* Apply backdrop filter to the non-scrolling parent */
+  backdrop-filter: var(--transparency-backdrop-blur, blur(2px)) saturate(1.1) brightness(1.05) contrast(1.02);
+  -webkit-backdrop-filter: var(--transparency-backdrop-blur, blur(2px)) saturate(1.1) brightness(1.05) contrast(1.02);
+
+  /* Ensure overlay is behind all content */
+  z-index: -10;
+  pointer-events: none;
+
+  /* Smooth transitions */
+  transition: background 0.3s ease, backdrop-filter 0.3s ease;
+
+  /* Ensure proper rendering and performance */
+  will-change: backdrop-filter, background;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Light theme specific backdrop-filter - minimal blur for sharp transparency */
+.theme-light .main-content-transparent::before {
+  /* Light theme with whiter appearance and adjusted opacity */
+  background: rgba(255, 255, 255, 0.25) !important;
+  backdrop-filter: blur(0.5px) brightness(1.4) saturate(0.6) !important;
+  -webkit-backdrop-filter: blur(0.5px) brightness(1.4) saturate(0.6) !important;
+}
+
+/* Remove backdrop-filter from scrolling container */
+.notes-container-transparent {
+  /* Make the scrolling container completely transparent */
+  background: transparent !important;
+}
+
+/* Remove notes-container pseudo-element - using parent container approach */
+
+/* Removed overlay pseudo-element - using direct background approach */
+
+/* Remove theme-specific pseudo-element backdrop filters - using container-level backdrop-filter instead */
+
+/* Enhanced backdrop-filter with cross-platform support */
+.transparency-backdrop {
+  /* Multi-vendor backdrop filter support with minimal blur for text readability */
+  backdrop-filter: blur(2px) saturate(1.1) brightness(1.05) contrast(1.02);
+  -webkit-backdrop-filter: blur(2px) saturate(1.1) brightness(1.05) contrast(1.02);
+  -moz-backdrop-filter: blur(2px) saturate(1.1) brightness(1.05) contrast(1.02);
+  -ms-backdrop-filter: blur(2px) saturate(1.1) brightness(1.05) contrast(1.02);
+
+  /* Ensure proper rendering */
+  will-change: backdrop-filter;
+  transform: translateZ(0);
+}
+
+/* Remove notes-container ::after pseudo-element - using parent container approach */
+
+/* Theme-specific gradient overlays for enhanced integration */
+/* Light theme transparency - remove solid background override */
+.theme-light .notes-container-transparent {
+  background: transparent !important;
+  border: none;
+}
+
+/* Remove debug border */
+
+/* Remove duplicate ::after rule - using parent container approach */
+
+/* Advanced overlay styling with multiple layers */
+.transparency-overlay {
+  position: relative;
+}
+
+.transparency-overlay::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--transparency-overlay-color);
+  opacity: var(--transparency-overlay-opacity);
+  pointer-events: none;
+  z-index: -2;
+  mix-blend-mode: normal;
+}
+
+.transparency-overlay::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(180deg,
+      transparent 0%,
+      var(--transparency-overlay-color) 100%);
+  opacity: 0.1;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Z-index layering system for transparency effects */
+.transparency-layer-base {
+  z-index: 0;
+}
+
+.transparency-layer-backdrop {
+  z-index: -3;
+}
+
+.transparency-layer-overlay {
+  z-index: -2;
+}
+
+.transparency-layer-gradient {
+  z-index: -1;
+}
+
+.transparency-layer-content {
+  z-index: 1;
+  position: relative;
+}
+
+/* Ensure all content within transparent container appears above the overlay */
+.notes-container-transparent>* {
+  position: relative;
+  z-index: 1;
+}
+
+/* Specifically ensure section titles and content are above the overlay */
+.notes-container-transparent .notes-section,
+.notes-container-transparent .section-title,
+.notes-container-transparent .notes-grid,
+.notes-container-transparent .empty-state {
+  position: relative;
+  z-index: 2;
+}
+
+/* Ensure section titles are completely unaffected by any backdrop filters */
+.section-title,
+.notes-container-transparent .section-title,
+.theme-light .section-title,
+.theme-dark .section-title,
+.theme-dim .section-title {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  filter: none !important;
+  text-shadow: none !important;
+  position: relative;
+  z-index: 10;
+}
+
+/* Enhance note cards to work better with transparency */
+.notes-container-transparent .notes-grid>* {
+  /* Add subtle backdrop to note cards for better contrast without blur */
+  backdrop-filter: brightness(1.02) contrast(1.01);
+  -webkit-backdrop-filter: brightness(1.02) contrast(1.01);
+}
+
+/* Improve section titles visibility on transparent background */
+.notes-container-transparent .section-title {
+  /* Remove any filters that might cause blur */
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  filter: none !important;
+  /* Ensure crisp text rendering */
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.theme-light .notes-container-transparent .section-title {
+  /* Remove text shadow that might cause blur appearance */
+  text-shadow: none;
+}
+
+/* Removed duplicate rules - using single definitive rule above */
+
+/* Remove overlay pseudo-element since we're using direct background approach */
+
+/* Removed secondary overlay - using single background approach */
+
+/* Removed all conflicting media queries and fallbacks - using single definitive rule */
+
+/* ===== COLLECTION TABS STYLES ===== */
+
+/* Light theme section titles - make black for better visibility and match collection tabs font */
+/* Override all possible selectors with maximum specificity */
+.theme-light .section-title,
+.theme-light .notes-container .section-title,
+.theme-light .notes-container-transparent .section-title,
+.theme-light h1,
+.theme-light h2,
+.theme-light h3,
+.theme-light h4,
+.theme-light h5,
+.theme-light h6,
+.theme-light [class*="section"],
+.theme-light [class*="title"],
+.theme-light [class*="header"] {
+  color: rgba(0, 0, 0, 0.9) !important;
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif !important;
+  font-weight: 400 !important;
+  font-size: 16px !important;
+  line-height: 1.5 !important;
+}
+
+/* Ultra-specific override for any text that might be section titles */
+html.theme-light body .section-title,
+html.theme-light body h1,
+html.theme-light body h2,
+html.theme-light body h3,
+html.theme-light body *[class*="section"],
+html.theme-light body *[class*="title"] {
+  color: rgba(0, 0, 0, 0.9) !important;
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif !important;
+  font-weight: 400 !important;
+  font-size: 16px !important;
+  line-height: 1.5 !important;
+}
+
+/* Brute force approach - target any element in light theme that might be a section title */
+.theme-light * {
+  --section-title-color: rgba(0, 0, 0, 0.9) !important;
+}
+
+/* Targeted section titles with capitalization and collection tabs font */
+.theme-light .section-title,
+.theme-light .notes-container .section-title,
+.theme-light .notes-container-transparent .section-title,
+.theme-light h1,
+.theme-light h2,
+.theme-light h3,
+.theme-light h4,
+.theme-light h5,
+.theme-light h6,
+.theme-light *[class*="section"]:not(input):not(textarea):not(button):not(a),
+.theme-light *[class*="title"]:not(input):not(textarea):not(button):not(a),
+.theme-light *[class*="header"]:not(input):not(textarea):not(button):not(a),
+.theme-light *[class*="favorite"]:not(input):not(textarea):not(button):not(a),
+.theme-light *[class*="Favorite"]:not(input):not(textarea):not(button):not(a),
+.theme-light *[class*="FAVORITE"]:not(input):not(textarea):not(button):not(a) {
+  text-transform: capitalize !important;
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif !important;
+  font-weight: 400 !important;
+  font-size: 16px !important;
+  line-height: 1.5 !important;
+  color: rgba(0, 0, 0, 0.9) !important;
+}
+
+/* BRUTE FORCE: Target the first few elements that might contain section titles */
+.theme-light .notes-container>*:first-child,
+.theme-light .notes-container>*:nth-child(2),
+.theme-light .notes-container>*:nth-child(3),
+.theme-light .notes-container-transparent>*:first-child,
+.theme-light .notes-container-transparent>*:nth-child(2),
+.theme-light .notes-container-transparent>*:nth-child(3) {
+  text-transform: capitalize !important;
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif !important;
+  font-weight: 400 !important;
+  font-size: 16px !important;
+  line-height: 1.5 !important;
+  color: rgba(0, 0, 0, 0.9) !important;
+}
+
+/* MAXIMUM SPECIFICITY: Try to override any existing styles */
+html body .theme-light *,
+html body .theme-light *::before,
+html body .theme-light *::after {
+  text-transform: capitalize !important;
+  color: rgba(0, 0, 0, 0.9) !important;
+}
+
+/* Override for inputs, buttons, and links to keep them normal */
+html body .theme-light input,
+html body .theme-light textarea,
+html body .theme-light button,
+html body .theme-light a {
+  text-transform: none !important;
+}
+
+/* MAXIMUM SPECIFICITY: Override Tailwind uppercase class */
+html body .theme-light .section-title .flex.items-center.gap-2.text-xs.font-medium.text-text-tertiary.uppercase.tracking-wider span,
+html body .theme-light .section-title .uppercase span,
+html body .theme-light .uppercase span,
+html body .theme-light span {
+  text-transform: capitalize !important;
+  color: rgba(0, 0, 0, 0.9) !important;
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif !important;
+  font-weight: 400 !important;
+  font-size: 16px !important;
+  line-height: 1.5 !important;
+}
+
+/* Nuclear override for any uppercase class in light theme */
+html body .theme-light .uppercase,
+html body .theme-light .uppercase * {
+  text-transform: capitalize !important;
+}
+
+/* Keep other text with normal color but don't force font changes */
+.theme-light *:not(.section-title):not([class*="section"]):not([class*="title"]):not([class*="header"]):not(input):not(textarea):not(button):not(a) {
+  color: rgba(0, 0, 0, 0.9) !important;
+}
+
+/* Remove focus outlines and gaps from collection tabs */
+.collection-tabs {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.collection-tabs [role="tablist"] {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.collection-tabs [role="tab"] {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.collection-tabs [role="tab"]:focus {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.collection-tabs [role="tab"]:focus-visible {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Switch component improvements - theme-specific styling */
+.theme-light [data-state="checked"] {
+  background-color: rgb(59, 130, 246) !important;
+}
+
+.theme-light [data-state="unchecked"] {
+  background-color: rgb(229, 231, 235) !important;
+}
+
+.theme-dark [data-state="checked"],
+.theme-dim [data-state="checked"] {
+  background-color: hsl(var(--primary)) !important;
+}
+
+.theme-dark [data-state="unchecked"],
+.theme-dim [data-state="unchecked"] {
+  background-color: hsl(var(--secondary)) !important;
+}
+
+/* Switch thumb (the white circle) styling for all themes - comprehensive targeting */
+.theme-light button[role="switch"] span,
+.theme-light button[role="switch"]>span,
+.theme-light [role="switch"] span,
+.theme-light [role="switch"]>span,
+.theme-dark button[role="switch"] span,
+.theme-dark button[role="switch"]>span,
+.theme-dark [role="switch"] span,
+.theme-dark [role="switch"]>span,
+.theme-dim button[role="switch"] span,
+.theme-dim button[role="switch"]>span,
+.theme-dim [role="switch"] span,
+.theme-dim [role="switch"]>span {
+  background-color: white !important;
+}
+
+/* Additional switch thumb targeting for Radix UI components */
+.theme-light [data-radix-switch-thumb],
+.theme-light [data-state="checked"] [data-radix-switch-thumb],
+.theme-light [data-state="unchecked"] [data-radix-switch-thumb],
+.theme-dark [data-radix-switch-thumb],
+.theme-dark [data-state="checked"] [data-radix-switch-thumb],
+.theme-dark [data-state="unchecked"] [data-radix-switch-thumb],
+.theme-dim [data-radix-switch-thumb],
+.theme-dim [data-state="checked"] [data-radix-switch-thumb],
+.theme-dim [data-state="unchecked"] [data-radix-switch-thumb] {
+  background-color: white !important;
+}
+
+/* Generic switch thumb class targeting */
+.theme-light .switch-thumb,
+.theme-light [class*="thumb"],
+.theme-dark .switch-thumb,
+.theme-dark [class*="thumb"],
+.theme-dim .switch-thumb,
+.theme-dim [class*="thumb"] {
+  background-color: white !important;
+}
+
+/* Ensure proper contrast and visibility */
+.theme-light button[role="switch"]:focus-visible {
+  outline: 2px solid rgb(59, 130, 246) !important;
+  outline-offset: 2px !important;
+}
+
+/* Dialog close button visibility fixes for dark and dim themes */
+.theme-dark [data-radix-dialog-close],
+.theme-dim [data-radix-dialog-close],
+.theme-dark button[aria-label*="Close"],
+.theme-dim button[aria-label*="Close"],
+.theme-dark [role="dialog"] button[type="button"]:first-child,
+.theme-dim [role="dialog"] button[type="button"]:first-child {
+  color: rgba(255, 255, 255, 0.8) !important;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 6px !important;
+  transition: all 0.2s ease !important;
+}
+
+.theme-dark [data-radix-dialog-close]:hover,
+.theme-dim [data-radix-dialog-close]:hover,
+.theme-dark button[aria-label*="Close"]:hover,
+.theme-dim button[aria-label*="Close"]:hover,
+.theme-dark [role="dialog"] button[type="button"]:first-child:hover,
+.theme-dim [role="dialog"] button[type="button"]:first-child:hover {
+  color: rgba(255, 255, 255, 1) !important;
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* More specific targeting for dialog close buttons */
+.theme-dark [data-radix-dialog-content] button[data-radix-dialog-close],
+.theme-dim [data-radix-dialog-content] button[data-radix-dialog-close] {
+  color: rgba(255, 255, 255, 0.8) !important;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.theme-dark [data-radix-dialog-content] button[data-radix-dialog-close]:hover,
+.theme-dim [data-radix-dialog-content] button[data-radix-dialog-close]:hover {
+  color: rgba(255, 255, 255, 1) !important;
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Generic close button styling for dark themes - exclude switches */
+.theme-dark button[type="button"]:has(svg):not([role="switch"]),
+.theme-dim button[type="button"]:has(svg):not([role="switch"]) {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.theme-dark button[type="button"]:has(svg):not([role="switch"]):hover,
+.theme-dim button[type="button"]:has(svg):not([role="switch"]):hover {
+  color: rgba(255, 255, 255, 1) !important;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Settings dialog specific improvements for light theme */
+.theme-light [data-radix-dialog-content] {
+  /* Ensure proper text contrast */
+  color: rgb(17, 24, 39) !important;
+}
+
+.theme-light [data-radix-dialog-content] h1,
+.theme-light [data-radix-dialog-content] h2,
+.theme-light [data-radix-dialog-content] h3,
+.theme-light [data-radix-dialog-content] h4 {
+  color: rgb(17, 24, 39) !important;
+  font-weight: 600 !important;
+}
+
+.theme-light [data-radix-dialog-content] label {
+  color: rgb(55, 65, 81) !important;
+  font-weight: 500 !important;
+}
+
+.theme-light [data-radix-dialog-content] p,
+.theme-light [data-radix-dialog-content] .text-sm {
+  color: rgb(107, 114, 128) !important;
+}
+
+/* Form sections with distinct grey backgrounds */
+.theme-light [data-radix-dialog-content] .space-y-6.p-6 {
+  background: linear-gradient(135deg, rgba(229, 231, 235, 0.95) 0%, rgba(209, 213, 219, 0.85) 100%) !important;
+  border: 1px solid rgba(156, 163, 175, 0.8) !important;
+  box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.08), 0 1px 2px 0 rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Individual form items with clean white backgrounds */
+.theme-light [data-radix-dialog-content] .rounded-lg.border.p-5 {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border: 1px solid rgba(209, 213, 219, 0.8) !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px 0 rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Hover effects for interactive elements */
+.theme-light [data-radix-dialog-content] .rounded-lg.border.p-5:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.12), 0 2px 4px -1px rgba(0, 0, 0, 0.08) !important;
+  border-color: rgba(156, 163, 175, 1) !important;
+  transform: translateY(-1px) !important;
+  transition: all 0.2s ease !important;
+}
+
+/* Footer styling */
+.theme-light [data-radix-dialog-content] .border-t.pt-8 {
+  background: linear-gradient(to right, rgba(229, 231, 235, 0.8), rgba(209, 213, 219, 0.7)) !important;
+  border-top: 1px solid rgba(156, 163, 175, 0.8) !important;
+}
+
+/* Enhanced visual hierarchy for light theme settings */
+.theme-light [data-radix-dialog-content] {
+  /* Main dialog background with subtle texture */
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(249, 250, 251, 0.95) 100%) !important;
+}
+
+/* Section containers - distinct grey background */
+.theme-light [data-radix-dialog-content] .space-y-6.p-6.rounded-lg {
+  /* More pronounced grey background for parent containers */
+  background: linear-gradient(135deg, rgba(229, 231, 235, 0.95) 0%, rgba(209, 213, 219, 0.90) 100%) !important;
+  border: 1px solid rgba(156, 163, 175, 0.9) !important;
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.6), 0 2px 4px 0 rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Form items within sections - clean white backgrounds */
+.theme-light [data-radix-dialog-content] .space-y-6.p-6 .rounded-lg.border.p-5 {
+  /* Bright white background for form items */
+  background: rgba(255, 255, 255, 0.98) !important;
+  border: 1px solid rgba(209, 213, 219, 0.6) !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px 0 rgba(0, 0, 0, 0.03) !important;
+  transition: all 0.2s ease !important;
+}
+
+/* Enhanced hover effects for form items */
+.theme-light [data-radix-dialog-content] .space-y-6.p-6 .rounded-lg.border.p-5:hover {
+  background: rgba(255, 255, 255, 1) !important;
+  border-color: rgba(156, 163, 175, 0.8) !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Section headers with better contrast */
+.theme-light [data-radix-dialog-content] .space-y-6.p-6 h3 {
+  color: rgb(31, 41, 55) !important;
+  font-weight: 600 !important;
+  border-bottom-color: rgba(209, 213, 219, 0.8) !important;
+}
+
+/* Subsection headers */
+.theme-light [data-radix-dialog-content] .space-y-6.p-6 h4 {
+  color: rgb(55, 65, 81) !important;
+  font-weight: 600 !important;
+}

@@ -1,3 +1,6 @@
+/* Import common styles including transparency effects */
+@import './common.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

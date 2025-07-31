@@ -4,6 +4,14 @@ import { twMerge } from 'tailwind-merge';
 // Define the available theme names
 export type ThemeName = 'dim' | 'dark' | 'light';
 
+// Transparency configuration interface
+export interface ThemeTransparency {
+  vibrancyMaterial: string;
+  backdropBlur: string;
+  overlayColor: string;
+  overlayOpacity: number;
+}
+
 // Theme interface
 export interface Theme {
   name: ThemeName;
@@ -16,6 +24,8 @@ export interface Theme {
     primary: string;
     card: string;
   };
+  // Transparency properties for native effects
+  transparency: ThemeTransparency;
 }
 
 // Define the themes
@@ -30,6 +40,12 @@ export const themes: Record<ThemeName, Theme> = {
       primary: '#f59e0b',
       card: '#21222c',
     },
+    transparency: {
+      vibrancyMaterial: 'dark',
+      backdropBlur: 'blur(20px)',
+      overlayColor: 'rgba(40, 42, 54, 0.15)',
+      overlayOpacity: 0.15,
+    },
   },
   dark: {
     name: 'dark',
@@ -41,6 +57,12 @@ export const themes: Record<ThemeName, Theme> = {
       primary: '#f59e0b',
       card: '#1a1a1a',
     },
+    transparency: {
+      vibrancyMaterial: 'ultra-dark',
+      backdropBlur: 'blur(20px)',
+      overlayColor: 'rgba(18, 18, 18, 0.2)',
+      overlayOpacity: 0.2,
+    },
   },
   light: {
     name: 'light',
@@ -51,6 +73,12 @@ export const themes: Record<ThemeName, Theme> = {
       foreground: '#333333',
       primary: '#3b82f6',
       card: '#f9fafb',
+    },
+    transparency: {
+      vibrancyMaterial: 'light',
+      backdropBlur: 'blur(20px)',
+      overlayColor: 'rgba(255, 255, 255, 0.1)',
+      overlayOpacity: 0.1,
     },
   },
 };

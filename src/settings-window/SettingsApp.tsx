@@ -12,7 +12,6 @@ function SettingsApp() {
     theme: 'dim',
   })
   const [isLoading, setIsLoading] = useState(true)
-  const [isOpen, setIsOpen] = useState(true)
 
   // Load settings on startup
   useEffect(() => {
@@ -42,9 +41,8 @@ function SettingsApp() {
     console.log('SettingsApp - Settings saved, current state:', newSettings)
   }
 
-  // Handle dialog close
+  // Handle window close
   const handleOpenChange = (open: boolean) => {
-    setIsOpen(open);
     if (!open) {
       window.close();
     }
@@ -57,20 +55,19 @@ function SettingsApp() {
     </div>
   }
 
-  // Render the settings dialog
+  // Render the settings window
   return (
     <ThemeProvider initialSettings={appSettings}>
-      <div className="flex flex-col h-screen w-screen bg-background-notes">
+      <div className="flex flex-col h-screen w-screen">
         <TitleBar
-          title=""
+          title="Settings"
           onMinimize={() => window.windowControls.minimize()}
           onMaximize={() => window.windowControls.maximize()}
           onClose={() => window.windowControls.close()}
-          className="bg-background-titlebar"
+          className="flex-shrink-0"
         />
-        <div className="flex-1">
+        <div className="flex-1 min-h-0">
           <SettingsDialog
-            open={isOpen}
             onOpenChange={handleOpenChange}
             initialSettings={appSettings}
             onSave={handleSaveSettings}

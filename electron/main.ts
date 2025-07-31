@@ -12,6 +12,42 @@ import { v4 as uuidv4 } from 'uuid'
 // Path is relative to the compiled JS file in dist-electron
 import { Note } from '../src/shared/types/Note'
 
+// Import theme types for vibrancy configuration
+import { ThemeName } from '../src/shared/styles/theme'
+
+// Platform detection for vibrancy support
+const isMacOS = process.platform === 'darwin'
+
+// Vibrancy material configuration based on theme for BrowserWindow constructor
+function getVibrancyMaterialForConstructor(theme: ThemeName): 'appearance-based' | 'titlebar' | 'selection' | 'menu' | 'popover' | 'sidebar' | 'header' | 'sheet' | 'window' | 'hud' | 'fullscreen-ui' | 'tooltip' | 'content' | 'under-window' | 'under-page' | null {
+  if (!isMacOS) return null
+  
+  switch (theme) {
+    case 'light':
+      return 'under-window'  // Test: try under-window instead of content
+    case 'dark':
+      return 'under-window'
+    case 'dim':
+    default:
+      return 'sidebar'
+  }
+}
+
+// Vibrancy material configuration based on theme for setVibrancy method
+function getVibrancyMaterialForSetMethod(theme: ThemeName): 'titlebar' | 'selection' | 'menu' | 'popover' | 'sidebar' | 'header' | 'sheet' | 'window' | 'hud' | 'fullscreen-ui' | 'tooltip' | 'content' | 'under-window' | 'under-page' | null {
+  if (!isMacOS) return null
+  
+  switch (theme) {
+    case 'light':
+      return 'under-window'  // Test: try under-window instead of content
+    case 'dark':
+      return 'under-window'
+    case 'dim':
+    default:
+      return 'sidebar'
+  }
+}
+
 // Global map to store noteId -> filePath
 const noteFileRegistry = new Map<string, string>();
 
@@ -119,6 +155,27 @@ function createMainWindow() {
     });
   }
 
+  // Get current theme for vibrancy configuration
+  const settingsStore = new Store({ name: 'settings' });
+  const settings = settingsStore.get('settings') as { theme?: ThemeName } || {};
+  const currentTheme = settings.theme || 'dim';
+
+  // Configure vibrancy settings for macOS
+  const vibrancyMaterial = getVibrancyMaterialForConstructor(currentTheme);
+  console.log('Window creation - Current theme:', currentTheme);
+  console.log('Window creation - Vibrancy material:', vibrancyMaterial);
+  console.log('Window creation - Is macOS:', isMacOS);
+  
+  const vibrancyConfig = {
+    transparent: true,
+    ...(isMacOS && vibrancyMaterial ? {
+      vibrancy: vibrancyMaterial,
+      backgroundMaterial: 'under-window',
+    } : {})
+  };
+  
+  console.log('Window creation - Final vibrancy config:', vibrancyConfig);
+
   // Create the browser window with saved state or defaults
   mainWindow = new BrowserWindow({
     width: mainWindowState.width,
@@ -127,7 +184,7 @@ function createMainWindow() {
     y: validPosition ? mainWindowState.y : undefined,
     minWidth: 250,
     minHeight: 300,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: 'rgba(0, 0, 0, 0)',
     // Use the new rounded-corner icon
     icon: path.join(process.env.APP_ROOT, 'src/assets/icon2-512.png'),
     title: 'Scribble',
@@ -137,6 +194,8 @@ function createMainWindow() {
     titleBarStyle: isMac ? 'hiddenInset' : 'hidden',
     // Additional macOS-specific settings
     trafficLightPosition: { x: 20, y: 20 },
+    // Apply vibrancy configuration on macOS
+    ...vibrancyConfig,
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
       contextIsolation: true,
@@ -242,7 +301,8 @@ function createNoteWindow(noteId: string) {
     height: noteWindowDefaults.height,
     minWidth: 250,
     minHeight: 300,
-    backgroundColor: '#1a1a1a',
+    // Remove backgroundColor for transparency
+    // backgroundColor: '#1a1a1a',
     // Use the new rounded-corner icon
     icon: path.join(process.env.APP_ROOT, 'src/assets/icon2-512.png'),
     title: 'Scribble - Note',
@@ -255,8 +315,8 @@ function createNoteWindow(noteId: string) {
     // Don't show traffic lights at all
     trafficLightPosition: { x: -20, y: -20 },
     // Enable transparency for the window
-    transparent: false, // We'll control opacity via setOpacity instead
-    opacity: 1, // Start fully opaque
+    transparent: true, // Enable true window transparency
+    // opacity: 1, // Remove opacity control, let CSS handle it
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
       contextIsolation: true,
@@ -412,7 +472,7 @@ function createSettingsWindow() {
     y,
     minWidth: 250,
     minHeight: 300,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: 'rgba(0, 0, 0, 0)',
     // Use the new rounded-corner icon
     icon: path.join(process.env.APP_ROOT, 'src/assets/icon2-512.png'),
     title: 'Scribble - Settings',
@@ -844,6 +904,64 @@ ipcMain.on('note-updated', (event, noteId, updatedProperties) => {
   });
 })
 
+// Handle transparency settings
+ipcMain.handle('set-window-transparency', (event, enabled: boolean) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  if (win && isMacOS) {
+    if (enabled) {
+      // Get current theme for vibrancy material
+      const settingsStore = new Store({ name: 'settings' });
+      const settings = settingsStore.get('settings') as { theme?: ThemeName } || {};
+      const currentTheme = settings.theme || 'dim';
+      const vibrancyMaterial = getVibrancyMaterialForSetMethod(currentTheme);
+      
+      if (vibrancyMaterial) {
+        win.setVibrancy(vibrancyMaterial);
+      }
+    } else {
+      win.setVibrancy(null);
+    }
+  }
+})
+
+// Handle theme changes for vibrancy updates
+ipcMain.on('theme-changed', (event, newTheme: ThemeName) => {
+  console.log('Theme changed from renderer process:', newTheme);
+  console.log('Platform is macOS:', isMacOS);
+  
+  // Update vibrancy for all windows if on macOS
+  if (isMacOS) {
+    const vibrancyMaterial = getVibrancyMaterialForSetMethod(newTheme);
+    console.log('Setting vibrancy material for theme', newTheme, ':', vibrancyMaterial);
+    
+    BrowserWindow.getAllWindows().forEach((window, index) => {
+      if (vibrancyMaterial) {
+        console.log(`Setting vibrancy for window ${index}:`, vibrancyMaterial);
+        window.setVibrancy(vibrancyMaterial);
+      } else {
+        console.log(`No vibrancy material for window ${index}`);
+      }
+    });
+  } else {
+    console.log('Not on macOS, skipping vibrancy');
+  }
+})
+
+// Handle vibrancy changes
+ipcMain.on('vibrancy-changed', (event, vibrancyData: { theme: ThemeName; material: string }) => {
+  console.log('Vibrancy changed from renderer process:', vibrancyData);
+  
+  if (isMacOS) {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win) {
+      const vibrancyMaterial = getVibrancyMaterialForSetMethod(vibrancyData.theme);
+      if (vibrancyMaterial) {
+        win.setVibrancy(vibrancyMaterial);
+      }
+    }
+  }
+})
+
 // Window control handlers
 ipcMain.handle('window-minimize', (event) => {
   const win = BrowserWindow.fromWebContents(event.sender)
@@ -935,6 +1053,41 @@ ipcMain.handle('window-set-transparency', (event, value) => {
     return true
   }
   return false
+})
+
+// Handle vibrancy updates for main window
+ipcMain.handle('window-set-vibrancy', (event, theme: ThemeName) => {
+  if (!isMacOS) {
+    console.log('Vibrancy not supported on this platform')
+    return false
+  }
+
+  const win = BrowserWindow.fromWebContents(event.sender)
+  if (win && win === mainWindow) {
+    try {
+      const vibrancyMaterial = getVibrancyMaterialForSetMethod(theme)
+      if (vibrancyMaterial) {
+        win.setVibrancy(vibrancyMaterial)
+        console.log(`Main window vibrancy updated to: ${vibrancyMaterial} for theme: ${theme}`)
+      } else {
+        win.setVibrancy(null)
+        console.log(`Main window vibrancy disabled for theme: ${theme}`)
+      }
+      return true
+    } catch (error) {
+      console.error('Error setting vibrancy:', error)
+      return false
+    }
+  }
+  return false
+})
+
+// Get current vibrancy support status
+ipcMain.handle('window-get-vibrancy-support', () => {
+  return {
+    supported: isMacOS,
+    platform: process.platform
+  }
 })
 
 ipcMain.handle('create-note', async () => {
@@ -1412,6 +1565,11 @@ ipcMain.handle('sync-settings', (_, inputSettings) => {
       return false;
     }
 
+    // Get previous settings to check for theme changes
+    const settingsStore = new Store({ name: 'settings' });
+    const previousSettings = settingsStore.get('settings') as { theme?: ThemeName } || {};
+    const previousTheme = previousSettings.theme || 'dim';
+
     // Create a normalized settings object using an immutable approach
     const normalisedSettings: SettingsType = {
       ...inputSettings,
@@ -1430,11 +1588,25 @@ ipcMain.handle('sync-settings', (_, inputSettings) => {
 
     console.log('Created normalized settings with proper global hotkeys');
 
-    // Create a settings store if it doesn't exist
-    const settingsStore = new Store({ name: 'settings' });
-
     // Save the normalized settings object
     settingsStore.set('settings', normalisedSettings);
+
+    // Update vibrancy if theme changed and we're on macOS
+    const newTheme = (inputSettings as { theme?: ThemeName }).theme || 'dim';
+    if (isMacOS && mainWindow && newTheme !== previousTheme) {
+      try {
+        const vibrancyMaterial = getVibrancyMaterialForSetMethod(newTheme);
+        if (vibrancyMaterial) {
+          mainWindow.setVibrancy(vibrancyMaterial);
+          console.log(`Main window vibrancy updated from ${previousTheme} to ${newTheme}: ${vibrancyMaterial}`);
+        } else {
+          mainWindow.setVibrancy(null);
+          console.log(`Main window vibrancy disabled for theme change from ${previousTheme} to ${newTheme}`);
+        }
+      } catch (error) {
+        console.error('Error updating vibrancy on theme change:', error);
+      }
+    }
 
     console.log('Settings synced successfully');
 

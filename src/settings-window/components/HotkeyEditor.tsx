@@ -86,17 +86,19 @@ export function HotkeyEditor({ action, label, currentValue, onChange, theme = 'd
   };
 
   return (
-    <div className="flex items-center justify-between py-3 border-b border-border/30 last:border-0">
-      <div className={`text-sm font-medium ${theme === 'light' ? 'text-black' : 'text-foreground'}`}>{label}</div>
+    <div className={`flex items-center justify-between py-3 border-b last:border-0 ${theme === 'light' ? 'border-gray-200' : 'border-border/30'}`}>
+      <div className={`text-sm font-medium ${theme === 'light' ? 'text-gray-900' : 'text-foreground'}`}>{label}</div>
       <div className="flex items-center gap-2">
         <div
           className={`
-            px-4 py-2 rounded-md border bg-secondary
-            text-sm font-mono cursor-pointer min-w-[150px] text-center shadow-sm
+            px-3 py-1.5 rounded-md border text-sm font-mono cursor-pointer min-w-[120px] text-center shadow-sm transition-colors duration-200
             ${isRecording
-              ? 'border-primary text-primary ring-1 ring-primary/30'
-              : `border-border/50 hover:border-border hover:bg-secondary ${theme === 'light' ? 'text-black' : 'text-secondary-foreground'}`}
-            transition-colors duration-200
+              ? (theme === 'light' 
+                  ? 'border-blue-500 text-blue-700 ring-1 ring-blue-500/30 bg-blue-50' 
+                  : 'border-primary text-primary ring-1 ring-primary/30 bg-secondary')
+              : (theme === 'light'
+                  ? 'border-gray-300 hover:border-gray-400 hover:bg-gray-50 bg-white text-gray-900'
+                  : 'border-border/50 hover:border-border hover:bg-secondary bg-secondary text-secondary-foreground')}
           `}
           onClick={handleClick}
         >
@@ -110,11 +112,11 @@ export function HotkeyEditor({ action, label, currentValue, onChange, theme = 'd
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
           />
-          <span className={theme === 'light' ? 'text-black' : ''}>{displayValue || 'Not set'}</span>
+          <span>{displayValue || 'Not set'}</span>
         </div>
         {currentValue && (
           <button
-            className="text-muted-foreground hover:text-foreground transition-colors duration-200 p-1.5 rounded-full hover:bg-secondary active:scale-95 shadow-sm border border-transparent hover:border-border/50"
+            className={`transition-colors duration-200 p-1.5 rounded-full active:scale-95 shadow-sm border border-transparent ${theme === 'light' ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-100 hover:border-gray-200' : 'text-muted-foreground hover:text-foreground hover:bg-secondary hover:border-border/50'}`}
             onClick={handleClear}
             title="Clear hotkey"
           >

@@ -1,9 +1,5 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: Chirp, Segoe UI, Helvetica Neue, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
@@ -15,6 +11,21 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Override root background for light theme transparency */
+.theme-light:root,
+:root.light,
+[data-theme="light"]:root {
+  background-color: transparent !important;
+  color-scheme: light;
+  color: hsl(210, 10%, 23%);
+}
+
+/* Additional override for light theme window transparency */
+.theme-light #root,
+:root.light #root {
+  background-color: transparent !important;
 }
 
 * {
@@ -39,7 +50,12 @@ body {
   overflow: hidden;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   margin-top: 0;
   line-height: 1.2;
 }
@@ -51,7 +67,8 @@ button {
   cursor: pointer;
 }
 
-input, textarea {
+input,
+textarea {
   font-family: inherit;
 }
 
@@ -73,30 +90,55 @@ input, textarea {
   background: rgba(100, 100, 100, 0.5);
 }
 
+/* Light theme scrollbar */
+.theme-light ::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.5);
+}
+
+.theme-light ::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.3);
+  border-radius: 2px;
+}
+
+.theme-light ::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.5);
+}
+
 /* For Firefox */
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(80, 80, 80, 0.3) #21222c;
 }
 
+.theme-light * {
+  scrollbar-color: rgba(100, 116, 139, 0.3) rgba(241, 245, 249, 0.5);
+}
+
 
 
 @layer base {
+
   /* Theme-specific styles are now managed by the Tailwind theme plugin */
   /* Direct styling for theme classes */
-  .theme-dim, :root.dim, [data-theme="dim"] {
+  .theme-dim,
+  :root.dim,
+  [data-theme="dim"] {
     background-color: hsl(231, 15%, 20%);
     color: hsl(60, 9.1%, 97.8%);
   }
 
-  .theme-dark, :root.dark, [data-theme="dark"] {
+  .theme-dark,
+  :root.dark,
+  [data-theme="dark"] {
     background-color: hsl(0, 0%, 10%);
     color: hsl(0, 0%, 100%);
   }
 
-  .theme-light, :root.light, [data-theme="light"] {
-    background-color: hsl(0, 0%, 100%);
-    color: hsl(0, 0%, 20%);
+  .theme-light,
+  :root.light,
+  [data-theme="light"] {
+    background-color: transparent;
+    color: hsl(210, 10%, 23%);
   }
 }
 
@@ -106,9 +148,24 @@ input, textarea {
   * {
     border-color: hsl(var(--border));
   }
+
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
+  }
+
+  /* Ensure light theme has transparent background for window transparency */
+  .theme-light body,
+  :root.light body,
+  [data-theme="light"] body {
+    background-color: transparent !important;
+  }
+  
+  /* Also ensure html is transparent for light theme */
+  .theme-light html,
+  :root.light html,
+  [data-theme="light"] html {
+    background-color: transparent !important;
   }
 }
 
@@ -118,6 +175,7 @@ input, textarea {
     opacity: 0;
     transform: scale(0.95);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
@@ -129,6 +187,7 @@ input, textarea {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
