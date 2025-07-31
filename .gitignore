@@ -105,6 +105,13 @@ jspm_packages/
 # Temporary folders
 tmp/
 temp/
+ui-temp/
+
+# Test and debug files
+test-*.js
+debug-*.js
+verify-*.js
+*.test.temp.js
 
 # Editor directories and files
 .vscode/*
@@ -115,3 +122,7 @@ temp/
 *.njsproj
 *.sln
 *.sw?
+
+# Backup files
+*.bak
+*.backup

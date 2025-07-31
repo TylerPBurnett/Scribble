@@ -20,7 +20,7 @@ import { useEffect, useState, useRef, forwardRef, useImperativeHandle } from 're
 import EssentialToolbar from './EssentialToolbar'
 import { getSettings } from '../../shared/services/settingsService'
 import { getHotkeys, formatHotkeyForDisplay } from '../../shared/services/hotkeyService'
-import MarkdownShortcuts from './extensions/MarkdownShortcuts'
+// import MarkdownShortcuts from './extensions/MarkdownShortcuts'
 import EnhancedListHandling from './extensions/EnhancedListHandling'
 import './Tiptap.css'
 
@@ -184,10 +184,10 @@ const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
           console.log('🔄 Loading HTML content:', content);
           console.log('📥 Content structure:', content.replace(/></g, '>\n<'));
         }
-        
+
         // Set the content
         editor.commands.setContent(content);
-        
+
         // Debug logging to see what HTML is generated after loading
         setTimeout(() => {
           const newHTML = editor.getHTML();
@@ -240,12 +240,12 @@ const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
       const settings = getSettings();
       const hotkeys = getHotkeys(settings);
       const toggleToolbarHotkey = hotkeys.toggleToolbar || 'alt+t';
-      
+
       // Don't process if it's only a modifier key being pressed
       if (['Control', 'Alt', 'Shift', 'Meta', 'Option', 'Command'].includes(e.key)) {
         return;
       }
-      
+
       // Parse the hotkey string to check if it matches the current key combination
       const hotkeyParts = toggleToolbarHotkey.toLowerCase().split('+');
       const hasCtrl = hotkeyParts.includes('ctrl') || hotkeyParts.includes('control');
@@ -253,23 +253,23 @@ const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
       const hasShift = hotkeyParts.includes('shift');
       const hasMeta = hotkeyParts.includes('meta') || hotkeyParts.includes('cmd') || hotkeyParts.includes('command');
       const key = hotkeyParts[hotkeyParts.length - 1]; // Last part is the key
-      
+
       // Check if the current key combination matches the configured hotkey
       // On Mac, Option+T generates special characters, so we need to check the code instead
-      const keyMatches = 
-        e.key.toLowerCase() === key || 
-        e.code.toLowerCase() === `key${key}` || 
+      const keyMatches =
+        e.key.toLowerCase() === key ||
+        e.code.toLowerCase() === `key${key}` ||
         e.code.toLowerCase() === `key${key.toUpperCase()}` ||
         (key === 't' && e.code === 'KeyT') ||
         (key === 'c' && e.code === 'KeyC') ||
         (key === 'n' && e.code === 'KeyN');
-      
-      const modifiersMatch = 
+
+      const modifiersMatch =
         e.ctrlKey === hasCtrl &&
         e.altKey === hasAlt &&
         e.shiftKey === hasShift &&
         e.metaKey === hasMeta;
-      
+
       if (keyMatches && modifiersMatch) {
         e.preventDefault();
         setIsToolbarVisible(prev => !prev);
@@ -336,9 +336,9 @@ const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
 
       {/* Show toolbar toggle button when toolbar is hidden */}
       {!isToolbarVisible && (
-        <button 
-          className="toolbar-toggle" 
-          onClick={toggleToolbar} 
+        <button
+          className="toolbar-toggle"
+          onClick={toggleToolbar}
           title={`Show toolbar (${(() => {
             const settings = getSettings();
             const hotkeys = getHotkeys(settings);
@@ -346,7 +346,7 @@ const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
           })()})`}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="18 15 12 9 6 15"/>
+            <polyline points="18 15 12 9 6 15" />
           </svg>
         </button>
       )}
