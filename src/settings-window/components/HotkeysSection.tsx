@@ -2,8 +2,7 @@ import { useState } from 'react';
 import {
   HotkeyAction,
   HOTKEY_CATEGORIES,
-  HOTKEY_LABELS,
-  DEFAULT_HOTKEYS
+  HOTKEY_LABELS
 } from '../../shared/services/hotkeyService';
 import { ThemeName } from '../../shared/services/themeService';
 import { HotkeyEditor } from './HotkeyEditor';
@@ -25,12 +24,7 @@ export function HotkeysSection({ hotkeys, onChange, theme = 'dim' }: HotkeysSect
     });
   };
 
-  // Handle reset to defaults
-  const handleResetToDefaults = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onChange(DEFAULT_HOTKEYS);
-  };
+
 
   return (
     <div className="space-y-6">

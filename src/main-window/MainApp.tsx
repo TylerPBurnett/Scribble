@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import NoteList from './components/NoteList'
 import CollectionTabs from './components/CollectionTabs'
-import { SettingsDialog } from '../settings-window/SettingsDialog'
+
 import TitleBar from '../shared/components/TitleBar'
 import { Note } from '../shared/types/Note'
 import { CollectionWithNoteCount } from '../shared/types/Collection'
@@ -17,7 +17,7 @@ import { ToastProvider } from '../shared/components/Toast'
 function MainApp() {
   const [notes, setNotes] = useState<Note[]>([])
   const [activeNote] = useState<Note | null>(null)
-  const [showSettings, setShowSettings] = useState(false)
+
   const [searchQuery, setSearchQuery] = useState('')
   const [appSettings, setAppSettings] = useState<AppSettings>({
     saveLocation: '',
@@ -306,7 +306,8 @@ function MainApp() {
 
   // Handle opening settings
   const handleOpenSettings = () => {
-    setShowSettings(true)
+    console.log('Opening settings window')
+    window.settings.openSettings()
   }
 
   // Handle saving settings
@@ -438,13 +439,7 @@ function MainApp() {
         </div>
         </div>
 
-        {/* Settings Modal */}
-        <SettingsDialog
-          open={showSettings}
-          onOpenChange={setShowSettings}
-          initialSettings={appSettings}
-          onSave={handleSaveSettings}
-        />
+
 
         {/* Global Hotkeys */}
         <AppHotkeys
