@@ -76,24 +76,23 @@ bun test src/shared/utils/__tests__/performanceUtils.test.ts
 
 ### Quick Test Template
 ```typescript
-// src/components/__tests__/MyComponent.test.tsx
+// src/components/__tests__/MyComponent.logic.test.ts
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import MyComponent from '../MyComponent';
 
-describe('MyComponent', () => {
-  it('should render without crashing', () => {
-    render(<MyComponent />);
-    expect(screen.getByRole('button')).toBeInTheDocument();
+describe('MyComponent Logic', () => {
+  it('should process data correctly', () => {
+    const inputData = { id: '1', name: 'Test' };
+    const processedData = processData(inputData);
+    
+    expect(processedData.id).toBe('1');
+    expect(processedData.name).toBe('Test');
   });
 
-  it('should not re-render when props unchanged', () => {
-    const { rerender } = render(<MyComponent data="test" />);
+  it('should handle edge cases', () => {
+    const emptyData = {};
+    const result = processData(emptyData);
     
-    // This should not cause re-render due to memoization
-    rerender(<MyComponent data="test" />);
-    
-    // Add your performance assertions here
+    expect(result).toBeDefined();
   });
 });
 ```
@@ -373,6 +372,6 @@ it('should work', () => {});
 
 ---
 
-**Current Test Status**: ✅ 15 tests passing, 0 failing
+**Current Test Status**: ✅ 31 tests passing, 0 failing
 **Performance Utils**: ✅ Fully tested and ready to use
 **Test Speed**: ⚡ ~30ms execution time
