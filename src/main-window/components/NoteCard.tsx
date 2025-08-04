@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { Note } from '../../shared/types/Note';
 import { deleteNote, updateNote } from '../../shared/services/noteService';
 import NoteCollectionManager from './NoteCollectionManager';
+import { useNoteCardPerformance } from '../../shared/hooks/useExpensiveOperations';
+import { useRenderPerformance, useMemoizationTracking } from '../../shared/hooks/usePerformanceMonitoring';
 
 interface NoteCardProps {
   note: Note;
@@ -37,6 +39,15 @@ const areNoteCardPropsEqual = (prevProps: NoteCardProps, nextProps: NoteCardProp
 };
 
 const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false, isFavorite = false, onCollectionUpdate, allNotes = [] }: NoteCardProps) => {
+  // Performance monitoring
+  const componentName = `NoteCard-${note.id}`;
+  const { measureOperation } = useNoteCardPerformance(componentName);
+  useRenderPerformance(componentName);
+  useMemoizationTracking(componentName, [
+    note.id, note.title, note.content, note.color, note.favorite, note.pinned, 
+    note.updatedAt?.getTime(), isActive, isPinned, isFavorite
+  ]);
+
   // Consolidated menu state management
   const [menuState, setMenuState] = useState({
     showMenu: false,
@@ -146,23 +157,25 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
   // Handle confirm delete
   const handleConfirmDelete = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering the note click
-    if (onDelete) {
-      onDelete(note.id);
-    } else {
-      // Fallback if onDelete prop is not provided
-      console.log('NoteCard - Deleting note (fallback):', note.id);
-      try {
-        await deleteNote(note.id);
-        console.log('NoteCard - Note deleted');
-        // Notify other windows that this note has been deleted
-        window.noteWindow.noteUpdated(note.id);
-        // Reload notes (this is not ideal, but works as a fallback)
-        window.location.reload();
-      } catch (error) {
-        console.error('Error deleting note:', error);
+    await measureOperation('note-delete-handler', async () => {
+      if (onDelete) {
+        onDelete(note.id);
+      } else {
+        // Fallback if onDelete prop is not provided
+        console.log('NoteCard - Deleting note (fallback):', note.id);
+        try {
+          await deleteNote(note.id);
+          console.log('NoteCard - Note deleted');
+          // Notify other windows that this note has been deleted
+          window.noteWindow.noteUpdated(note.id);
+          // Reload notes (this is not ideal, but works as a fallback)
+          window.location.reload();
+        } catch (error) {
+          console.error('Error deleting note:', error);
+        }
       }
-    }
-  }, [onDelete, note.id]);
+    });
+  }, [onDelete, note.id, measureOperation]);
 
   // Handle cancel delete
   const handleCancelDelete = useCallback((e: React.MouseEvent) => {
@@ -177,21 +190,24 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
     // Don't animate if menu is open or if already animating
     if (showMenu || isAnimating) return;
     
-    // Start animation
-    updateMenuState({ isAnimating: true });
-    
-    // Small delay to show the scale-down effect
-    setTimeout(async () => {
-      try {
-        await onClick(note);
-      } finally {
-        // Reset animation state after a delay
-        setTimeout(() => {
-          updateMenuState({ isAnimating: false });
-        }, 150);
-      }
-    }, 100);
-  }, [showMenu, isAnimating, onClick, note]);
+    // Measure click handling performance
+    await measureOperation('note-click-handler', async () => {
+      // Start animation
+      updateMenuState({ isAnimating: true });
+      
+      // Small delay to show the scale-down effect
+      setTimeout(async () => {
+        try {
+          await onClick(note);
+        } finally {
+          // Reset animation state after a delay
+          setTimeout(() => {
+            updateMenuState({ isAnimating: false });
+          }, 150);
+        }
+      }, 100);
+    });
+  }, [showMenu, isAnimating, onClick, note, measureOperation]);
 
   // Format date to display
   const formatDate = (date: Date) => {

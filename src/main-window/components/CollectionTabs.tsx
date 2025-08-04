@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Collection, CollectionWithNoteCount } from '../../shared/types/Collection';
 import { collectionService, COLLECTION_PRESETS, COLLECTION_ICONS, CollectionError } from '../../shared/services/collectionService';
 import { Note } from '../../shared/types/Note';

@@ -13,6 +13,8 @@ import {
   updateUIState, 
   updateEditorState
 } from './noteEditorState';
+import { useNoteEditorPerformance } from '../../shared/hooks/useExpensiveOperations';
+import { useRenderPerformance } from '../../shared/hooks/usePerformanceMonitoring';
 import './NoteEditor.css';
 import './SettingsMenu.css';
 
@@ -23,6 +25,11 @@ interface NoteEditorProps {
 }
 
 const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
+  // Performance monitoring
+  const componentName = `NoteEditor-${note.id}`;
+  const { measureOperation } = useNoteEditorPerformance(componentName);
+  useRenderPerformance(componentName);
+
   // Initialize consolidated state
   const [appSettings, setAppSettings] = useState<AppSettings>({
     saveLocation: '',
@@ -116,41 +123,43 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
     // Early return if not dirty to prevent unnecessary saves
     if (!isDirtyRef.current) return;
 
-    const note = currentNoteRef.current;
-    const title = currentTitleRef.current;
-    const content = currentContentRef.current;
+    await measureOperation('note-save', async () => {
+      const note = currentNoteRef.current;
+      const title = currentTitleRef.current;
+      const content = currentContentRef.current;
 
-    if (!note) return;
+      if (!note) return;
 
-    const updatedNote = {
-      ...note,
-      title: title,
-      content: content,
-      _isNew: undefined // Clear the new note flag
-    };
+      const updatedNote = {
+        ...note,
+        title: title,
+        content: content,
+        _isNew: undefined // Clear the new note flag
+      };
 
-    try {
-      console.log('NoteEditor - Saving note:', updatedNote.id);
-      const savedNote = await updateNote(updatedNote);
-      console.log('NoteEditor - Note saved:', savedNote);
+      try {
+        console.log('NoteEditor - Saving note:', updatedNote.id);
+        const savedNote = await updateNote(updatedNote);
+        console.log('NoteEditor - Note saved:', savedNote);
 
-      // Update the note reference with the saved note
-      // This is crucial for subsequent renames to work correctly
-      currentNoteRef.current = savedNote;
-      console.log('NoteEditor - Updated note reference:', currentNoteRef.current);
+        // Update the note reference with the saved note
+        // This is crucial for subsequent renames to work correctly
+        currentNoteRef.current = savedNote;
+        console.log('NoteEditor - Updated note reference:', currentNoteRef.current);
 
-      onSave?.(savedNote);
+        onSave?.(savedNote);
 
-      // Notify other windows that this note has been updated
-      // Use the saved note ID which might have changed if the title was changed
-      window.noteWindow.noteUpdated(savedNote.id, { title: savedNote.title });
+        // Notify other windows that this note has been updated
+        // Use the saved note ID which might have changed if the title was changed
+        window.noteWindow.noteUpdated(savedNote.id, { title: savedNote.title });
 
-      // Reset dirty state after successful save
-      dispatch(updateEditorState({ isDirty: false }));
-    } catch (error) {
-      console.error('Error saving note:', error);
-    }
-  }, [onSave]);
+        // Reset dirty state after successful save
+        dispatch(updateEditorState({ isDirty: false }));
+      } catch (error) {
+        console.error('Error saving note:', error);
+      }
+    });
+  }, [onSave, measureOperation]);
 
   // Create a debounced version of saveNote using our custom hook
   const debouncedSave = useDebounce(() => {
@@ -320,8 +329,10 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
 
   // Content update handler
   const handleContentUpdate = useCallback((newContent: string) => {
-    dispatch(updateNoteData({ content: newContent }));
-  }, []);
+    measureOperation('content-update', () => {
+      dispatch(updateNoteData({ content: newContent }));
+    });
+  }, [measureOperation]);
 
   // Update note transparency
   const updateTransparency = useCallback(async (value: number) => {

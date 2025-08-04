@@ -1,8 +1,11 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Note } from '../../shared/types/Note';
 import { deleteNote } from '../../shared/services/noteService';
 import { getNotesSortOption, saveNotesSortOption, SortOption } from '../../shared/services/settingsService';
 import NoteCard from './NoteCard';
+import { useNoteListPerformance } from '../../shared/hooks/useExpensiveOperations';
+import { useRenderPerformance } from '../../shared/hooks/usePerformanceMonitoring';
+import { useMemoizedFilter, useMemoizedSort, useMemoizedCategorization } from '../../shared/hooks/useAsyncMemo';
 
 interface NoteListProps {
   notes: Note[];
@@ -16,6 +19,11 @@ interface NoteListProps {
 }
 
 const NoteList = ({ notes, onNoteClick, activeNoteId, onNoteDelete, onCollectionUpdate, activeCollectionId, activeCollectionName, allNotes = [] }: NoteListProps) => {
+  // Performance monitoring
+  const componentName = 'NoteList';
+  const { measureOperation } = useNoteListPerformance(componentName);
+  useRenderPerformance(componentName);
+
   const [deletedNotes, setDeletedNotes] = useState<string[]>([]);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [sortOption, setSortOption] = useState<SortOption>(getNotesSortOption());
@@ -72,41 +80,54 @@ const NoteList = ({ notes, onNoteClick, activeNoteId, onNoteDelete, onCollection
   // Handle note deletion with useCallback
   const handleNoteDelete = useCallback(async (noteId: string) => {
     console.log('NoteList - Deleting note:', noteId);
-    // Delete the note using the service
-    try {
-      await deleteNote(noteId);
-      console.log('NoteList - Note deleted from service');
+    await measureOperation('note-list-delete', async () => {
+      // Delete the note using the service
+      try {
+        await deleteNote(noteId);
+        console.log('NoteList - Note deleted from service');
 
-      // Add to deleted notes list to remove from UI
-      setDeletedNotes(prev => [...prev, noteId]);
+        // Add to deleted notes list to remove from UI
+        setDeletedNotes(prev => [...prev, noteId]);
 
-      // Call the parent's onNoteDelete if provided
-      if (onNoteDelete) {
-        onNoteDelete(noteId);
+        // Call the parent's onNoteDelete if provided
+        if (onNoteDelete) {
+          onNoteDelete(noteId);
+        }
+      } catch (error) {
+        console.error('Error deleting note:', error);
       }
-    } catch (error) {
-      console.error('Error deleting note:', error);
-    }
-  }, [onNoteDelete]);
+    });
+  }, [onNoteDelete, measureOperation]);
 
-  // Filter out deleted notes with memoization
-  const filteredNotes = useMemo(() => {
-    return notes.filter(note => !deletedNotes.includes(note.id));
-  }, [notes, deletedNotes]);
+  // Filter out deleted notes with performance measurement
+  const filteredNotes = useMemoizedFilter(
+    notes,
+    (notes) => notes.filter(note => !deletedNotes.includes(note.id)),
+    [notes, deletedNotes],
+    'note-list-filter-deleted'
+  );
 
-  // Apply sorting to notes with memoization
-  const sortedFilteredNotes = useMemo(() => {
-    return sortNotes(filteredNotes);
-  }, [filteredNotes, sortOption]);
+  // Apply sorting to notes with performance measurement
+  const sortedFilteredNotes = useMemoizedSort(
+    filteredNotes,
+    (notes) => sortNotes(notes),
+    [filteredNotes, sortOption],
+    `note-list-sort-${sortOption.field}-${sortOption.direction}`
+  );
 
-  // Separate favorite notes from other notes with memoization
-  const { favoriteNotes, otherNotes } = useMemo(() => {
-    // Only include notes that are explicitly marked as favorites
-    const favorites = sortedFilteredNotes.filter(note => note.favorite);
-    // All other notes (including pinned ones) go in the regular notes section
-    const others = sortedFilteredNotes.filter(note => !note.favorite);
-    return { favoriteNotes: favorites, otherNotes: others };
-  }, [sortedFilteredNotes]);
+  // Separate favorite notes from other notes with performance measurement
+  const { favoriteItems: favoriteNotes, otherItems: otherNotes } = useMemoizedCategorization(
+    sortedFilteredNotes,
+    (notes) => {
+      // Only include notes that are explicitly marked as favorites
+      const favorites = notes.filter(note => note.favorite);
+      // All other notes (including pinned ones) go in the regular notes section
+      const others = notes.filter(note => !note.favorite);
+      return { favoriteItems: favorites, otherItems: others };
+    },
+    [sortedFilteredNotes],
+    'note-list-categorization'
+  );
 
   return (
     <div className="notes-container notes-container-transparent flex-1 px-4 py-4 overflow-y-auto transition-all duration-300">

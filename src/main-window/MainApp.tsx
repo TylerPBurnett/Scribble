@@ -8,13 +8,19 @@ import { CollectionWithNoteCount } from '../shared/types/Collection'
 import { getNotes, deleteNote } from '../shared/services/noteService'
 import { collectionService } from '../shared/services/collectionService'
 import { initSettings, saveSettings, AppSettings } from '../shared/services/settingsService'
-import { ThemeProvider, useTheme } from '../shared/services/themeService'
+import { ThemeProvider } from '../shared/services/themeService'
 import { AppHotkeys } from './components/AppHotkeys'
 import { CollectionErrorBoundary } from '../shared/components/CollectionErrorBoundary'
 import { AppHeader } from './components/AppHeader'
 import { ToastProvider } from '../shared/components/Toast'
+import PerformanceDashboard from '../shared/components/PerformanceDashboard'
+import { usePerformanceDashboard } from '../shared/hooks/usePerformanceDashboard'
+import '../shared/scripts/validatePerformance'
 
 function MainApp() {
+  // Performance dashboard
+  const { isVisible: isDashboardVisible, hideDashboard } = usePerformanceDashboard();
+
   const [notes, setNotes] = useState<Note[]>([])
   const [activeNote] = useState<Note | null>(null)
 
@@ -310,14 +316,6 @@ function MainApp() {
     window.settings.openSettings()
   }
 
-  // Handle saving settings
-  const handleSaveSettings = (newSettings: AppSettings) => {
-    console.log('MainApp - Saving new settings:', newSettings)
-    setAppSettings(newSettings)
-    saveSettings(newSettings)
-    console.log('MainApp - Settings saved, current state:', newSettings)
-  }
-
   // Handle toggling dark mode
   const handleToggleDarkMode = () => {
     // Get the current theme
@@ -449,6 +447,16 @@ function MainApp() {
           onSearch={handleFocusSearch}
           onToggleDarkMode={handleToggleDarkMode}
         />
+
+        {/* Performance Dashboard (Development Only) */}
+        {process.env.NODE_ENV === 'development' && (
+          <PerformanceDashboard
+            isVisible={isDashboardVisible}
+            onClose={hideDashboard}
+            autoRefresh={true}
+            refreshInterval={2000}
+          />
+        )}
       </div>
       </ToastProvider>
     </ThemeProvider>

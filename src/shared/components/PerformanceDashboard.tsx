@@ -1,342 +1,334 @@
 /**
  * Performance Dashboard Component
- * Provides a visual interface for monitoring component performance in development
+ * Displays real-time performance metrics and optimization results
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   getAllPerformanceMetrics,
-  getPerformanceSummary,
   resetAllPerformanceMetrics,
   type PerformanceMetrics
 } from '../utils/performanceUtils';
 import {
   generatePerformanceReport,
-  exportPerformanceData,
   printPerformanceReport,
+  exportPerformanceData,
   type PerformanceReport
 } from '../utils/performanceLogger';
+import {
+  compareWithPreviousSnapshot,
+  exportPerformanceComparisons,
+  type ComparisonResult
+} from '../utils/performanceComparison';
 
 interface PerformanceDashboardProps {
   isVisible?: boolean;
   onClose?: () => void;
+  autoRefresh?: boolean;
   refreshInterval?: number;
 }
 
-export const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
+const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
   isVisible = false,
   onClose,
+  autoRefresh = true,
   refreshInterval = 2000
 }) => {
-  const [metrics, setMetrics] = useState<PerformanceMetrics[]>([]);
-  const [summary, setSummary] = useState(getPerformanceSummary());
+  const [metrics, setMetrics] = useState<Map<string, PerformanceMetrics>>(new Map());
   const [report, setReport] = useState<PerformanceReport | null>(null);
-  const [sortBy, setSortBy] = useState<'name' | 'renders' | 'avgTime' | 'hitRate'>('avgTime');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [comparisons, setComparisons] = useState<ComparisonResult[]>([]);
+  const [selectedTab, setSelectedTab] = useState<'metrics' | 'report' | 'comparisons'>('metrics');
 
-  // Update metrics periodically
+  // Refresh data
+  const refreshData = useCallback(() => {
+    setMetrics(getAllPerformanceMetrics());
+    setReport(generatePerformanceReport());
+    
+    // Get comparisons for all components
+    const allComparisons: ComparisonResult[] = [];
+    const allMetrics = getAllPerformanceMetrics();
+    
+    for (const componentName of allMetrics.keys()) {
+      const comparison = compareWithPreviousSnapshot(componentName);
+      if (comparison) {
+        allComparisons.push(comparison);
+      }
+    }
+    
+    setComparisons(allComparisons);
+  }, []);
+
+  // Auto-refresh effect
   useEffect(() => {
-    if (!isVisible) return;
+    if (!isVisible || !autoRefresh) return;
 
-    const updateMetrics = () => {
-      const allMetrics = Array.from(getAllPerformanceMetrics().values());
-      setMetrics(allMetrics);
-      setSummary(getPerformanceSummary());
-    };
+    refreshData();
+    const interval = setInterval(refreshData, refreshInterval);
+    
+    return () => clearInterval(interval);
+  }, [isVisible, autoRefresh, refreshInterval, refreshData]);
 
-    updateMetrics();
-    const intervalId = setInterval(updateMetrics, refreshInterval);
+  // Manual refresh
+  const handleRefresh = useCallback(() => {
+    refreshData();
+  }, [refreshData]);
 
-    return () => clearInterval(intervalId);
-  }, [isVisible, refreshInterval]);
-
-  // Generate report
-  const handleGenerateReport = () => {
-    const newReport = generatePerformanceReport();
-    setReport(newReport);
-  };
+  // Reset all metrics
+  const handleReset = useCallback(() => {
+    resetAllPerformanceMetrics();
+    refreshData();
+  }, [refreshData]);
 
   // Export data
-  const handleExportData = () => {
-    const data = exportPerformanceData();
-    const blob = new Blob([data], { type: 'application/json' });
+  const handleExport = useCallback(() => {
+    const performanceData = exportPerformanceData();
+    const comparisonData = exportPerformanceComparisons();
+    
+    const exportData = {
+      timestamp: new Date().toISOString(),
+      performance: JSON.parse(performanceData),
+      comparisons: JSON.parse(comparisonData)
+    };
+    
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `performance-data-${new Date().toISOString().slice(0, 19)}.json`;
+    a.download = `performance-data-${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  }, []);
+
+  // Print report to console
+  const handlePrintReport = useCallback(() => {
+    printPerformanceReport();
+  }, []);
+
+  if (!isVisible) return null;
+
+  const summary = report?.summary || {
+    totalComponents: 0,
+    totalRenders: 0,
+    averageRenderTime: 0,
+    slowestComponent: null,
+    fastestComponent: null
   };
-
-  // Reset all metrics
-  const handleResetMetrics = () => {
-    resetAllPerformanceMetrics();
-    setMetrics([]);
-    setSummary(getPerformanceSummary());
-    setReport(null);
-  };
-
-  // Sort metrics
-  const sortedMetrics = [...metrics].sort((a, b) => {
-    let aValue: number | string;
-    let bValue: number | string;
-
-    switch (sortBy) {
-      case 'name':
-        aValue = a.componentName;
-        bValue = b.componentName;
-        break;
-      case 'renders':
-        aValue = a.renderCount;
-        bValue = b.renderCount;
-        break;
-      case 'avgTime':
-        aValue = a.averageRenderTime;
-        bValue = b.averageRenderTime;
-        break;
-      case 'hitRate':
-        aValue = a.memoizationHitRate;
-        bValue = b.memoizationHitRate;
-        break;
-      default:
-        aValue = a.averageRenderTime;
-        bValue = b.averageRenderTime;
-    }
-
-    if (typeof aValue === 'string' && typeof bValue === 'string') {
-      return sortOrder === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
-    }
-
-    const numA = aValue as number;
-    const numB = bValue as number;
-    return sortOrder === 'asc' ? numA - numB : numB - numA;
-  });
-
-  // Get performance status color
-  const getPerformanceColor = (avgTime: number): string => {
-    if (avgTime <= 8) return '#22c55e'; // green
-    if (avgTime <= 16) return '#eab308'; // yellow
-    return '#ef4444'; // red
-  };
-
-  if (!isVisible || process.env.NODE_ENV !== 'development') {
-    return null;
-  }
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: '20px',
-      right: '20px',
-      width: '600px',
-      maxHeight: '80vh',
-      backgroundColor: '#1f2937',
-      color: '#f9fafb',
-      border: '1px solid #374151',
-      borderRadius: '8px',
-      padding: '16px',
-      fontSize: '12px',
-      fontFamily: 'monospace',
-      zIndex: 10000,
-      overflow: 'auto',
-      boxShadow: '0 10px 25px rgba(0, 0, 0, 0.3)'
-    }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <h3 style={{ margin: 0, color: '#60a5fa' }}>🚀 Performance Dashboard</h3>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button
-            onClick={printPerformanceReport}
-            style={{
-              padding: '4px 8px',
-              backgroundColor: '#3b82f6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '11px'
-            }}
-          >
-            Console Log
-          </button>
-          <button
-            onClick={handleGenerateReport}
-            style={{
-              padding: '4px 8px',
-              backgroundColor: '#059669',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '11px'
-            }}
-          >
-            Generate Report
-          </button>
-          <button
-            onClick={handleExportData}
-            style={{
-              padding: '4px 8px',
-              backgroundColor: '#7c3aed',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '11px'
-            }}
-          >
-            Export
-          </button>
-          <button
-            onClick={handleResetMetrics}
-            style={{
-              padding: '4px 8px',
-              backgroundColor: '#dc2626',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '11px'
-            }}
-          >
-            Reset
-          </button>
-          {onClose && (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-4/5 h-4/5 max-w-6xl max-h-screen overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            Performance Dashboard
+          </h2>
+          <div className="flex items-center gap-2">
             <button
-              onClick={onClose}
-              style={{
-                padding: '4px 8px',
-                backgroundColor: '#6b7280',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '11px'
-              }}
+              onClick={handleRefresh}
+              className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
             >
-              ✕
+              Refresh
             </button>
-          )}
-        </div>
-      </div>
-
-      {/* Summary */}
-      <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#374151', borderRadius: '6px' }}>
-        <h4 style={{ margin: '0 0 8px 0', color: '#fbbf24' }}>📊 Summary</h4>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
-          <div>Components: <strong>{summary.totalComponents}</strong></div>
-          <div>Total Renders: <strong>{summary.totalRenders}</strong></div>
-          <div>Avg Render Time: <strong style={{ color: getPerformanceColor(summary.averageRenderTime) }}>
-            {summary.averageRenderTime.toFixed(2)}ms
-          </strong></div>
-          <div>Slowest: <strong style={{ color: '#ef4444' }}>{summary.slowestComponent || 'N/A'}</strong></div>
-        </div>
-      </div>
-
-      {/* Sorting Controls */}
-      <div style={{ marginBottom: '12px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-        <span>Sort by:</span>
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as any)}
-          style={{
-            padding: '2px 6px',
-            backgroundColor: '#374151',
-            color: '#f9fafb',
-            border: '1px solid #4b5563',
-            borderRadius: '4px',
-            fontSize: '11px'
-          }}
-        >
-          <option value="name">Name</option>
-          <option value="renders">Renders</option>
-          <option value="avgTime">Avg Time</option>
-          <option value="hitRate">Hit Rate</option>
-        </select>
-        <button
-          onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-          style={{
-            padding: '2px 6px',
-            backgroundColor: '#4b5563',
-            color: '#f9fafb',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '11px'
-          }}
-        >
-          {sortOrder === 'asc' ? '↑' : '↓'}
-        </button>
-      </div>
-
-      {/* Metrics Table */}
-      <div style={{ marginBottom: '16px' }}>
-        <h4 style={{ margin: '0 0 8px 0', color: '#fbbf24' }}>📈 Component Metrics</h4>
-        {sortedMetrics.length === 0 ? (
-          <div style={{ color: '#9ca3af', fontStyle: 'italic' }}>No performance data available</div>
-        ) : (
-          <div style={{ maxHeight: '300px', overflow: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ backgroundColor: '#4b5563' }}>
-                  <th style={{ padding: '6px', textAlign: 'left', borderBottom: '1px solid #6b7280' }}>Component</th>
-                  <th style={{ padding: '6px', textAlign: 'right', borderBottom: '1px solid #6b7280' }}>Renders</th>
-                  <th style={{ padding: '6px', textAlign: 'right', borderBottom: '1px solid #6b7280' }}>Avg Time</th>
-                  <th style={{ padding: '6px', textAlign: 'right', borderBottom: '1px solid #6b7280' }}>Last Time</th>
-                  <th style={{ padding: '6px', textAlign: 'right', borderBottom: '1px solid #6b7280' }}>Hit Rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedMetrics.map((metric, index) => (
-                  <tr key={metric.componentName} style={{ backgroundColor: index % 2 === 0 ? '#374151' : '#4b5563' }}>
-                    <td style={{ padding: '6px', borderBottom: '1px solid #6b7280' }}>{metric.componentName}</td>
-                    <td style={{ padding: '6px', textAlign: 'right', borderBottom: '1px solid #6b7280' }}>
-                      {metric.renderCount}
-                    </td>
-                    <td style={{ 
-                      padding: '6px', 
-                      textAlign: 'right', 
-                      borderBottom: '1px solid #6b7280',
-                      color: getPerformanceColor(metric.averageRenderTime)
-                    }}>
-                      {metric.averageRenderTime.toFixed(2)}ms
-                    </td>
-                    <td style={{ 
-                      padding: '6px', 
-                      textAlign: 'right', 
-                      borderBottom: '1px solid #6b7280',
-                      color: getPerformanceColor(metric.lastRenderTime)
-                    }}>
-                      {metric.lastRenderTime.toFixed(2)}ms
-                    </td>
-                    <td style={{ padding: '6px', textAlign: 'right', borderBottom: '1px solid #6b7280' }}>
-                      {(metric.memoizationHitRate * 100).toFixed(1)}%
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <button
+              onClick={handleReset}
+              className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
+            >
+              Reset
+            </button>
+            <button
+              onClick={handleExport}
+              className="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600"
+            >
+              Export
+            </button>
+            <button
+              onClick={handlePrintReport}
+              className="px-3 py-1 text-sm bg-purple-500 text-white rounded hover:bg-purple-600"
+            >
+              Console Log
+            </button>
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="px-3 py-1 text-sm bg-gray-500 text-white rounded hover:bg-gray-600"
+              >
+                Close
+              </button>
+            )}
           </div>
-        )}
-      </div>
+        </div>
 
-      {/* Report Section */}
-      {report && (
-        <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#374151', borderRadius: '6px' }}>
-          <h4 style={{ margin: '0 0 8px 0', color: '#fbbf24' }}>💡 Recommendations</h4>
-          {report.recommendations.length === 0 ? (
-            <div style={{ color: '#22c55e' }}>✅ No performance issues detected!</div>
-          ) : (
-            <ul style={{ margin: 0, paddingLeft: '16px' }}>
-              {report.recommendations.map((rec, index) => (
-                <li key={index} style={{ marginBottom: '4px', color: '#fbbf24' }}>{rec}</li>
+        {/* Summary */}
+        <div className="p-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+            <div>
+              <div className="font-medium text-gray-600 dark:text-gray-400">Components</div>
+              <div className="text-lg font-bold text-gray-900 dark:text-white">
+                {summary.totalComponents}
+              </div>
+            </div>
+            <div>
+              <div className="font-medium text-gray-600 dark:text-gray-400">Total Renders</div>
+              <div className="text-lg font-bold text-gray-900 dark:text-white">
+                {summary.totalRenders}
+              </div>
+            </div>
+            <div>
+              <div className="font-medium text-gray-600 dark:text-gray-400">Avg Render Time</div>
+              <div className="text-lg font-bold text-gray-900 dark:text-white">
+                {summary.averageRenderTime.toFixed(2)}ms
+              </div>
+            </div>
+            <div>
+              <div className="font-medium text-gray-600 dark:text-gray-400">Slowest</div>
+              <div className="text-sm font-medium text-red-600 dark:text-red-400">
+                {summary.slowestComponent || 'N/A'}
+              </div>
+            </div>
+            <div>
+              <div className="font-medium text-gray-600 dark:text-gray-400">Fastest</div>
+              <div className="text-sm font-medium text-green-600 dark:text-green-400">
+                {summary.fastestComponent || 'N/A'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-b border-gray-200 dark:border-gray-700">
+          {(['metrics', 'report', 'comparisons'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setSelectedTab(tab)}
+              className={`px-4 py-2 text-sm font-medium capitalize ${
+                selectedTab === tab
+                  ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-auto p-4">
+          {selectedTab === 'metrics' && (
+            <div className="space-y-4">
+              {Array.from(metrics.entries()).map(([componentName, metric]) => (
+                <div
+                  key={componentName}
+                  className="bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 p-4"
+                >
+                  <h3 className="font-medium text-gray-900 dark:text-white mb-2">
+                    {componentName}
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <div className="text-gray-600 dark:text-gray-400">Renders</div>
+                      <div className="font-bold">{metric.renderCount}</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-600 dark:text-gray-400">Avg Time</div>
+                      <div className={`font-bold ${
+                        metric.averageRenderTime > 16 ? 'text-red-600' : 'text-green-600'
+                      }`}>
+                        {metric.averageRenderTime.toFixed(2)}ms
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-gray-600 dark:text-gray-400">Last Time</div>
+                      <div className="font-bold">{metric.lastRenderTime.toFixed(2)}ms</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-600 dark:text-gray-400">Memo Hit Rate</div>
+                      <div className={`font-bold ${
+                        metric.memoizationHitRate < 0.5 ? 'text-red-600' : 'text-green-600'
+                      }`}>
+                        {(metric.memoizationHitRate * 100).toFixed(1)}%
+                      </div>
+                    </div>
+                  </div>
+                </div>
               ))}
-            </ul>
+            </div>
+          )}
+
+          {selectedTab === 'report' && report && (
+            <div className="space-y-4">
+              <div className="bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 p-4">
+                <h3 className="font-medium text-gray-900 dark:text-white mb-2">
+                  Recommendations
+                </h3>
+                {report.recommendations.length > 0 ? (
+                  <ul className="space-y-2">
+                    {report.recommendations.map((rec, index) => (
+                      <li key={index} className="text-sm text-gray-600 dark:text-gray-400">
+                        • {rec}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    No recommendations at this time.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {selectedTab === 'comparisons' && (
+            <div className="space-y-4">
+              {comparisons.map((comparison, index) => (
+                <div
+                  key={index}
+                  className="bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 p-4"
+                >
+                  <h3 className="font-medium text-gray-900 dark:text-white mb-2">
+                    {comparison.componentName}
+                  </h3>
+                  
+                  {comparison.summary.significantImprovements.length > 0 && (
+                    <div className="mb-2">
+                      <h4 className="text-sm font-medium text-green-600 dark:text-green-400 mb-1">
+                        Improvements
+                      </h4>
+                      <ul className="text-sm space-y-1">
+                        {comparison.summary.significantImprovements.map((improvement, i) => (
+                          <li key={i} className="text-green-600 dark:text-green-400">
+                            ✅ {improvement}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {comparison.summary.regressions.length > 0 && (
+                    <div className="mb-2">
+                      <h4 className="text-sm font-medium text-red-600 dark:text-red-400 mb-1">
+                        Regressions
+                      </h4>
+                      <ul className="text-sm space-y-1">
+                        {comparison.summary.regressions.map((regression, i) => (
+                          <li key={i} className="text-red-600 dark:text-red-400">
+                            ❌ {regression}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    Overall Score: {comparison.summary.overallImprovement.toFixed(2)}
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 };
