@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Note } from '../../shared/types/Note';
 import { deleteNote } from '../../shared/services/noteService';
 import { getNotesSortOption, saveNotesSortOption, SortOption } from '../../shared/services/settingsService';
@@ -62,15 +62,15 @@ const NoteList = ({ notes, onNoteClick, activeNoteId, onNoteDelete, onCollection
     setShowSortMenu(!showSortMenu);
   };
 
-  // Handle sort option selection
-  const handleSortOptionSelect = (option: SortOption) => {
+  // Handle sort option selection with useCallback
+  const handleSortOptionSelect = useCallback((option: SortOption) => {
     setSortOption(option);
     saveNotesSortOption(option);
     setShowSortMenu(false);
-  };
+  }, []);
 
-  // Handle note deletion
-  const handleNoteDelete = async (noteId: string) => {
+  // Handle note deletion with useCallback
+  const handleNoteDelete = useCallback(async (noteId: string) => {
     console.log('NoteList - Deleting note:', noteId);
     // Delete the note using the service
     try {
@@ -78,7 +78,7 @@ const NoteList = ({ notes, onNoteClick, activeNoteId, onNoteDelete, onCollection
       console.log('NoteList - Note deleted from service');
 
       // Add to deleted notes list to remove from UI
-      setDeletedNotes([...deletedNotes, noteId]);
+      setDeletedNotes(prev => [...prev, noteId]);
 
       // Call the parent's onNoteDelete if provided
       if (onNoteDelete) {
@@ -87,19 +87,26 @@ const NoteList = ({ notes, onNoteClick, activeNoteId, onNoteDelete, onCollection
     } catch (error) {
       console.error('Error deleting note:', error);
     }
-  };
+  }, [onNoteDelete]);
 
-  // Filter out deleted notes
-  const filteredNotes = notes.filter(note => !deletedNotes.includes(note.id));
+  // Filter out deleted notes with memoization
+  const filteredNotes = useMemo(() => {
+    return notes.filter(note => !deletedNotes.includes(note.id));
+  }, [notes, deletedNotes]);
 
-  // Apply sorting to notes
-  const sortedFilteredNotes = sortNotes(filteredNotes);
+  // Apply sorting to notes with memoization
+  const sortedFilteredNotes = useMemo(() => {
+    return sortNotes(filteredNotes);
+  }, [filteredNotes, sortOption]);
 
-  // Separate favorite notes from other notes
-  // Only include notes that are explicitly marked as favorites
-  const favoriteNotes = sortedFilteredNotes.filter(note => note.favorite);
-  // All other notes (including pinned ones) go in the regular notes section
-  const otherNotes = sortedFilteredNotes.filter(note => !note.favorite);
+  // Separate favorite notes from other notes with memoization
+  const { favoriteNotes, otherNotes } = useMemo(() => {
+    // Only include notes that are explicitly marked as favorites
+    const favorites = sortedFilteredNotes.filter(note => note.favorite);
+    // All other notes (including pinned ones) go in the regular notes section
+    const others = sortedFilteredNotes.filter(note => !note.favorite);
+    return { favoriteNotes: favorites, otherNotes: others };
+  }, [sortedFilteredNotes]);
 
   return (
     <div className="notes-container notes-container-transparent flex-1 px-4 py-4 overflow-y-auto transition-all duration-300">

@@ -431,7 +431,7 @@ function MainApp() {
             onNoteClick={handleNoteClick}
             activeNoteId={activeNote?.id}
             onNoteDelete={handleNoteDelete}
-            onCollectionUpdate={loadCollections}
+            onCollectionUpdate={loadAllNotes}
             activeCollectionId={activeCollectionId}
             activeCollectionName={collections.find(c => c.id === activeCollectionId)?.name}
             allNotes={notes}

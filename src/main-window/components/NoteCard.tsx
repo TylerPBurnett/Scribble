@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { Note } from '../../shared/types/Note';
 import { deleteNote, updateNote } from '../../shared/services/noteService';
 import NoteCollectionManager from './NoteCollectionManager';
@@ -14,14 +14,47 @@ interface NoteCardProps {
   allNotes?: Note[]; // Add allNotes prop for collection count updates
 }
 
+// Custom comparison function for React.memo
+const areNoteCardPropsEqual = (prevProps: NoteCardProps, nextProps: NoteCardProps): boolean => {
+  // Compare note object properties that affect rendering
+  if (prevProps.note.id !== nextProps.note.id) return false;
+  if (prevProps.note.title !== nextProps.note.title) return false;
+  if (prevProps.note.content !== nextProps.note.content) return false;
+  if (prevProps.note.color !== nextProps.note.color) return false;
+  if (prevProps.note.favorite !== nextProps.note.favorite) return false;
+  if (prevProps.note.pinned !== nextProps.note.pinned) return false;
+  if (prevProps.note.updatedAt?.getTime() !== nextProps.note.updatedAt?.getTime()) return false;
+  
+  // Compare other props
+  if (prevProps.isActive !== nextProps.isActive) return false;
+  if (prevProps.isPinned !== nextProps.isPinned) return false;
+  if (prevProps.isFavorite !== nextProps.isFavorite) return false;
+  
+  // Function props are assumed to be stable (wrapped with useCallback in parent)
+  // We don't compare them as they should maintain referential equality
+  
+  return true;
+};
+
 const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false, isFavorite = false, onCollectionUpdate, allNotes = [] }: NoteCardProps) => {
-  const [showMenu, setShowMenu] = useState(false);
-  const [showColorPicker, setShowColorPicker] = useState(false);
-  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
-  const [showCollectionManager, setShowCollectionManager] = useState(false);
-  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
-  const [isContextMenu, setIsContextMenu] = useState(false);
-  const [isAnimating, setIsAnimating] = useState(false);
+  // Consolidated menu state management
+  const [menuState, setMenuState] = useState({
+    showMenu: false,
+    showColorPicker: false,
+    showConfirmDelete: false,
+    showCollectionManager: false,
+    menuPosition: { x: 0, y: 0 },
+    isContextMenu: false,
+    isAnimating: false,
+  });
+
+  // Helper functions for updating consolidated state
+  const updateMenuState = (updates: Partial<typeof menuState>) => {
+    setMenuState(prev => ({ ...prev, ...updates }));
+  };
+
+  // Destructure for easier access
+  const { showMenu, showColorPicker, showConfirmDelete, showCollectionManager, menuPosition, isContextMenu, isAnimating } = menuState;
   // Refs for DOM elements
   const noteCardRef = useRef<HTMLDivElement>(null);
   const colorPickerRef = useRef<HTMLDivElement>(null);
@@ -43,8 +76,7 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
     // Function to close the menu when clicking anywhere
     const handleGlobalClick = () => {
       if (showMenu) {
-        setShowMenu(false);
-        setIsContextMenu(false);
+        updateMenuState({ showMenu: false, isContextMenu: false });
       }
     };
 
@@ -74,22 +106,19 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
   const isPinnedNote = isPinned || note.pinned;
 
   // Toggle dropdown menu
-  const toggleMenu = (e: React.MouseEvent) => {
+  const toggleMenu = useCallback((e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering the note click
-    setShowMenu(!showMenu);
-    setIsContextMenu(false);
-  };
+    updateMenuState({ showMenu: !showMenu, isContextMenu: false });
+  }, [showMenu]);
 
   // Handle right-click context menu
-  const handleContextMenu = (e: React.MouseEvent) => {
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
     // Prevent default browser context menu and note click
     e.preventDefault();
     e.stopPropagation();
 
     // Close any existing menu first
-    setShowMenu(false);
-    setIsContextMenu(false);
-    setShowColorPicker(false);
+    updateMenuState({ showMenu: false, isContextMenu: false, showColorPicker: false });
 
     // Calculate position, ensuring menu stays within viewport
     const x = Math.min(e.clientX, window.innerWidth - 160);
@@ -97,24 +126,25 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
 
     // Use setTimeout to ensure state updates happen after current event cycle
     setTimeout(() => {
-      setMenuPosition({ x, y });
-      setIsContextMenu(true);
-      setShowMenu(true);
+      updateMenuState({ 
+        menuPosition: { x, y }, 
+        isContextMenu: true, 
+        showMenu: true 
+      });
     }, 0);
 
     // Stop event propagation
     return false;
-  };
+  }, []);
 
   // Handle delete button click
-  const handleDeleteClick = (e: React.MouseEvent) => {
+  const handleDeleteClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering the note click
-    setShowMenu(false);
-    setShowConfirmDelete(true);
-  };
+    updateMenuState({ showMenu: false, showConfirmDelete: true });
+  }, []);
 
   // Handle confirm delete
-  const handleConfirmDelete = async (e: React.MouseEvent) => {
+  const handleConfirmDelete = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering the note click
     if (onDelete) {
       onDelete(note.id);
@@ -132,23 +162,23 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
         console.error('Error deleting note:', error);
       }
     }
-  };
+  }, [onDelete, note.id]);
 
   // Handle cancel delete
-  const handleCancelDelete = (e: React.MouseEvent) => {
+  const handleCancelDelete = useCallback((e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering the note click
-    setShowConfirmDelete(false);
-  };
+    updateMenuState({ showConfirmDelete: false });
+  }, []);
 
   // Handle note click with Apple-style animation
-  const handleNoteClick = async (e: React.MouseEvent) => {
+  const handleNoteClick = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
     
     // Don't animate if menu is open or if already animating
     if (showMenu || isAnimating) return;
     
     // Start animation
-    setIsAnimating(true);
+    updateMenuState({ isAnimating: true });
     
     // Small delay to show the scale-down effect
     setTimeout(async () => {
@@ -157,11 +187,11 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
       } finally {
         // Reset animation state after a delay
         setTimeout(() => {
-          setIsAnimating(false);
+          updateMenuState({ isAnimating: false });
         }, 150);
       }
     }, 100);
-  };
+  }, [showMenu, isAnimating, onClick, note]);
 
   // Format date to display
   const formatDate = (date: Date) => {
@@ -250,8 +280,7 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
         <div
           className="fixed inset-0 z-[9998] bg-transparent"
           onClick={() => {
-            setShowMenu(false);
-            setIsContextMenu(false);
+            updateMenuState({ showMenu: false, isContextMenu: false });
           }}
         >
           <div
@@ -272,8 +301,7 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                setShowMenu(false);
-                setIsContextMenu(false);
+                updateMenuState({ showMenu: false, isContextMenu: false });
                 // Small delay to ensure menu is closed before action
                 setTimeout(() => {
                   onClick(note); // Open the note for editing
@@ -295,8 +323,7 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                setShowMenu(false);
-                setIsContextMenu(false);
+                updateMenuState({ showMenu: false, isContextMenu: false });
                 // Small delay to ensure menu is closed before action
                 setTimeout(() => {
                   console.log('Duplicate note:', note.id);
@@ -318,11 +345,10 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                setShowMenu(false);
-                setIsContextMenu(false);
+                updateMenuState({ showMenu: false, isContextMenu: false });
                 // Small delay to ensure menu is closed before action
                 setTimeout(() => {
-                  setShowCollectionManager(true);
+                  updateMenuState({ showCollectionManager: true });
                 }, 10);
               }}
             >
@@ -340,8 +366,7 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                setShowMenu(false);
-                setIsContextMenu(false);
+                updateMenuState({ showMenu: false, isContextMenu: false });
                 // Small delay to ensure menu is closed before action
                 setTimeout(() => {
                   // Toggle favorite state
@@ -357,6 +382,13 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
                     // Notify other windows that this note has been updated with the specific property
                     // This allows the main window to update its state without a full reload
                     window.noteWindow.noteUpdated(note.id, { favorite: !isFavoriteNote });
+                    
+                    // PERMANENT FIX: Use the onCollectionUpdate callback to trigger parent refresh
+                    // This directly tells the parent component to refresh its state
+                    if (onCollectionUpdate) {
+                      console.log('NoteCard - Calling onCollectionUpdate to refresh parent state');
+                      onCollectionUpdate();
+                    }
                   });
                 }, 10);
               }}
@@ -385,8 +417,7 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                setShowMenu(false);
-                setIsContextMenu(false);
+                updateMenuState({ showMenu: false, isContextMenu: false });
                 // Small delay to ensure menu is closed before action
                 setTimeout(() => {
                   // Toggle pin state
@@ -402,6 +433,13 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
                     // Notify other windows that this note has been updated with the specific property
                     // This allows the main window to update its state without a full reload
                     window.noteWindow.noteUpdated(note.id, { pinned: !isPinnedNote });
+                    
+                    // PERMANENT FIX: Use the onCollectionUpdate callback to trigger parent refresh
+                    // This directly tells the parent component to refresh its state
+                    if (onCollectionUpdate) {
+                      console.log('NoteCard - Calling onCollectionUpdate to refresh parent state');
+                      onCollectionUpdate();
+                    }
                   });
                 }, 10);
               }}
@@ -430,11 +468,10 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                setShowMenu(false);
-                setIsContextMenu(false);
+                updateMenuState({ showMenu: false, isContextMenu: false });
                 // Small delay to ensure menu is closed before action
                 setTimeout(() => {
-                  setShowColorPicker(true);
+                  updateMenuState({ showColorPicker: true });
                 }, 10);
               }}
             >
@@ -453,8 +490,7 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                setShowMenu(false);
-                setIsContextMenu(false);
+                updateMenuState({ showMenu: false, isContextMenu: false });
                 // Small delay to ensure menu is closed before action
                 setTimeout(() => {
                   handleDeleteClick(e);
@@ -547,8 +583,7 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
-                  setShowMenu(false);
-                  setIsContextMenu(false);
+                  updateMenuState({ showMenu: false, isContextMenu: false });
                   // Small delay to ensure menu is closed before action
                   setTimeout(() => {
                     onClick(note); // Open the note for editing
@@ -570,8 +605,7 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
-                  setShowMenu(false);
-                  setIsContextMenu(false);
+                  updateMenuState({ showMenu: false, isContextMenu: false });
                   // Small delay to ensure menu is closed before action
                   setTimeout(() => {
                     console.log('Duplicate note:', note.id);
@@ -593,11 +627,10 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
-                  setShowMenu(false);
-                  setIsContextMenu(false);
+                  updateMenuState({ showMenu: false, isContextMenu: false });
                   // Small delay to ensure menu is closed before action
                   setTimeout(() => {
-                    setShowCollectionManager(true);
+                    updateMenuState({ showCollectionManager: true });
                   }, 10);
                 }}
               >
@@ -615,8 +648,7 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
-                  setShowMenu(false);
-                  setIsContextMenu(false);
+                  updateMenuState({ showMenu: false, isContextMenu: false });
                   // Small delay to ensure menu is closed before action
                   setTimeout(() => {
                     // Toggle favorite state
@@ -632,6 +664,13 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
                       // Notify other windows that this note has been updated with the specific property
                       // This allows the main window to update its state without a full reload
                       window.noteWindow.noteUpdated(note.id, { favorite: !isFavoriteNote });
+                      
+                      // PERMANENT FIX: Use the onCollectionUpdate callback to trigger parent refresh
+                      // This directly tells the parent component to refresh its state
+                      if (onCollectionUpdate) {
+                        console.log('NoteCard - Calling onCollectionUpdate to refresh parent state');
+                        onCollectionUpdate();
+                      }
                     });
                   }, 10);
                 }}
@@ -660,8 +699,7 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
-                  setShowMenu(false);
-                  setIsContextMenu(false);
+                  updateMenuState({ showMenu: false, isContextMenu: false });
                   // Small delay to ensure menu is closed before action
                   setTimeout(() => {
                     // Toggle pin state
@@ -677,6 +715,13 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
                       // Notify other windows that this note has been updated with the specific property
                       // This allows the main window to update its state without a full reload
                       window.noteWindow.noteUpdated(note.id, { pinned: !isPinnedNote });
+                      
+                      // PERMANENT FIX: Use the onCollectionUpdate callback to trigger parent refresh
+                      // This directly tells the parent component to refresh its state
+                      if (onCollectionUpdate) {
+                        console.log('NoteCard - Calling onCollectionUpdate to refresh parent state');
+                        onCollectionUpdate();
+                      }
                     });
                   }, 10);
                 }}
@@ -707,13 +752,12 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
-                  setShowMenu(false);
-                  setIsContextMenu(false);
+                  updateMenuState({ showMenu: false, isContextMenu: false });
                   // Small delay to ensure menu is closed before action
                   setTimeout(() => {
                     // Ensure we're back in the note card context
                     if (noteCardRef.current) {
-                      setShowColorPicker(true);
+                      updateMenuState({ showColorPicker: true });
                     }
                   }, 10);
                 }}
@@ -733,8 +777,7 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
-                  setShowMenu(false);
-                  setIsContextMenu(false);
+                  updateMenuState({ showMenu: false, isContextMenu: false });
                   // Small delay to ensure menu is closed before action
                   setTimeout(() => {
                     handleDeleteClick(e);
@@ -800,7 +843,7 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
           className="absolute inset-0 z-20 flex items-center justify-center rounded-xl overflow-hidden font-twitter color-picker-enter"
           onClick={(e) => {
             e.stopPropagation();
-            setShowColorPicker(false);
+            updateMenuState({ showColorPicker: false });
           }}
           style={{
             backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -825,7 +868,7 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
               </h3>
               <button
                 className="text-text-tertiary hover:text-text bg-transparent border-none cursor-pointer p-1 rounded-full hover:bg-white/5 transition-colors"
-                onClick={() => setShowColorPicker(false)}
+                onClick={() => updateMenuState({ showColorPicker: false })}
                 aria-label="Close color picker"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -866,7 +909,7 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
                         // This allows the main window to update its state without a full reload
                         window.noteWindow.noteUpdated(note.id, { color: color.value });
                         // Close the color picker
-                        setShowColorPicker(false);
+                        updateMenuState({ showColorPicker: false });
                       });
                     }}
                   />
@@ -881,7 +924,7 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
       <NoteCollectionManager
         note={note}
         isOpen={showCollectionManager}
-        onClose={() => setShowCollectionManager(false)}
+        onClose={() => updateMenuState({ showCollectionManager: false })}
         allNotes={allNotes}
         onUpdate={() => {
           // Notify parent component that collections have been updated
@@ -900,4 +943,4 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
   );
 };
 
-export default NoteCard;
+export default memo(NoteCard, areNoteCardPropsEqual);
