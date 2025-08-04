@@ -924,6 +924,14 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
                         // Notify other windows that this note has been updated with the specific property
                         // This allows the main window to update its state without a full reload
                         window.noteWindow.noteUpdated(note.id, { color: color.value });
+                        
+                        // PERMANENT FIX: Use the onCollectionUpdate callback to trigger parent refresh
+                        // This directly tells the parent component to refresh its state
+                        if (onCollectionUpdate) {
+                          console.log('NoteCard - Calling onCollectionUpdate to refresh parent state after color change');
+                          onCollectionUpdate();
+                        }
+                        
                         // Close the color picker
                         updateMenuState({ showColorPicker: false });
                       });
