@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useReducer } from 'react';
 import { Note } from '../../shared/types/Note';
 import Tiptap, { TiptapRef } from './Tiptap';
 import { updateNote, deleteNote } from '../../shared/services/noteService';
@@ -6,6 +6,13 @@ import { getSettings, subscribeToSettingsChanges, AppSettings } from '../../shar
 import { getHotkeys, formatHotkeyForDisplay } from '../../shared/services/hotkeyService';
 import { NoteHotkeys } from './NoteHotkeys';
 import { useDebounce } from '../../shared/hooks/useDebounce';
+import { 
+  noteEditorReducer, 
+  initializeStateFromNote, 
+  updateNoteData, 
+  updateUIState, 
+  updateEditorState
+} from './noteEditorState';
 import './NoteEditor.css';
 import './SettingsMenu.css';
 
@@ -16,31 +23,24 @@ interface NoteEditorProps {
 }
 
 const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
-  const [title, setTitle] = useState(note.title);
-  const [content, setContent] = useState(note.content);
-  const [isDirty, setIsDirty] = useState(false);
-  const [isPinned, setIsPinned] = useState(note.pinned || false);
-  const [isFavorite, setIsFavorite] = useState(note.favorite || false);
-  const [noteColor, setNoteColor] = useState(note.color || '#fff9c4'); // Default yellow sticky note color
-  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
-  const [showColorPicker, setShowColorPicker] = useState(false);
-  const [transparency, setTransparency] = useState(note.transparency || 1); // Default to fully opaque
-
-  // Track if we're currently editing the title to prevent premature saves
-  const [isTitleFocused, setIsTitleFocused] = useState(false);
-
-  // Store the temporary title value while editing
-  const [tempTitle, setTempTitle] = useState(note.title);
-
-  // Get settings for auto-save and hotkeys
-  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
-  const [autoSaveInterval, setAutoSaveInterval] = useState(5000);
+  // Initialize consolidated state
   const [appSettings, setAppSettings] = useState<AppSettings>({
     saveLocation: '',
     autoSave: true,
     autoSaveInterval: 5,
     theme: 'dim',
   });
+  
+  // Initialize state from note and settings
+  const [state, dispatch] = useReducer(
+    noteEditorReducer, 
+    initializeStateFromNote(note, appSettings)
+  );
+
+  // Extract values from consolidated state for easier access
+  const { title, content, color: noteColor, transparency, isPinned, isFavorite } = state.noteData;
+  const { showSettingsMenu, showColorPicker, isTitleFocused, isDragging } = state.uiState;
+  const { isDirty, isNewNote, tempTitle, autoSaveEnabled, autoSaveInterval } = state.editorState;
 
   // Use refs to store the latest values for use in debounced functions
   const currentTitleRef = useRef(title);
@@ -88,15 +88,23 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
     // Initial settings load
     const settings = getSettings();
     setAppSettings(settings);
-    setAutoSaveEnabled(settings.autoSave);
-    setAutoSaveInterval(settings.autoSaveInterval * 1000); // Convert to milliseconds
+    
+    // Update consolidated state with settings
+    dispatch(updateEditorState({
+      autoSaveEnabled: settings.autoSave,
+      autoSaveInterval: settings.autoSaveInterval * 1000 // Convert to milliseconds
+    }));
 
     // Subscribe to settings changes for immediate hotkey updates
     const unsubscribe = subscribeToSettingsChanges((newSettings) => {
       console.log('NoteEditor - Settings changed, updating hotkeys:', JSON.stringify(newSettings.hotkeys, null, 2));
       setAppSettings(newSettings);
-      setAutoSaveEnabled(newSettings.autoSave);
-      setAutoSaveInterval(newSettings.autoSaveInterval * 1000);
+      
+      // Update consolidated state with new settings
+      dispatch(updateEditorState({
+        autoSaveEnabled: newSettings.autoSave,
+        autoSaveInterval: newSettings.autoSaveInterval * 1000
+      }));
     });
 
     // Cleanup subscription on unmount
@@ -138,7 +146,7 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
       window.noteWindow.noteUpdated(savedNote.id, { title: savedNote.title });
 
       // Reset dirty state after successful save
-      setIsDirty(false);
+      dispatch(updateEditorState({ isDirty: false }));
     } catch (error) {
       console.error('Error saving note:', error);
     }
@@ -154,8 +162,7 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
   // We're no longer using debounce for title changes
   // Instead, we'll only update the title when the user clicks away from the input
 
-  // Track if this is a new note that hasn't been saved yet
-  const [isNewNote, setIsNewNote] = useState(note._isNew === true || (note.title === 'Untitled Note' && note.content === '<p></p>'));
+
 
   // Ref for the Tiptap editor to focus content
   const tiptapRef = useRef<TiptapRef>(null);
@@ -179,7 +186,7 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
     if (isNewNote && title !== 'Untitled Note') {
       console.log('First title change for new note detected');
       // Once the title has been changed from the default, it's no longer a new note
-      setIsNewNote(false);
+      dispatch(updateEditorState({ isNewNote: false }));
     }
   }, [title, isNewNote]);
 
@@ -190,7 +197,7 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
     // 2. Content has actually changed from the last saved version
     if (!isTitleFocused && content !== currentNoteRef.current.content) {
       console.log('Content changed and not focused, marking as dirty');
-      setIsDirty(true);
+      dispatch(updateEditorState({ isDirty: true }));
     }
   }, [content, isTitleFocused]);
 
@@ -199,7 +206,7 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
     // Only mark as dirty when title has changed from the last saved version
     if (title !== currentNoteRef.current.title) {
       console.log('Title changed from saved version, marking as dirty');
-      setIsDirty(true);
+      dispatch(updateEditorState({ isDirty: true }));
     }
   }, [title]);
 
@@ -236,10 +243,9 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
 
   // Last saved time formatting removed
 
-  // Dragging functionality
-  const [isDragging, setIsDragging] = useState(false);
+  // Dragging functionality is now handled by consolidated state
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     // Allow dragging from the title bar, but not from input fields or buttons
     const target = e.target as HTMLElement;
     const isInput = target.tagName === 'INPUT';
@@ -247,13 +253,13 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
     const isSvg = target.tagName === 'svg' || target.tagName === 'path' || target.closest('svg');
 
     if (!isInput && !isButton && !isSvg) {
-      setIsDragging(true);
+      dispatch(updateUIState({ isDragging: true }));
     }
-  };
+  }, []);
 
   useEffect(() => {
     const handleMouseUp = () => {
-      setIsDragging(false);
+      dispatch(updateUIState({ isDragging: false }));
     };
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -277,24 +283,24 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
     };
   }, [isDragging]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     window.windowControls.close();
-  };
+  }, []);
 
   // Handle title blur - process title changes when focus is lost
   const handleTitleBlur = useCallback(() => {
     // When focus is lost, apply the title change if it's valid
-    setIsTitleFocused(false);
+    dispatch(updateUIState({ isTitleFocused: false }));
 
     // Only apply the change if the title is not empty and not the default
     if (tempTitle && tempTitle.trim() !== '') {
       if (tempTitle !== title) {
         console.log('Applying title change on blur:', tempTitle);
-        setTitle(tempTitle);
+        dispatch(updateNoteData({ title: tempTitle }));
 
         // If this was a new note, mark it as no longer new
         if (isNewNote && tempTitle !== 'Untitled Note') {
-          setIsNewNote(false);
+          dispatch(updateEditorState({ isNewNote: false }));
         }
       } else {
         console.log('Title unchanged, not marking as dirty');
@@ -302,19 +308,19 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
     } else {
       console.log('Not applying empty title on blur');
       // Reset to the previous title if empty
-      setTempTitle(title);
+      dispatch(updateEditorState({ tempTitle: title }));
     }
   }, [tempTitle, title, isNewNote]);
 
   // Manual save function
-  const handleManualSave = () => {
+  const handleManualSave = useCallback(() => {
     console.log('Manual save triggered');
     saveNote();
-  };
+  }, [saveNote]);
 
   // Content update handler
   const handleContentUpdate = useCallback((newContent: string) => {
-    setContent(newContent);
+    dispatch(updateNoteData({ content: newContent }));
   }, []);
 
   // Update note transparency
@@ -323,7 +329,7 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
       console.log('Updating transparency to:', value);
 
       // Update state immediately for UI feedback
-      setTransparency(value);
+      dispatch(updateNoteData({ transparency: value }));
 
       // Apply transparency to the window via Electron IPC
       // This affects the entire window
@@ -357,7 +363,7 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
     const checkPinState = async () => {
       try {
         const isWindowPinned = await window.windowControls.isPinned();
-        setIsPinned(isWindowPinned);
+        dispatch(updateNoteData({ isPinned: isWindowPinned }));
       } catch (error) {
         console.error('Error checking window pin state:', error);
       }
@@ -401,7 +407,7 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
 
         // Toggle favorite state
         const newFavoriteState = !isFavorite;
-        setIsFavorite(newFavoriteState);
+        dispatch(updateNoteData({ isFavorite: newFavoriteState }));
 
         // Update the note
         const updatedNote = {
@@ -437,7 +443,7 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
         const isSettingsButtonClick = target.closest('.settings-button');
 
         if (!isSettingsMenuClick && !isSettingsButtonClick) {
-          setShowSettingsMenu(false);
+          dispatch(updateUIState({ showSettingsMenu: false }));
         }
       }
     };
@@ -462,11 +468,11 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
   ];
 
   // Toggle pin state
-  const togglePinState = async () => {
+  const togglePinState = useCallback(async () => {
     try {
       const newPinState = !isPinned;
       const result = await window.windowControls.togglePin(newPinState);
-      setIsPinned(result);
+      dispatch(updateNoteData({ isPinned: result }));
 
       // Update the note's pinned property
       // Create a deep copy of the note to ensure we don't lose any properties
@@ -487,13 +493,13 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
     } catch (error) {
       console.error('Error toggling pin state:', error);
     }
-  };
+  }, [isPinned, onSave]);
 
   // Change note color
-  const changeNoteColor = async (color: string) => {
+  const changeNoteColor = useCallback(async (color: string) => {
     try {
-      setNoteColor(color);
-      setShowSettingsMenu(false);
+      dispatch(updateNoteData({ color }));
+      dispatch(updateUIState({ showSettingsMenu: false }));
 
       // Update the note's color property
       const updatedNote = {
@@ -513,7 +519,7 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
     } catch (error) {
       console.error('Error changing note color:', error);
     }
-  };
+  }, [onSave]);
 
 
 
@@ -645,12 +651,12 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
                 // This won't trigger any saves
                 const newTitle = e.target.value;
                 console.log('Title input change (temp):', newTitle);
-                setTempTitle(newTitle);
+                dispatch(updateEditorState({ tempTitle: newTitle }));
               }}
               onFocus={() => {
                 // When focusing, set the temporary title to the current title
-                setTempTitle(title);
-                setIsTitleFocused(true);
+                dispatch(updateEditorState({ tempTitle: title }));
+                dispatch(updateUIState({ isTitleFocused: true }));
                 console.log('Title focused, preventing saves');
               }}
               onKeyDown={(e) => {
@@ -700,7 +706,7 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
             {/* Settings button */}
             <div className="relative">
               <button
-                onClick={() => setShowSettingsMenu(!showSettingsMenu)}
+                onClick={() => dispatch(updateUIState({ showSettingsMenu: !showSettingsMenu }))}
                 className={`settings-button transition-colors p-1 cursor-pointer ${
                   showSettingsMenu ? 'text-blue-600' : 'text-black/50 hover:text-blue-600'
                 }`}
@@ -736,7 +742,7 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
                         // Toggle favorite state
                         const newFavoriteState = !isFavorite;
                         console.log('NoteEditor - Toggling favorite state to:', newFavoriteState);
-                        setIsFavorite(newFavoriteState);
+                        dispatch(updateNoteData({ isFavorite: newFavoriteState }));
 
                         // Update the note's favorite property
                         const updatedNote = {
@@ -852,7 +858,7 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
                     onClick={() => {
                       // Show a message explaining that this feature is coming soon
                       alert('Note shortcuts will be available in a future update. This feature will allow you to assign custom keyboard shortcuts to specific notes.');
-                      setShowSettingsMenu(false);
+                      dispatch(updateUIState({ showSettingsMenu: false }));
                     }}
                   >
                     <span>Note Shortcut</span>
@@ -924,7 +930,7 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
                         }
 
                         // Close the settings menu
-                        setShowSettingsMenu(false);
+                        dispatch(updateUIState({ showSettingsMenu: false }));
                       } catch (error) {
                         console.error('Error saving note to file:', error);
                         alert('Failed to save note to file. Please try again.');
@@ -980,7 +986,7 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
                       // Open settings window
                       window.settings.openSettings();
                       // Close the settings menu
-                      setShowSettingsMenu(false);
+                      dispatch(updateUIState({ showSettingsMenu: false }));
                     }}
                   >
                     <span>Settings...</span>
@@ -1027,7 +1033,7 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
         }}
         onChangeColor={() => {
           // Toggle color picker
-          setShowColorPicker(!showColorPicker);
+          dispatch(updateUIState({ showColorPicker: !showColorPicker }));
         }}
       />
     </div>
