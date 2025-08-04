@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { 
   noteEditorReducer, 
   getDefaultNoteEditorState, 
@@ -23,7 +23,6 @@ describe('noteEditorState', () => {
     favorite: true,
     createdAt: new Date(),
     updatedAt: new Date(),
-    collectionId: 'test-collection'
   };
 
   const mockSettings: AppSettings = {
