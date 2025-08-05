@@ -15,6 +15,7 @@ import {
 } from './noteEditorState';
 import { useNoteEditorPerformance } from '../../shared/hooks/useExpensiveOperations';
 import { useRenderPerformance } from '../../shared/hooks/usePerformanceMonitoring';
+import { SmartAutosaveService, DEFAULT_AUTOSAVE_CONFIG } from '../../shared/services/smartAutosaveService';
 import './NoteEditor.css';
 import './SettingsMenu.css';
 
@@ -118,48 +119,45 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
     return unsubscribe;
   }, []);
 
-  // Define a stable save function that uses refs to access the latest state
-  const saveNote = useCallback(async () => {
-    // Early return if not dirty to prevent unnecessary saves
-    if (!isDirtyRef.current) return;
+// Autosave service setup
+const autosaveService = useRef<SmartAutosaveService | null>(null);
 
-    await measureOperation('note-save', async () => {
-      const note = currentNoteRef.current;
-      const title = currentTitleRef.current;
-      const content = currentContentRef.current;
+useEffect(() => {
+  // Initialize autosave service
+  const config = {
+    ...DEFAULT_AUTOSAVE_CONFIG,
+    strategies: {
+      ...DEFAULT_AUTOSAVE_CONFIG.strategies,
+      debounce: {
+        ...DEFAULT_AUTOSAVE_CONFIG.strategies.debounce,
+        delay: appSettings.autoSaveInterval * 1000,
+      },
+    },
+  };
 
-      if (!note) return;
+  autosaveService.current = new SmartAutosaveService(config);
+  autosaveService.current.initializeAutosave(note, () => currentContentRef.current, savedNote => {
+    // Update references and notify on save
+    currentNoteRef.current = savedNote;
+    onSave?.(savedNote);
+    dispatch(updateEditorState({ isDirty: false }));
+  });
 
-      const updatedNote = {
-        ...note,
-        title: title,
-        content: content,
-        _isNew: undefined // Clear the new note flag
-      };
+  return () => {
+    autosaveService.current?.destroy();
+  };
+}, [note, appSettings, onSave]);
 
-      try {
-        console.log('NoteEditor - Saving note:', updatedNote.id);
-        const savedNote = await updateNote(updatedNote);
-        console.log('NoteEditor - Note saved:', savedNote);
-
-        // Update the note reference with the saved note
-        // This is crucial for subsequent renames to work correctly
-        currentNoteRef.current = savedNote;
-        console.log('NoteEditor - Updated note reference:', currentNoteRef.current);
-
-        onSave?.(savedNote);
-
-        // Notify other windows that this note has been updated
-        // Use the saved note ID which might have changed if the title was changed
-        window.noteWindow.noteUpdated(savedNote.id, { title: savedNote.title });
-
-        // Reset dirty state after successful save
-        dispatch(updateEditorState({ isDirty: false }));
-      } catch (error) {
-        console.error('Error saving note:', error);
-      }
-    });
-  }, [onSave, measureOperation]);
+// Define a stable save function that uses refs to access the latest state
+const saveNote = useCallback(async () => {
+  if (autosaveService.current) {
+    await autosaveService.current.triggerAutosave(currentNoteRef.current, currentContentRef.current, savedNote => {
+      currentNoteRef.current = savedNote;
+      onSave?.(savedNote);
+      dispatch(updateEditorState({ isDirty: false }));
+    }, 'high');
+  }
+}, [onSave]);
 
   // Create a debounced version of saveNote using our custom hook
   const debouncedSave = useDebounce(() => {
@@ -689,32 +687,32 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
             />
           </div>
 
-          {/* Right side: Action buttons */}
-          <div className="flex items-center gap-2 relative" style={{ WebkitAppRegion: 'no-drag' }}>
-            {!autoSaveEnabled && (
-              <button
-                onClick={handleManualSave}
-                className="text-black/50 hover:text-blue-600 transition-colors p-1 cursor-pointer"
-                title="Save now"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3H16L21 8V19C21 20.1046 20.1046 21 19 21Z"></path>
-                  <path d="M17 21V13H7V21"></path>
-                  <path d="M7 3V8H15"></path>
-                </svg>
-              </button>
-            )}
+{/* Right side: Action buttons */}
+<div className="flex items-center gap-2 relative" style={{ WebkitAppRegion: 'no-drag' }}>
+  {!autoSaveEnabled && (
+    <button
+      onClick={handleManualSave}
+      className="text-black/50 hover:text-blue-600 transition-colors p-1 cursor-pointer"
+      title="Save now"
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3H16L21 8V19C21 20.1046 20.1046 21 19 21Z"></path>
+        <path d="M17 21V13H7V21"></path>
+        <path d="M7 3V8H15"></path>
+      </svg>
+    </button>
+  )}
 
-            {/* Settings button */}
+  {/* Settings button */}
             <div className="relative">
               <button
                 onClick={() => dispatch(updateUIState({ showSettingsMenu: !showSettingsMenu }))}
