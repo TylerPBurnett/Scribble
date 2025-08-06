@@ -27,25 +27,25 @@ export type HotkeyAction =
 // Define the default hotkeys
 export const DEFAULT_HOTKEYS: Record<HotkeyAction, string> = {
   // Global actions
-  newNote: 'ctrl+n',
-  openSettings: 'ctrl+,',
-  search: 'ctrl+f',
-  toggleDarkMode: 'ctrl+shift+d',
+  newNote: 'mod+n',
+  openSettings: 'mod+,',
+  search: 'mod+k',
+  toggleDarkMode: 'mod+shift+d',
   // Note actions
-  saveNote: 'ctrl+s',
-  pinNote: 'ctrl+p',
-  deleteNote: 'ctrl+delete',
-  changeColor: 'ctrl+shift+c',
+  saveNote: 'mod+s',
+  pinNote: 'mod+p',
+  deleteNote: 'mod+delete',
+  changeColor: 'mod+shift+c',
   // Text formatting
-  toggleBold: 'ctrl+b',
-  toggleItalic: 'ctrl+i',
-  toggleUnderline: 'ctrl+u',
-  toggleHighlight: 'ctrl+h',
-  toggleHeading1: 'ctrl+1',
-  toggleHeading2: 'ctrl+2',
-  toggleBulletList: 'ctrl+shift+8',
-  toggleOrderedList: 'ctrl+shift+9',
-  toggleTaskList: 'ctrl+shift+t',
+  toggleBold: 'mod+b',
+  toggleItalic: 'mod+i',
+  toggleUnderline: 'mod+u',
+  toggleHighlight: 'mod+h',
+  toggleHeading1: 'mod+1',
+  toggleHeading2: 'mod+2',
+  toggleBulletList: 'mod+shift+8',
+  toggleOrderedList: 'mod+shift+9',
+  toggleTaskList: 'mod+shift+t',
   toggleToolbar: 'alt+t',
 };
 
@@ -80,7 +80,7 @@ export const HOTKEY_CATEGORIES = {
 export const HOTKEY_LABELS: Record<HotkeyAction, string> = {
   newNote: 'Create new note',
   openSettings: 'Open settings',
-  search: 'Search notes',
+  search: 'Open search/command palette',
   toggleDarkMode: 'Toggle dark mode',
   saveNote: 'Save note',
   pinNote: 'Pin/unpin note',
@@ -114,7 +114,7 @@ export const formatHotkeyForDisplay = (hotkey: string): string => {
 
   // First, sort the keys to ensure modifiers come first
   const parts = hotkey.split('+');
-  const modifiers = ['CommandOrControl', 'Command', 'Control', 'Alt', 'Option', 'Shift', 'Meta'];
+  const modifiers = ['mod', 'Mod', 'CommandOrControl', 'Command', 'Control', 'Alt', 'Option', 'Shift', 'Meta'];
 
   parts.sort((a, b) => {
     const aIndex = modifiers.indexOf(a);
@@ -129,6 +129,7 @@ export const formatHotkeyForDisplay = (hotkey: string): string => {
   return parts
     .map(key => {
       // Handle modifiers
+      if (key === 'mod' || key === 'Mod') return isMac ? '⌘' : '⌃';
       if (key === 'ctrl' || key === 'Control') return '⌃';
       if (key === 'alt' || key === 'Alt' || key === 'Option') return '⌥';
       if (key === 'shift' || key === 'Shift') return '⇧';

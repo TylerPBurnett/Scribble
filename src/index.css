@@ -110,6 +110,16 @@ textarea {
   scrollbar-color: rgba(80, 80, 80, 0.3) #21222c;
 }
 
+/* Utility class to hide scrollbars while maintaining scroll functionality */
+.scrollbar-none {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;     /* Firefox */
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;  /* Safari and Chrome */
+}
+
 .theme-light * {
   scrollbar-color: rgba(100, 116, 139, 0.3) rgba(241, 245, 249, 0.5);
 }

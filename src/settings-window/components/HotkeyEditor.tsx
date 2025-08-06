@@ -45,10 +45,18 @@ export function HotkeyEditor({ action, label, currentValue, onChange, theme = 'd
 
     // Get the key combination
     const keys: string[] = [];
-    if (e.ctrlKey) keys.push('ctrl');
+    
+    // Use 'mod' for cross-platform compatibility (Cmd on Mac, Ctrl on Windows/Linux)
+    // This matches the format expected by react-hotkeys-hook
+    if (e.metaKey || e.ctrlKey) {
+      keys.push('mod');
+    } else {
+      // Only add individual modifiers if mod isn't already added
+      if (e.ctrlKey) keys.push('ctrl');
+    }
+    
     if (e.altKey) keys.push('alt');
     if (e.shiftKey) keys.push('shift');
-    if (e.metaKey) keys.push('meta');
 
     // Add the actual key (not a modifier) - use e.code to get the physical key
     // Convert KeyT -> t, KeyA -> a, etc.

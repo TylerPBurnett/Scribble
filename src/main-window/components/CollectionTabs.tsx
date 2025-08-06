@@ -338,14 +338,18 @@ const CollectionTabs: React.FC<CollectionTabsProps> = React.memo(({
         <div className="flex items-center gap-2">
           {/* Scrollable Collection Tabs */}
           <div
-            className="flex items-center gap-1 overflow-x-auto scrollbar-hide flex-1"
+            className="flex items-center gap-1 overflow-x-auto flex-1 scrollbar-none"
             role="tablist"
             aria-label="Collection tabs"
             tabIndex={0}
             onKeyDown={handleCollectionAreaKeyDown}
             onFocus={handleCollectionAreaFocus}
             ref={collectionAreaRef}
-            style={{ outline: 'none' }}
+            style={{ 
+              outline: 'none',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none'
+            }}
           >
             <div className="flex items-center gap-1 min-w-max">
               {collections.map((collection) => (

@@ -7,9 +7,10 @@ import { Note } from '../shared/types/Note'
 import { CollectionWithNoteCount } from '../shared/types/Collection'
 import { getNotes, deleteNote } from '../shared/services/noteService'
 import { collectionService } from '../shared/services/collectionService'
-import { initSettings, saveSettings, AppSettings } from '../shared/services/settingsService'
+import { initSettings, saveSettings, AppSettings, subscribeToSettingsChanges } from '../shared/services/settingsService'
 import { ThemeProvider } from '../shared/services/themeService'
 import { AppHotkeys } from './components/AppHotkeys'
+import { HotkeyDebug } from './components/HotkeyDebug'
 import { CollectionErrorBoundary } from '../shared/components/CollectionErrorBoundary'
 import { AppHeader } from './components/AppHeader'
 import { ToastProvider } from '../shared/components/Toast'
@@ -159,6 +160,36 @@ function MainApp() {
 
     init()
   }, [loadAllNotes]) // Add loadAllNotes as a dependency
+
+  // Subscribe to settings changes
+  useEffect(() => {
+    console.log('MainApp - Setting up settings change subscription');
+    const unsubscribe = subscribeToSettingsChanges((newSettings) => {
+      console.log('MainApp - Settings changed:', newSettings);
+      setAppSettings(newSettings);
+    });
+
+    // Also listen for settings changes from other windows
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'app_settings' && e.newValue) {
+        try {
+          const newSettings = JSON.parse(e.newValue);
+          console.log('MainApp - Settings changed from another window:', newSettings);
+          setAppSettings(newSettings);
+        } catch (error) {
+          console.error('Error parsing settings from storage event:', error);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      console.log('MainApp - Cleaning up settings change subscription');
+      unsubscribe();
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
 
   // Initialize collections with session restoration when notes are loaded
   useEffect(() => {
@@ -335,9 +366,8 @@ function MainApp() {
 
   // Handle focusing search input
   const handleFocusSearch = () => {
-    if (searchInputRef.current) {
-      searchInputRef.current.focus();
-    }
+    // Open the search command dialog instead of focusing the input
+    setSearchOpen(true);
   }
 
   // Handle note deletion
@@ -383,6 +413,9 @@ function MainApp() {
     }
   }
 
+  // Handle search open/close
+  const [isSearchOpen, setSearchOpen] = useState(false);
+
 
 
   // Render the main window
@@ -411,6 +444,12 @@ function MainApp() {
             onNewNote={handleNewNote}
             onOpenSettings={handleOpenSettings}
             searchInputRef={searchInputRef}
+            notes={notes}
+            onNoteClick={handleNoteClick}
+            isSearchOpen={isSearchOpen}
+            onSearchOpenChange={setSearchOpen}
+            collections={collections}
+            activeCollectionId={activeCollectionId}
           />
 
           {/* Collection Tabs */}
@@ -433,6 +472,7 @@ function MainApp() {
             activeCollectionId={activeCollectionId}
             activeCollectionName={collections.find(c => c.id === activeCollectionId)?.name}
             allNotes={notes}
+            onNewNote={handleNewNote}
           />
         </div>
         </div>
@@ -447,6 +487,9 @@ function MainApp() {
           onSearch={handleFocusSearch}
           onToggleDarkMode={handleToggleDarkMode}
         />
+        
+        {/* Hotkey Debug */}
+        <HotkeyDebug settings={appSettings} />
 
         {/* Performance Dashboard (Development Only) */}
         {process.env.NODE_ENV === 'development' && (

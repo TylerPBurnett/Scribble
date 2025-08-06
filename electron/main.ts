@@ -499,15 +499,28 @@ function createSettingsWindow() {
       VITE_DEV_SERVER_URL :
       `${VITE_DEV_SERVER_URL}/`;
     url = `${baseUrl}settings.html`;
+  } else if (process.env.NODE_ENV === 'development') {
+    // Fallback for development if VITE_DEV_SERVER_URL is not set
+    url = 'http://localhost:5173/settings.html';
   } else {
     // In production mode, we load the file directly
     url = path.join(RENDERER_DIST, 'settings.html');
   }
 
   console.log('Loading URL for settings window:', url)
+  console.log('VITE_DEV_SERVER_URL:', VITE_DEV_SERVER_URL)
+  console.log('NODE_ENV:', process.env.NODE_ENV)
 
-  if (VITE_DEV_SERVER_URL) {
-    settingsWindow.loadURL(url)
+  if (VITE_DEV_SERVER_URL || process.env.NODE_ENV === 'development') {
+    settingsWindow.loadURL(url).catch((error) => {
+      console.error('Failed to load settings window URL:', url, error);
+      // Try fallback URL
+      const fallbackUrl = 'http://localhost:5173/settings.html';
+      console.log('Trying fallback URL:', fallbackUrl);
+      settingsWindow.loadURL(fallbackUrl).catch((fallbackError) => {
+        console.error('Fallback also failed:', fallbackError);
+      });
+    });
   } else {
     settingsWindow.loadFile(url)
   }
@@ -1867,6 +1880,91 @@ if (process.platform === 'darwin' && app.dock) {
   }
 }
 
+// Create application menu function
+function createApplicationMenu() {
+  const template: Electron.MenuItemConstructorOptions[] = [
+    {
+      label: app.getName(),
+      submenu: [
+        {
+          label: 'About ' + app.getName(),
+          role: 'about'
+        },
+        { type: 'separator' },
+        {
+          label: 'Preferences...',
+          accelerator: 'Command+,',
+          click: () => {
+            createSettingsWindow()
+          }
+        },
+        { type: 'separator' },
+        {
+          label: 'Hide ' + app.getName(),
+          accelerator: 'Command+H',
+          role: 'hide'
+        },
+        {
+          label: 'Hide Others',
+          accelerator: 'Command+Option+H',
+          role: 'hideOthers'
+        },
+        {
+          label: 'Show All',
+          role: 'unhide'
+        },
+        { type: 'separator' },
+        {
+          label: 'Quit ' + app.getName(),
+          accelerator: 'Command+Q',
+          click: () => {
+            isQuitting = true
+            app.quit()
+          }
+        }
+      ]
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { label: 'Undo', accelerator: 'Command+Z', role: 'undo' },
+        { label: 'Redo', accelerator: 'Shift+Command+Z', role: 'redo' },
+        { type: 'separator' },
+        { label: 'Cut', accelerator: 'Command+X', role: 'cut' },
+        { label: 'Copy', accelerator: 'Command+C', role: 'copy' },
+        { label: 'Paste', accelerator: 'Command+V', role: 'paste' },
+        { label: 'Select All', accelerator: 'Command+A', role: 'selectAll' }
+      ]
+    },
+    {
+      label: 'View',
+      submenu: [
+        { label: 'Reload', accelerator: 'Command+R', role: 'reload' },
+        { label: 'Force Reload', accelerator: 'Command+Shift+R', role: 'forceReload' },
+        { label: 'Toggle Developer Tools', accelerator: 'Option+Command+I', role: 'toggleDevTools' },
+        { type: 'separator' },
+        { label: 'Actual Size', accelerator: 'Command+0', role: 'resetZoom' },
+        { label: 'Zoom In', accelerator: 'Command+Plus', role: 'zoomIn' },
+        { label: 'Zoom Out', accelerator: 'Command+-', role: 'zoomOut' },
+        { type: 'separator' },
+        { label: 'Toggle Fullscreen', accelerator: 'Control+Command+F', role: 'togglefullscreen' }
+      ]
+    },
+    {
+      label: 'Window',
+      submenu: [
+        { label: 'Minimize', accelerator: 'Command+M', role: 'minimize' },
+        { label: 'Close', accelerator: 'Command+W', role: 'close' },
+        { type: 'separator' },
+        { label: 'Bring All to Front', role: 'front' }
+      ]
+    }
+  ]
+
+  const menu = Menu.buildFromTemplate(template)
+  Menu.setApplicationMenu(menu)
+}
+
 // When app is ready
 app.whenReady().then(() => {
   // Set the dock icon again when the app is ready (as a backup)
@@ -1881,6 +1979,11 @@ app.whenReady().then(() => {
     } catch (error) {
       console.error('Error setting dock icon in whenReady:', error)
     }
+  }
+
+  // Create application menu (macOS only)
+  if (process.platform === 'darwin') {
+    createApplicationMenu()
   }
 
   // Create main window

@@ -1,5 +1,5 @@
 import { useHotkeys } from 'react-hotkeys-hook';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { AppSettings } from '../services/settingsService';
 import { getHotkeys, HotkeyAction } from '../services/hotkeyService';
 
@@ -44,7 +44,7 @@ export const useAppHotkeys = (
           enableOnContentEditable: defaultOptions.enableOnContentEditable,
           enabled: defaultOptions.enabled,
         },
-        [handler]
+        [handler, hotkey] // Add hotkey as dependency so it updates when changed
       );
     }
   });

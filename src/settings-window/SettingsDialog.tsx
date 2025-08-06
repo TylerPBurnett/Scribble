@@ -78,9 +78,36 @@ export function SettingsDialog({
 
   // Settings sections configuration
   const settingsSections = [
-    { id: 'file-management', label: 'File Management', icon: '📁' },
-    { id: 'application', label: 'Application', icon: '⚙️' },
-    { id: 'keyboard-shortcuts', label: 'Keyboard Shortcuts', icon: '⌨️' },
+    { 
+      id: 'file-management', 
+      label: 'File Management', 
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+        </svg>
+      )
+    },
+    { 
+      id: 'application', 
+      label: 'Application', 
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      )
+    },
+    { 
+      id: 'keyboard-shortcuts', 
+      label: 'Keyboard Shortcuts', 
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 5H7c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h13c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2z"></path>
+          <path d="M2 12h20"></path>
+          <path d="M12 12v7"></path>
+        </svg>
+      )
+    },
   ];
 
   // Update hotkeys state when initialSettings changes (e.g., when dialog is reopened)
@@ -229,7 +256,7 @@ export function SettingsDialog({
                           : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground')
                         }`}
                     >
-                      <span className="text-base">{section.icon}</span>
+                      <span className="flex-shrink-0">{section.icon}</span>
                       <span>{section.label}</span>
                     </button>
                   ))}
@@ -355,19 +382,19 @@ export function SettingsDialog({
           </div>
 
           {/* Footer */}
-          <div className={`flex-shrink-0 flex items-center justify-end gap-2 py-4 px-6 border-t ${theme === 'light' ? 'border-gray-200/80 bg-gray-50/80' : 'border-border/40 bg-background/60'}`}>
+          <div className={`flex-shrink-0 flex items-center justify-end gap-2 py-3 px-6 border-t ${theme === 'light' ? 'border-gray-200/80 bg-gray-50/80' : 'border-border/40 bg-background/60'}`}>
             <Button
               type="button"
               variant="ghost"
+              size="sm"
               onClick={() => onOpenChange(false)}
-              className={`px-3 py-1.5 text-sm font-medium transition-all duration-200 hover:scale-105 ${theme === 'light' ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'}`}
-            >
+              className={`transition-all duration-200 hover:scale-105 ${theme === 'light' ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'}`}>
               Cancel
             </Button>
             <Button
               type="submit"
-              className={`px-4 py-1.5 text-sm font-medium transition-all duration-200 hover:scale-105 ${theme === 'light' ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md' : 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm hover:shadow-md'}`}
-            >
+              size="sm"
+              className={`transition-all duration-200 hover:scale-105 ${theme === 'light' ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md' : 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm hover:shadow-md'}`}>
               Save Changes
             </Button>
           </div>

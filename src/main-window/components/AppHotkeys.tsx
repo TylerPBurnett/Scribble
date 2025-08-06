@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { AppSettings } from '../../shared/services/settingsService';
-import { useAppHotkeys } from '../../shared/hooks/useAppHotkeys';
+import { useAppHotkeysV2 } from '../../shared/hooks/useAppHotkeysV2';
 // import { HotkeyAction } from '../../shared/services/hotkeyService';
 
 interface AppHotkeysProps {
@@ -21,8 +21,17 @@ export function AppHotkeys({
   onSearch,
   onToggleDarkMode,
 }: AppHotkeysProps) {
+  // Log available hotkeys when settings change
+  useEffect(() => {
+    const hotkeys = settings.hotkeys || {};
+    console.log('AppHotkeys - Settings changed, hotkeys:', Object.entries(hotkeys)
+      .map(([action, key]) => `${action}: ${key}`)
+      .join(', ')
+    );
+  }, [settings]);
+
   // Register global hotkeys
-  useAppHotkeys(
+  useAppHotkeysV2(
     settings,
     {
       newNote: onNewNote,
@@ -35,15 +44,6 @@ export function AppHotkeys({
       enableOnFormTags: true,
     }
   );
-
-  // Log available hotkeys on mount
-  useEffect(() => {
-    const hotkeys = settings.hotkeys || {};
-    console.log('Available hotkeys:', Object.entries(hotkeys)
-      .map(([action, key]) => `${action}: ${key}`)
-      .join(', ')
-    );
-  }, [settings.hotkeys]);
 
   // This component doesn't render anything
   return null;
