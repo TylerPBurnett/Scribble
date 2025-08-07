@@ -126,3 +126,6 @@ verify-*.js
 # Backup files
 *.bak
 *.backup
+
+# Kiro settings (should be user-level, not project-level)
+.kiro/settings/

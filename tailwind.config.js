@@ -30,6 +30,8 @@ export default {
         'background-notes': 'hsl(var(--background-notes))',
         'background-titlebar': 'hsl(var(--background-titlebar))',
         'background-sidebar': 'hsl(var(--background-sidebar))',
+        'background-search': 'hsl(var(--background-search))',
+        'search-hover-outline': 'hsl(var(--search-hover-outline))',
         border: 'hsl(var(--border))',
         text: {
           DEFAULT: 'hsl(var(--foreground))',

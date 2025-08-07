@@ -34,6 +34,8 @@ module.exports = plugin(function({ addBase, addVariant }) {
     '--background-notes': '231 15% 18%',
     '--background-titlebar': '232 14% 15%',
     '--background-sidebar': '232 14% 15%',
+    '--background-search': '231 11% 21%', // #2D2E3A
+    '--search-hover-outline': '232 14% 28%', // #454652
   };
 
   const darkTheme = {
@@ -59,6 +61,8 @@ module.exports = plugin(function({ addBase, addVariant }) {
     '--background-notes': '0 0% 7%',
     '--background-titlebar': '0 0% 10%',
     '--background-sidebar': '0 0% 10%',
+    '--background-search': '0 0% 14%', // #242424
+    '--search-hover-outline': '0 0% 23%', // #3A3A3A
   };
 
   const lightTheme = {
@@ -84,6 +88,8 @@ module.exports = plugin(function({ addBase, addVariant }) {
     '--background-notes': '0 0% 100% / 0',
     '--background-titlebar': '210 20% 98%',
     '--background-sidebar': '210 20% 98%',
+    '--background-search': '240 11% 95%', // #F0F0F3
+    '--search-hover-outline': '240 11% 91%', // #E7E7EA
   };
 
   // Add base styles for themes

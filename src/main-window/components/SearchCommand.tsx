@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Command,
   CommandDialog,
   CommandEmpty,
   CommandGroup,
@@ -10,9 +9,8 @@ import {
   CommandSeparator,
   CommandShortcut,
 } from '@/components/ui/command';
-import { FileText, Clock, Star, Hash, Plus, Settings } from 'lucide-react';
+import { FileText, Clock, Star, Hash, Plus, Settings, Search, Globe } from 'lucide-react';
 import { Note } from '@/shared/types/Note';
-import { formatHotkeyForDisplay } from '@/shared/services/hotkeyService';
 
 interface SearchCommandProps {
   notes: Note[];
@@ -25,6 +23,7 @@ interface SearchCommandProps {
   onOpenChange?: (open: boolean) => void;
   collections?: Array<{ id: string; name: string; noteIds: string[] }>;
   activeCollectionId?: string;
+  compact?: boolean; // Add compact mode for toolbar usage
 }
 
 export const SearchCommand: React.FC<SearchCommandProps> = ({
@@ -38,9 +37,11 @@ export const SearchCommand: React.FC<SearchCommandProps> = ({
   onOpenChange,
   collections = [],
   activeCollectionId = 'all',
+  compact = false,
 }) => {
   const [open, setOpen] = useState(isOpen);
   const [value, setValue] = useState('');
+  const [searchAllNotes, setSearchAllNotes] = useState(false);
 
   useEffect(() => {
     setOpen(isOpen);
@@ -65,8 +66,17 @@ export const SearchCommand: React.FC<SearchCommandProps> = ({
     onSearchChange(newValue);
   }, [onSearchChange]);
 
-  // Filter notes based on search query
+  // Filter notes based on search query and search scope
   const filteredNotes = notes.filter(note => {
+    // First filter by active collection if not searching all notes and not in 'all' collection
+    if (!searchAllNotes && activeCollectionId && activeCollectionId !== 'all') {
+      const activeCollection = collections.find(c => c.id === activeCollectionId);
+      if (activeCollection && !activeCollection.noteIds.includes(note.id)) {
+        return false;
+      }
+    }
+    
+    // Then filter by search query
     if (!value) return true;
     const lowerQuery = value.toLowerCase();
     return (
@@ -84,8 +94,8 @@ export const SearchCommand: React.FC<SearchCommandProps> = ({
   const favoriteNotes = notes.filter(note => note.favorite);
 
   // Format date for display
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+  const formatDate = (dateString: string | Date) => {
+    const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
     const now = new Date();
     const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
     
@@ -113,22 +123,54 @@ export const SearchCommand: React.FC<SearchCommandProps> = ({
     onOpenSettings();
   };
 
+  const handleToggleSearchScope = () => {
+    setSearchAllNotes(!searchAllNotes);
+  };
+
+  // Get the current collection name for display
+  const activeCollectionName = collections.find(c => c.id === activeCollectionId)?.name || 'All Notes';
+  const searchScopeText = searchAllNotes ? 'All Notes' : activeCollectionName;
+
   return (
     <>
       {/* Search Bar (visible when command dialog is closed) */}
       {!open && (
         <div 
-          className="search-container relative w-full max-w-md cursor-pointer"
+          className="search-container w-full cursor-pointer"
           onClick={() => handleOpenChange(true)}
         >
-          <div className="search-icon absolute left-3 top-1/2 transform -translate-y-1/2 text-text-secondary">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <div 
+            className={`search-input flex items-center justify-center gap-1.5 w-full border border-transparent rounded-lg text-text-secondary focus:outline-none hover:border-search-hover-outline hover:shadow-sm transition-all duration-200 shadow-sm ${
+              compact 
+                ? 'py-1 px-6 text-xs' 
+                : 'py-1.5 px-8 text-sm rounded-xl'
+            }`}
+            style={{ 
+              backgroundColor: 'hsl(var(--background-search))',
+              '--hover-bg': 'hsl(var(--background-search) / 0.8)'
+            } as React.CSSProperties}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'hsl(var(--background-search) / 0.8)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'hsl(var(--background-search))';
+            }}
+          >
+            <svg 
+              width={compact ? "14" : "16"} 
+              height={compact ? "14" : "16"} 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="1.5" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+              className="flex-shrink-0 opacity-60"
+            >
               <circle cx="11" cy="11" r="8"></circle>
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
-          </div>
-          <div className="search-input w-full py-1.5 pl-10 pr-4 bg-background-notes/50 border border-background-notes/20 rounded-lg text-sm text-text-secondary focus:outline-none hover:bg-background-notes/60 transition-all duration-200">
-            <span>{searchQuery || 'Search notes...'}</span>
+            <span className="opacity-70 truncate">{searchQuery || 'Scribble'}</span>
           </div>
         </div>
       )}
@@ -155,6 +197,14 @@ export const SearchCommand: React.FC<SearchCommandProps> = ({
               <span>Settings</span>
               <CommandShortcut>⌘,</CommandShortcut>
             </CommandItem>
+            {/* Search Scope Toggle - only show if not in 'All Notes' collection */}
+            {activeCollectionId !== 'all' && (
+              <CommandItem onSelect={handleToggleSearchScope}>
+                {searchAllNotes ? <Search className="mr-2 h-4 w-4" /> : <Globe className="mr-2 h-4 w-4" />}
+                <span>Search in: {searchScopeText}</span>
+                <CommandShortcut>⌘⇧F</CommandShortcut>
+              </CommandItem>
+            )}
           </CommandGroup>
 
           <CommandSeparator />
@@ -162,7 +212,7 @@ export const SearchCommand: React.FC<SearchCommandProps> = ({
           {/* Search Results */}
           {value && filteredNotes.length > 0 && (
             <>
-              <CommandGroup heading={`Search Results (${filteredNotes.length})`}>
+              <CommandGroup heading={`Search Results in ${searchScopeText} (${filteredNotes.length})`}>
                 {filteredNotes.slice(0, 10).map((note) => (
                   <CommandItem
                     key={note.id}

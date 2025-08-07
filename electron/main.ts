@@ -192,8 +192,8 @@ function createMainWindow() {
     // On macOS, use 'hiddenInset' to show the native traffic lights
     // On Windows, use 'hidden' to completely hide the title bar
     titleBarStyle: isMac ? 'hiddenInset' : 'hidden',
-    // Additional macOS-specific settings
-    trafficLightPosition: { x: 20, y: 20 },
+    // Additional macOS-specific settings - adjusted for compact title bar
+    trafficLightPosition: { x: 16, y: 13 },
     // Apply vibrancy configuration on macOS
     ...vibrancyConfig,
     webPreferences: {

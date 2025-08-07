@@ -11,9 +11,10 @@ interface TitleBarProps {
   onMaximize: () => void;
   onClose: () => void;
   className?: string;
+  children?: React.ReactNode;  // Add support for child components
 }
 
-const TitleBar: React.FC<TitleBarProps> = ({ onMinimize, onMaximize, onClose, className = '' }) => {
+const TitleBar: React.FC<TitleBarProps> = ({ onMinimize, onMaximize, onClose, className = '', children }) => {
   const [platform, setPlatform] = useState<'win32' | 'darwin' | 'other'>('other');
 
   // Detect platform on component mount
@@ -84,35 +85,26 @@ const TitleBar: React.FC<TitleBarProps> = ({ onMinimize, onMaximize, onClose, cl
 
   return (
     <div
-      className={`relative flex flex-col h-12 border-b-0 z-20 select-none w-full ${className}`}
+      className={`relative flex flex-col h-10 border-b-0 z-20 select-none w-full ${className}`}
       style={dragStyle}
     >
-      <div className="flex justify-between items-center w-full h-full px-4">
-        {platform === 'darwin' ? (
-          // macOS layout - we need to leave space for the native traffic lights
-          // and center the title in the remaining space
-          <>
-            {/* Empty space for traffic lights (80px) - increased for better spacing */}
-            <div className="w-[80px]"></div>
-
-            {/* Empty space for centered layout */}
-            <div className="flex items-center justify-center flex-grow">
-            </div>
-
-            {/* Empty space to balance the layout */}
-            <div className="w-[80px]"></div>
-          </>
-        ) : (
-          // Windows layout (menu/title on left, controls on right)
-          <>
-            <div className="flex items-center">
-            </div>
-            {renderWindowControls()}
-          </>
+      {/* Content positioned absolutely over the draggable area */}
+      <div className="relative w-full h-full">
+        {/* Platform-specific reserved spaces */}
+        {platform === 'darwin' && (
+          <div className="absolute left-0 w-[72px] h-full flex-shrink-0" />
         )}
+        {platform !== 'darwin' && renderWindowControls() && (
+          <div className="absolute right-0 h-full">
+            {renderWindowControls()}
+          </div>
+        )}
+        
+        {/* Main content - children centered in full window */}
+        <div className="absolute inset-0" style={noDragStyle}>
+          {children}
+        </div>
       </div>
-
-
     </div>
   );
 };

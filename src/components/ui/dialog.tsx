@@ -67,8 +67,8 @@ const DialogOverlay = React.forwardRef<
     <DialogPrimitive.Overlay
       ref={ref}
       className={cn(
-        "fixed inset-0 z-50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-        currentTheme === 'light' ? "bg-black/10" : "bg-black/80", // Lighter overlay for light theme
+        "fixed inset-0 z-50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+        currentTheme === 'light' ? "bg-black/40" : "bg-black/80", // Proper overlay for light theme
         className
       )}
       {...props}

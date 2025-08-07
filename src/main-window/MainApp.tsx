@@ -12,7 +12,7 @@ import { ThemeProvider } from '../shared/services/themeService'
 import { AppHotkeys } from './components/AppHotkeys'
 import { HotkeyDebug } from './components/HotkeyDebug'
 import { CollectionErrorBoundary } from '../shared/components/CollectionErrorBoundary'
-import { AppHeader } from './components/AppHeader'
+import { CompactToolbar } from './components/CompactToolbar'
 import { ToastProvider } from '../shared/components/Toast'
 import PerformanceDashboard from '../shared/components/PerformanceDashboard'
 import { usePerformanceDashboard } from '../shared/hooks/usePerformanceDashboard'
@@ -423,22 +423,15 @@ function MainApp() {
     <ThemeProvider initialSettings={appSettings}>
       <ToastProvider>
         <div className="app-container flex flex-col h-screen text-text font-twitter">
-        {/* Title Bar - Now spans the full width */}
+        {/* Unified Title Bar with integrated toolbar */}
         <TitleBar
           title=""
           onMinimize={() => window.windowControls.minimize()}
           onMaximize={() => window.windowControls.maximize()}
           onClose={() => window.windowControls.close()}
           className="bg-background-titlebar"
-        />
-
-        {/* Content area - main content */}
-        <div className="content-area flex flex-1 overflow-hidden">
-          {/* Main Content */}
-          <div className="main-content main-content-transparent flex flex-col w-full overflow-hidden">
-
-          {/* Header */}
-          <AppHeader
+        >
+          <CompactToolbar
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
             onNewNote={handleNewNote}
@@ -451,6 +444,12 @@ function MainApp() {
             collections={collections}
             activeCollectionId={activeCollectionId}
           />
+        </TitleBar>
+
+        {/* Content area - main content */}
+        <div className="content-area flex flex-1 overflow-hidden">
+          {/* Main Content */}
+          <div className="main-content main-content-transparent flex flex-col w-full overflow-hidden">
 
           {/* Collection Tabs */}
           <CollectionErrorBoundary>
