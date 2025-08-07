@@ -6,6 +6,8 @@ import { getSettings, subscribeToSettingsChanges, AppSettings } from '../../shar
 import { getHotkeys, formatHotkeyForDisplay } from '../../shared/services/hotkeyService';
 import { NoteHotkeys } from './NoteHotkeys';
 import { useDebounce } from '../../shared/hooks/useDebounce';
+import { ColorPicker } from '../../shared/components/ColorPicker';
+import { NOTE_COLOR_OPTIONS, getTextColorForBackground, getDarkerShade } from '../../shared/constants/colors';
 import { 
   noteEditorReducer, 
   initializeStateFromNote, 
@@ -464,17 +466,8 @@ const saveNote = useCallback(async () => {
     };
   }, [showSettingsMenu]);
 
-  // Define color options
-  const colorOptions = [
-    { name: 'Yellow', value: '#fff9c4' }, // Default sticky note color
-    { name: 'White', value: '#ffffff' },
-    { name: 'Black', value: '#333333' },
-    { name: 'Pastel Green', value: '#d0f0c0' },
-    { name: 'Pastel Blue', value: '#b5d8eb' },
-    { name: 'Pastel Purple', value: '#d8c2ef' },
-    { name: 'Pastel Pink', value: '#f4c2c2' },
-    { name: 'Pastel Gray', value: '#d3d3d3' }
-  ];
+  // Use shared color options
+  const colorOptions = NOTE_COLOR_OPTIONS;
 
   // Toggle pin state
   const togglePinState = useCallback(async () => {
@@ -532,45 +525,9 @@ const saveNote = useCallback(async () => {
 
 
 
-  // Function to darken a color for the header
-  const getDarkerShade = (color: string): string => {
-    // For specific colors, return predefined darker shades
-    if (color === '#ffffff') return '#f8f8f8';
-    if (color === '#333333') return '#333333'; // Match the body color for black
-    if (color === '#fff9c4') return '#fff5b1';
-
-    // For pastel gray, return the same color (no darkening)
-    if (color === '#d3d3d3') return color;
-
-    // For other colors, calculate a slightly darker shade
-    try {
-      // Parse the hex color
-      const r = parseInt(color.slice(1, 3), 16);
-      const g = parseInt(color.slice(3, 5), 16);
-      const b = parseInt(color.slice(5, 7), 16);
-
-      // Darken by 10%
-      const darkenFactor = 0.9;
-      const newR = Math.floor(r * darkenFactor);
-      const newG = Math.floor(g * darkenFactor);
-      const newB = Math.floor(b * darkenFactor);
-
-      // Convert back to hex
-      return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
-    } catch (error) {
-      console.error('Error darkening color:', error);
-      return color; // Return original color if there's an error
-    }
-  };
-
-  // Determine text color based on background color
+  // Use shared color helper functions
   const getTextColor = () => {
-    // For dark backgrounds, use white text
-    if (noteColor === '#333333') {
-      return '#ffffff';
-    }
-    // For all other colors (including pastel gray), use black text
-    return '#333333';
+    return getTextColorForBackground(noteColor);
   };
 
   return (
@@ -878,22 +835,24 @@ const saveNote = useCallback(async () => {
                   <div className="divider border-t my-1"></div>
 
                   {/* Background Color section */}
-                  <div className="py-2 px-4">
-                    <div className="section-header">Background Color</div>
-                    <div className="grid grid-cols-8 gap-1">
-                      {colorOptions.map((color) => (
-                        <button
-                          key={color.value}
-                          className={`color-button w-6 h-6 rounded-full ${
-                            noteColor === color.value ? 'selected' : ''
-                          }`}
-                          style={{
-                            backgroundColor: color.value
-                          }}
-                          title={color.name}
-                          onClick={() => changeNoteColor(color.value)}
+                  <div 
+                    className="py-2 px-4 cursor-pointer hover:bg-black/5 transition-colors"
+                    onClick={() => {
+                      dispatch(updateUIState({ showSettingsMenu: false, showColorPicker: true }));
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="section-header">Background Color</span>
+                      <div className="flex items-center gap-1">
+                        <div 
+                          className="w-5 h-5 rounded-full border border-black/20"
+                          style={{ backgroundColor: noteColor }}
+                          title="Current color"
                         />
-                      ))}
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-black/40">
+                          <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                      </div>
                     </div>
                   </div>
 
@@ -1044,6 +1003,15 @@ const saveNote = useCallback(async () => {
           // Toggle color picker
           dispatch(updateUIState({ showColorPicker: !showColorPicker }));
         }}
+      />
+      
+      {/* Color picker using shared component */}
+      <ColorPicker
+        isOpen={showColorPicker}
+        onClose={() => dispatch(updateUIState({ showColorPicker: false }))}
+        currentColor={noteColor}
+        onColorSelect={(color) => changeNoteColor(color)}
+        title="Note Background"
       />
     </div>
   );

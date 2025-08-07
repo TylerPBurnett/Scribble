@@ -4,6 +4,8 @@ import { deleteNote, updateNote } from '../../shared/services/noteService';
 import NoteCollectionManager from './NoteCollectionManager';
 import { useNoteCardPerformance } from '../../shared/hooks/useExpensiveOperations';
 import { useRenderPerformance, useMemoizationTracking } from '../../shared/hooks/usePerformanceMonitoring';
+import { ColorPicker } from '../../shared/components/ColorPicker';
+import { getNoteColorStyle } from '../../shared/constants/colors';
 
 interface NoteCardProps {
   note: Note;
@@ -68,19 +70,6 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
   const { showMenu, showColorPicker, showConfirmDelete, showCollectionManager, menuPosition, isContextMenu, isAnimating } = menuState;
   // Refs for DOM elements
   const noteCardRef = useRef<HTMLDivElement>(null);
-  const colorPickerRef = useRef<HTMLDivElement>(null);
-
-  // Define color options
-  const colorOptions = [
-    { name: 'Yellow', value: '#fff9c4' }, // Default sticky note color
-    { name: 'White', value: '#ffffff' },
-    { name: 'Black', value: '#333333' },
-    { name: 'Pastel Green', value: '#d0f0c0' },
-    { name: 'Pastel Blue', value: '#b5d8eb' },
-    { name: 'Pastel Purple', value: '#d8c2ef' },
-    { name: 'Pastel Pink', value: '#f4c2c2' },
-    { name: 'Pastel Gray', value: '#d3d3d3' }
-  ];
 
   // Effect to handle context menu
   useEffect(() => {
@@ -245,49 +234,8 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
     return plainText.length > 180 ? plainText.substring(0, 180) + '...' : plainText;
   };
 
-  // Get note color styling
-  const getNoteColorStyle = () => {
-    // If note has a custom color, use it
-    if (note.color) {
-      // For dark background, use light text
-      if (note.color === '#333333') {
-        return {
-          backgroundColor: note.color,
-          color: '#ffffff',
-          headerBg: '#333333',
-          footerBg: '#333333'
-        };
-      }
-      // For white background, use dark text
-      else if (note.color === '#ffffff') {
-        return {
-          backgroundColor: note.color,
-          color: '#333333',
-          headerBg: '#f8f8f8',
-          footerBg: '#f8f8f8'
-        };
-      }
-      // For all other colors (including pastel colors), use the same color for header and footer
-      else {
-        return {
-          backgroundColor: note.color,
-          color: note.color === '#d3d3d3' || note.color.startsWith('#') ? '#333333' : '', // Use black text for all custom colors
-          headerBg: note.color,
-          footerBg: note.color
-        };
-      }
-    }
-
-    // Default styling using CSS variables
-    return {
-      backgroundColor: 'hsl(var(--card))',
-      color: 'hsl(var(--card-foreground))',
-      headerBg: '',
-      footerBg: ''
-    };
-  };
-
-  const colorStyle = getNoteColorStyle();
+  // Get note color styling using shared function
+  const colorStyle = getNoteColorStyle(note.color);
 
   return (
     <>
@@ -852,97 +800,39 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
         </div>
       )}
 
-      {/* Modern color picker overlay - positioned within the note card */}
-      {showColorPicker && noteCardRef.current && (
-        <div
-          ref={colorPickerRef}
-          className="absolute inset-0 z-20 flex items-center justify-center rounded-xl overflow-hidden font-twitter color-picker-enter"
-          onClick={(e) => {
-            e.stopPropagation();
-            updateMenuState({ showColorPicker: false });
-          }}
-          style={{
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            backdropFilter: 'blur(3px)'
-          }}
-        >
-          <div
-            className="relative bg-gradient-to-b from-popover to-popover/90 rounded-xl shadow-xl overflow-hidden w-[80%] max-w-[180px] border border-white/10 color-picker-panel"
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.05) inset'
-            }}
-          >
-            {/* Modern header with title */}
-            <div className="flex justify-between items-center px-3 py-2">
-              <h3 className="text-xs font-medium text-text m-0 flex items-center gap-1">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <circle cx="12" cy="12" r="4"></circle>
-                </svg>
-                <span>Note Color</span>
-              </h3>
-              <button
-                className="text-text-tertiary hover:text-text bg-transparent border-none cursor-pointer p-1 rounded-full hover:bg-white/5 transition-colors"
-                onClick={() => updateMenuState({ showColorPicker: false })}
-                aria-label="Close color picker"
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 6L6 18"></path>
-                  <path d="M6 6L18 18"></path>
-                </svg>
-              </button>
-            </div>
-
-            {/* Color options grid with modern styling */}
-            <div className="px-3 pb-3">
-              <div className="grid grid-cols-4 gap-2">
-                {colorOptions.map((color) => (
-                  <button
-                    key={color.value}
-                    className={`w-9 h-9 rounded-full transition-all duration-200
-                      ${note.color === color.value
-                        ? 'ring-1 ring-primary ring-offset-1 ring-offset-background-notes scale-105 shadow-lg'
-                        : 'hover:scale-110 hover:shadow-md border border-white/10'
-                      } focus:outline-none focus:ring-1 focus:ring-primary focus:ring-offset-1 focus:ring-offset-background-notes`}
-                    style={{
-                      backgroundColor: color.value,
-                      transform: note.color === color.value ? 'translateY(-1px)' : 'none'
-                    }}
-                    title={color.name}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // Update note color
-                      const updatedNote = {
-                        ...note,
-                        color: color.value,
-                        // Ensure content is preserved exactly as it was
-                        content: note.content
-                      };
-                      // Update the note in the database
-                      updateNote(updatedNote).then(() => {
-                        // Notify other windows that this note has been updated with the specific property
-                        // This allows the main window to update its state without a full reload
-                        window.noteWindow.noteUpdated(note.id, { color: color.value });
-                        
-                        // PERMANENT FIX: Use the onCollectionUpdate callback to trigger parent refresh
-                        // This directly tells the parent component to refresh its state
-                        if (onCollectionUpdate) {
-                          console.log('NoteCard - Calling onCollectionUpdate to refresh parent state after color change');
-                          onCollectionUpdate();
-                        }
-                        
-                        // Close the color picker
-                        updateMenuState({ showColorPicker: false });
-                      });
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Color picker using shared component */}
+      <ColorPicker
+        isOpen={showColorPicker}
+        onClose={() => updateMenuState({ showColorPicker: false })}
+        currentColor={note.color}
+        onColorSelect={async (color) => {
+          // Update note color
+          const updatedNote = {
+            ...note,
+            color: color,
+            // Ensure content is preserved exactly as it was
+            content: note.content
+          };
+          
+          try {
+            // Update the note in the database
+            await updateNote(updatedNote);
+            
+            // Notify other windows that this note has been updated with the specific property
+            // This allows the main window to update its state without a full reload
+            window.noteWindow.noteUpdated(note.id, { color: color });
+            
+            // PERMANENT FIX: Use the onCollectionUpdate callback to trigger parent refresh
+            // This directly tells the parent component to refresh its state
+            if (onCollectionUpdate) {
+              console.log('NoteCard - Calling onCollectionUpdate to refresh parent state after color change');
+              onCollectionUpdate();
+            }
+          } catch (error) {
+            console.error('Error updating note color:', error);
+          }
+        }}
+      />
 
       {/* Collection Manager Modal */}
       <NoteCollectionManager
