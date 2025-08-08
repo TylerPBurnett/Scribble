@@ -35,7 +35,7 @@ const EssentialToolbar: React.FC<EssentialToolbarProps> = ({
   // Handle link dialog submission
   const handleLinkSubmit = () => {
     console.log('Link dialog submitted with URL:', linkUrl);
-    
+
     if (linkUrl === '') {
       console.log('Removing link');
       editor.chain().focus().unsetLink().run();
@@ -44,7 +44,7 @@ const EssentialToolbar: React.FC<EssentialToolbarProps> = ({
       showMarkdownSyntax(`[${selectedText || 'text'}](${linkUrl})`);
       editor.chain().focus().setLink({ href: linkUrl }).run();
     }
-    
+
     setShowLinkDialog(false);
     setLinkUrl('');
     setSelectedText('');
@@ -64,7 +64,7 @@ const EssentialToolbar: React.FC<EssentialToolbarProps> = ({
     if (existingTooltip) {
       existingTooltip.remove();
     }
-    
+
     // Create tooltip element
     const tooltip = document.createElement('div');
     tooltip.id = 'markdown-syntax-tooltip';
@@ -85,14 +85,14 @@ const EssentialToolbar: React.FC<EssentialToolbarProps> = ({
       transition: opacity 0.2s ease;
       pointer-events: none;
     `;
-    
+
     document.body.appendChild(tooltip);
-    
+
     // Fade in
     setTimeout(() => {
       tooltip.style.opacity = '1';
     }, 10);
-    
+
     // Remove after delay
     setTimeout(() => {
       tooltip.style.opacity = '0';
@@ -110,15 +110,15 @@ const EssentialToolbar: React.FC<EssentialToolbarProps> = ({
       type: 'button',
       icon: (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/>
-          <path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/>
+          <path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z" />
+          <path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z" />
         </svg>
       ),
       label: 'Bold',
       shortcut: 'Ctrl+B',
       action: () => {
         showMarkdownSyntax('**text**');
-        editor.chain().focus().toggleBold().run();
+        editor.chain().toggleBold().run();
       },
       isActive: () => editor.isActive('bold')
     },
@@ -127,14 +127,14 @@ const EssentialToolbar: React.FC<EssentialToolbarProps> = ({
       type: 'button',
       icon: (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M19 4h-9M14 20H5M15 4L9 20"/>
+          <path d="M19 4h-9M14 20H5M15 4L9 20" />
         </svg>
       ),
       label: 'Italic',
       shortcut: 'Ctrl+I',
       action: () => {
         showMarkdownSyntax('*text*');
-        editor.chain().focus().toggleItalic().run();
+        editor.chain().toggleItalic().run();
       },
       isActive: () => editor.isActive('italic')
     },
@@ -143,35 +143,35 @@ const EssentialToolbar: React.FC<EssentialToolbarProps> = ({
       type: 'button',
       icon: (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M16 4H9a3 3 0 0 0-2.83 4"/>
-          <path d="M14 12a4 4 0 0 1 0 8H6"/>
-          <line x1="4" y1="12" x2="20" y2="12"/>
+          <path d="M16 4H9a3 3 0 0 0-2.83 4" />
+          <path d="M14 12a4 4 0 0 1 0 8H6" />
+          <line x1="4" y1="12" x2="20" y2="12" />
         </svg>
       ),
       label: 'Strikethrough',
       shortcut: 'Ctrl+Shift+S',
       action: () => {
         showMarkdownSyntax('~~text~~');
-        editor.chain().focus().toggleStrike().run();
+        editor.chain().toggleStrike().run();
       },
       isActive: () => editor.isActive('strike')
     },
-    
+
     // Separator
     { id: 'sep1', type: 'separator', label: '', shortcut: '' },
-    
+
     // Headings group
     {
       id: 'heading1',
       type: 'button',
       icon: (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M4 12h8m-8-6v12m8-12v12m2-7h4m0-2v4m0 0v4"/>
+          <path d="M4 12h8m-8-6v12m8-12v12m2-7h4m0-2v4m0 0v4" />
         </svg>
       ),
       label: 'Heading 1',
       shortcut: 'Ctrl+Alt+1',
-      action: () => editor.chain().focus().toggleHeading({ level: 1 }).run(),
+      action: () => editor.chain().toggleHeading({ level: 1 }).run(),
       isActive: () => editor.isActive('heading', { level: 1 })
     },
     {
@@ -179,12 +179,12 @@ const EssentialToolbar: React.FC<EssentialToolbarProps> = ({
       type: 'button',
       icon: (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M4 12h8m-8-6v12m8-12v12m1-3h6l-4-4v8"/>
+          <path d="M4 12h8m-8-6v12m8-12v12m1-3h6l-4-4v8" />
         </svg>
       ),
       label: 'Heading 2',
       shortcut: 'Ctrl+Alt+2',
-      action: () => editor.chain().focus().toggleHeading({ level: 2 }).run(),
+      action: () => editor.chain().toggleHeading({ level: 2 }).run(),
       isActive: () => editor.isActive('heading', { level: 2 })
     },
     {
@@ -192,35 +192,35 @@ const EssentialToolbar: React.FC<EssentialToolbarProps> = ({
       type: 'button',
       icon: (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M4 12h8m-8-6v12m8-12v12m2-3h4c1 0 2-1 2-2s-1-2-2-2-2 1-2 2"/>
+          <path d="M4 12h8m-8-6v12m8-12v12m2-3h4c1 0 2-1 2-2s-1-2-2-2-2 1-2 2" />
         </svg>
       ),
       label: 'Heading 3',
       shortcut: 'Ctrl+Alt+3',
-      action: () => editor.chain().focus().toggleHeading({ level: 3 }).run(),
+      action: () => editor.chain().toggleHeading({ level: 3 }).run(),
       isActive: () => editor.isActive('heading', { level: 3 })
     },
-    
+
     // Separator
     { id: 'sep2', type: 'separator', label: '', shortcut: '' },
-    
+
     // Lists group
     {
       id: 'bulletList',
       type: 'button',
       icon: (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <line x1="8" y1="6" x2="21" y2="6"/>
-          <line x1="8" y1="12" x2="21" y2="12"/>
-          <line x1="8" y1="18" x2="21" y2="18"/>
-          <line x1="3" y1="6" x2="3.01" y2="6"/>
-          <line x1="3" y1="12" x2="3.01" y2="12"/>
-          <line x1="3" y1="18" x2="3.01" y2="18"/>
+          <line x1="8" y1="6" x2="21" y2="6" />
+          <line x1="8" y1="12" x2="21" y2="12" />
+          <line x1="8" y1="18" x2="21" y2="18" />
+          <line x1="3" y1="6" x2="3.01" y2="6" />
+          <line x1="3" y1="12" x2="3.01" y2="12" />
+          <line x1="3" y1="18" x2="3.01" y2="18" />
         </svg>
       ),
       label: 'Bullet List',
       shortcut: 'Ctrl+Shift+8',
-      action: () => editor.chain().focus().toggleBulletList().run(),
+      action: () => editor.chain().toggleBulletList().run(),
       isActive: () => editor.isActive('bulletList')
     },
     {
@@ -228,17 +228,17 @@ const EssentialToolbar: React.FC<EssentialToolbarProps> = ({
       type: 'button',
       icon: (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <line x1="10" y1="6" x2="21" y2="6"/>
-          <line x1="10" y1="12" x2="21" y2="12"/>
-          <line x1="10" y1="18" x2="21" y2="18"/>
-          <path d="M4 6h1v4"/>
-          <path d="M4 10h2"/>
-          <path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/>
+          <line x1="10" y1="6" x2="21" y2="6" />
+          <line x1="10" y1="12" x2="21" y2="12" />
+          <line x1="10" y1="18" x2="21" y2="18" />
+          <path d="M4 6h1v4" />
+          <path d="M4 10h2" />
+          <path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1" />
         </svg>
       ),
       label: 'Numbered List',
       shortcut: 'Ctrl+Shift+7',
-      action: () => editor.chain().focus().toggleOrderedList().run(),
+      action: () => editor.chain().toggleOrderedList().run(),
       isActive: () => editor.isActive('orderedList')
     },
     {
@@ -246,33 +246,33 @@ const EssentialToolbar: React.FC<EssentialToolbarProps> = ({
       type: 'button',
       icon: (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M9 11l3 3L22 4"/>
-          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          <path d="M9 11l3 3L22 4" />
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
         </svg>
       ),
       label: 'Task List',
       shortcut: 'Ctrl+Shift+9',
-      action: () => editor.chain().focus().toggleTaskList().run(),
+      action: () => editor.chain().toggleTaskList().run(),
       isActive: () => editor.isActive('taskList')
     },
-    
+
     // Separator
     { id: 'sep3', type: 'separator', label: '', shortcut: '' },
-    
+
     // Content group
     {
       id: 'inlineCode',
       type: 'button',
       icon: (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+          <path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
         </svg>
       ),
       label: 'Inline Code',
       shortcut: 'Ctrl+E',
       action: () => {
         showMarkdownSyntax('`code`');
-        editor.chain().focus().toggleCode().run();
+        editor.chain().toggleCode().run();
       },
       isActive: () => editor.isActive('code')
     },
@@ -281,8 +281,8 @@ const EssentialToolbar: React.FC<EssentialToolbarProps> = ({
       type: 'button',
       icon: (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
         </svg>
       ),
       label: 'Link',
@@ -292,12 +292,12 @@ const EssentialToolbar: React.FC<EssentialToolbarProps> = ({
         try {
           const previousUrl = editor.getAttributes('link').href;
           console.log('Previous URL:', previousUrl);
-          
+
           // Get selected text for the dialog
           const { from, to } = editor.state.selection;
           const currentSelectedText = editor.state.doc.textBetween(from, to);
           console.log('Selected text:', currentSelectedText);
-          
+
           // Set up the dialog state
           setSelectedText(currentSelectedText);
           setLinkUrl(previousUrl || '');
@@ -313,13 +313,13 @@ const EssentialToolbar: React.FC<EssentialToolbarProps> = ({
       type: 'button',
       icon: (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"/>
-          <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"/>
+          <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z" />
+          <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z" />
         </svg>
       ),
       label: 'Blockquote',
       shortcut: 'Ctrl+Shift+.',
-      action: () => editor.chain().focus().toggleBlockquote().run(),
+      action: () => editor.chain().toggleBlockquote().run(),
       isActive: () => editor.isActive('blockquote')
     },
     {
@@ -327,13 +327,13 @@ const EssentialToolbar: React.FC<EssentialToolbarProps> = ({
       type: 'button',
       icon: (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <polyline points="16 18 22 12 16 6"/>
-          <polyline points="8 6 2 12 8 18"/>
+          <polyline points="16 18 22 12 16 6" />
+          <polyline points="8 6 2 12 8 18" />
         </svg>
       ),
       label: 'Code Block',
       shortcut: 'Ctrl+Alt+C',
-      action: () => editor.chain().focus().toggleCodeBlock().run(),
+      action: () => editor.chain().toggleCodeBlock().run(),
       isActive: () => editor.isActive('codeBlock')
     }
   ];
@@ -370,7 +370,7 @@ const EssentialToolbar: React.FC<EssentialToolbarProps> = ({
       <div className="essential-toolbar-content">
         {toolbarItems.map(renderToolbarItem)}
       </div>
-      
+
       <button
         className="essential-toolbar-toggle"
         onClick={onToggle}
@@ -378,7 +378,7 @@ const EssentialToolbar: React.FC<EssentialToolbarProps> = ({
         type="button"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <polyline points="6 9 12 15 18 9"/>
+          <polyline points="6 9 12 15 18 9" />
         </svg>
       </button>
 

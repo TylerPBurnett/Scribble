@@ -220,7 +220,7 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
   // Get a preview of the content (strip HTML and limit length)
   const getContentPreview = (content: string) => {
     // Remove HTML tags but preserve line breaks and basic formatting
-    const plainText = content
+    let plainText = content
       .replace(/<br\s*\/?>/gi, '\n')  // Convert <br> to newlines
       .replace(/<p[^>]*>/gi, '')      // Remove opening <p> tags
       .replace(/<\/p>/gi, '\n')       // Convert closing </p> tags to newlines
@@ -229,6 +229,19 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
       .replace(/<li[^>]*>/gi, '• ')   // Convert list items to bullets
       .replace(/<\/li>/gi, '\n')      // Add newlines after list items
       .replace(/<[^>]*>/g, '');       // Remove all other HTML tags
+
+    // Decode HTML entities (including &nbsp;, &amp;, &lt;, &gt;, etc.)
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = plainText;
+    plainText = tempDiv.textContent || tempDiv.innerText || '';
+
+    // Clean up extra whitespace while preserving line breaks
+    plainText = plainText
+      .replace(/[ \t]+/g, ' ')        // Replace multiple spaces/tabs with single space (preserve newlines)
+      .replace(/\n\s*\n\s*\n/g, '\n\n') // Replace 3+ newlines with double newline
+      .replace(/^\s+|\s+$/g, '')      // Remove leading/trailing whitespace
+      .replace(/\n /g, '\n')          // Remove spaces at the beginning of lines
+      .replace(/ \n/g, '\n');         // Remove spaces at the end of lines
 
     // Limit to 180 characters for more content display
     return plainText.length > 180 ? plainText.substring(0, 180) + '...' : plainText;

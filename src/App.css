@@ -196,6 +196,28 @@
   font-style: italic;
 }
 
+/* Note card content preview - match editor line spacing */
+.note-content {
+  line-height: 1.3 !important; /* Match editor line height */
+}
+
+/* Ensure whitespace-pre-line respects tight line spacing */
+.whitespace-pre-line {
+  line-height: 1.3 !important;
+}
+
+/* Note card specific text spacing */
+.note-card .note-content {
+  line-height: 1.3 !important;
+}
+
+.note-card p,
+.note-card div {
+  margin: 0;
+  padding: 0;
+  line-height: 1.3;
+}
+
 /* Note window styles */
 .note-window {
   height: 100vh;

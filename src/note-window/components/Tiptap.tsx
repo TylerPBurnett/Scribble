@@ -1,21 +1,16 @@
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import Paragraph from '@tiptap/extension-paragraph'
+import { ListKit } from '@tiptap/extension-list'
 import TaskItem from '@tiptap/extension-task-item'
 import TaskList from '@tiptap/extension-task-list'
-import Text from '@tiptap/extension-text'
 import Highlight from '@tiptap/extension-highlight'
 import Typography from '@tiptap/extension-typography'
 import Placeholder from '@tiptap/extension-placeholder'
 import Image from '@tiptap/extension-image'
 import Link from '@tiptap/extension-link'
-import CodeBlock from '@tiptap/extension-code-block'
-import Code from '@tiptap/extension-code'
-import Strike from '@tiptap/extension-strike'
 import TextAlign from '@tiptap/extension-text-align'
 import Underline from '@tiptap/extension-underline'
 
-import Blockquote from '@tiptap/extension-blockquote'
 import { useEffect, useState, useRef, forwardRef, useImperativeHandle } from 'react'
 import EssentialToolbar from './EssentialToolbar'
 import { getSettings } from '../../shared/services/settingsService'
@@ -57,83 +52,156 @@ const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
 
   const editor = useEditor({
     extensions: [
+      // Core extensions - StarterKit provides the foundation
       StarterKit.configure({
-        // Keep the built-in list extensions for proper nesting support
-        // We'll add our visual enhancements on top
-        blockquote: false, // We'll configure this explicitly
-        // Disable built-in code and strike to use our enhanced versions
-        code: false,
-        strike: false,
-      }),
-      Paragraph,
-      Text,
-      Highlight,
-      Typography,
-      // Task list extensions (not included in StarterKit)
-      TaskList,
-      TaskItem,
-      // Add blockquote support
-      Blockquote.configure({
-        HTMLAttributes: {
-          class: 'blockquote',
+        // Configure heading levels for better structure
+        heading: {
+          levels: [1, 2, 3, 4, 5, 6],
+        },
+        // Keep default list extensions disabled since we use ListKit
+        bulletList: false,
+        orderedList: false,
+        listItem: false,
+        // Configure other built-in extensions
+        codeBlock: {
+          HTMLAttributes: {
+            class: 'code-block',
+          },
+        },
+        code: {
+          HTMLAttributes: {
+            class: 'inline-code',
+          },
+        },
+        strike: {
+          HTMLAttributes: {
+            class: 'strikethrough',
+          },
+        },
+        blockquote: {
+          HTMLAttributes: {
+            class: 'blockquote',
+          },
         },
       }),
-      Placeholder.configure({
-        placeholder,
+
+      // List extensions - Use ListKit for better integration
+      ListKit.configure({
+        bulletList: {
+          HTMLAttributes: {
+            class: 'bullet-list',
+          },
+        },
+        orderedList: {
+          HTMLAttributes: {
+            class: 'ordered-list',
+          },
+        },
+        listItem: {
+          HTMLAttributes: {
+            class: 'list-item',
+          },
+        },
       }),
-      Image,
+
+      // Task list extensions (not included in ListKit)
+      TaskList.configure({
+        HTMLAttributes: {
+          class: 'task-list',
+        },
+      }),
+      TaskItem.configure({
+        nested: true,
+        HTMLAttributes: {
+          class: 'task-list-item',
+        },
+      }),
+
+      // Text styling extensions
+      Highlight.configure({
+        multicolor: true,
+        HTMLAttributes: {
+          class: 'highlight',
+        },
+      }),
+      Typography,
+      TextAlign.configure({
+        types: ['heading', 'paragraph'],
+        alignments: ['left', 'center', 'right', 'justify'],
+        defaultAlignment: 'left',
+      }),
+      Underline,
+
+      // Media and link extensions
+      Image.configure({
+        inline: true,
+        allowBase64: true,
+        HTMLAttributes: {
+          class: 'editor-image',
+        },
+      }),
       Link.configure({
         openOnClick: false,
+        autolink: true,
+        defaultProtocol: 'https',
+        protocols: ['http', 'https', 'ftp', 'mailto'],
         HTMLAttributes: {
           rel: 'noopener noreferrer',
           target: '_blank',
+          class: 'editor-link',
         },
       }),
-      CodeBlock,
-      // Add explicit Code and Strike extensions for better control
-      Code.configure({
-        HTMLAttributes: {
-          class: 'inline-code',
-        },
+
+      // UI extensions
+      Placeholder.configure({
+        placeholder,
+        includeChildren: true,
+        showOnlyCurrent: false,
       }),
-      Strike.configure({
-        HTMLAttributes: {
-          class: 'strikethrough',
-        },
-      }),
-      TextAlign.configure({
-        types: ['heading', 'paragraph'],
-      }),
-      Underline,
-      // Add our custom extensions
-      // MarkdownShortcuts, // Temporarily disabled to test nesting
+
+      // Custom extensions
       EnhancedListHandling,
+
+      // Obsidian-style editing: Show markdown syntax when cursor is in element
+      // ObsidianStyleEditing.configure({
+      //   types: ['heading', 'bulletList', 'orderedList', 'taskList', 'blockquote'],
+      // }),
     ],
     content,
     autofocus,
     editable,
+    // Optimize editor performance
+    enableInputRules: true,
+    enablePasteRules: true,
+    enableCoreExtensions: true,
+    injectCSS: false, // We handle CSS ourselves
+
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
-      // Debug logging to see what HTML is being saved
-      if (html.includes('<ol>') || html.includes('<ul>')) {
+      // Debug logging to see what HTML is being saved (only in development)
+      if (process.env.NODE_ENV === 'development' && (html.includes('<ol>') || html.includes('<ul>'))) {
         console.log('💾 SAVING HTML:', html);
         console.log('📝 HTML structure:', html.replace(/></g, '>\n<'));
       }
       onUpdate?.(html);
     },
+
     editorProps: {
       attributes: {
         class: 'tiptap-editor-instance',
         spellcheck: 'true',
+        'data-testid': 'tiptap-editor',
       },
+
       handleClick: () => {
         // Ensure editor is focused when clicked
         if (editor && !editor.isFocused) {
-          editor.commands.focus('end');
+          editor.commands.focus();
         }
         return false; // Let the default click handler run
       },
-      // Enhanced cursor handling
+
+      // Enhanced cursor and interaction handling
       handleDOMEvents: {
         focus: () => {
           // Force cursor visibility on focus
@@ -145,6 +213,7 @@ const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
           }
           return false;
         },
+
         click: () => {
           // Force cursor visibility on click
           const cursor = document.querySelector('.ProseMirror-cursor');
@@ -154,6 +223,18 @@ const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
             (cursor as HTMLElement).style.borderLeftColor = '#000';
           }
           return false;
+        },
+
+        // Improve paste handling
+        paste: () => {
+          // Let Tiptap handle paste events naturally
+          return false;
+        },
+
+        // Improve drop handling for better UX
+        drop: () => {
+          // Let Tiptap handle drop events naturally
+          return false;
         }
       }
     },
@@ -162,8 +243,9 @@ const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
   // Expose focus method and toolbar controls via ref
   useImperativeHandle(ref, () => ({
     focus: () => {
-      if (editor) {
-        editor.commands.focus('end');
+      if (editor && !editor.isDestroyed) {
+        // Use 'start' for better UX - cursor goes to beginning of content
+        editor.commands.focus('start');
       }
     },
     toggleToolbar: () => {
@@ -175,38 +257,51 @@ const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
   }), [editor, isToolbarVisible]);
 
   useEffect(() => {
-    if (editor && content) {
+    if (editor && content && !editor.isDestroyed) {
       // Only update content if it's different from current content
       const currentContent = editor.getHTML();
       if (currentContent !== content) {
-        // Debug logging to see what content is being loaded
-        if (content.includes('<ol>') || content.includes('<ul>')) {
+        // Debug logging to see what content is being loaded (only in development)
+        if (process.env.NODE_ENV === 'development' && (content.includes('<ol>') || content.includes('<ul>'))) {
           console.log('🔄 Loading HTML content:', content);
           console.log('📥 Content structure:', content.replace(/></g, '>\n<'));
         }
 
-        // Set the content
-        editor.commands.setContent(content);
+        // Set the content with proper error handling
+        try {
+          editor.commands.setContent(content, false, {
+            preserveWhitespace: 'full',
+          });
+        } catch (error) {
+          console.error('Error setting editor content:', error);
+          // Fallback to empty paragraph if content is invalid
+          editor.commands.setContent('<p></p>');
+        }
 
-        // Debug logging to see what HTML is generated after loading
-        setTimeout(() => {
-          const newHTML = editor.getHTML();
-          if (newHTML.includes('<ol>') || newHTML.includes('<ul>')) {
-            console.log('✅ HTML after loading:', newHTML);
-            console.log('🔍 Final structure:', newHTML.replace(/></g, '>\n<'));
-          }
-          // Refresh decorations after content is loaded
-          editor.commands.refreshListDecorations();
-        }, 100);
+        // Debug logging and refresh decorations after content is loaded
+        if (process.env.NODE_ENV === 'development') {
+          setTimeout(() => {
+            const newHTML = editor.getHTML();
+            if (newHTML.includes('<ol>') || newHTML.includes('<ul>')) {
+              console.log('✅ HTML after loading:', newHTML);
+              console.log('🔍 Final structure:', newHTML.replace(/></g, '>\n<'));
+            }
+            // Refresh decorations after content is loaded
+            if (editor.commands.refreshListDecorations) {
+              editor.commands.refreshListDecorations();
+            }
+          }, 100);
+        }
       }
     }
   }, [editor, content]);
 
   // Ensure editor is focused when component mounts
   useEffect(() => {
-    if (editor && autofocus) {
+    if (editor && autofocus && !editor.isDestroyed) {
       // Short delay to ensure DOM is ready
       const focusTimer = setTimeout(() => {
+        // Focus at the end of content for better UX
         editor.commands.focus('end');
 
         // Force cursor visibility
@@ -316,8 +411,8 @@ const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
         className={`tiptap-content ${editorClass}`}
         style={{ backgroundColor: backgroundColor || '' }}
         onClick={() => {
-          if (editor && !editor.isFocused) {
-            editor.commands.focus('end');
+          if (editor && !editor.isFocused && !editor.isDestroyed) {
+            editor.commands.focus();
           }
           // Force cursor visibility
           const cursor = document.querySelector('.ProseMirror-cursor');
@@ -328,8 +423,8 @@ const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
           }
         }}
         onFocus={() => {
-          if (editor) {
-            editor.commands.focus('end');
+          if (editor && !editor.isDestroyed) {
+            editor.commands.focus();
           }
         }}
       />

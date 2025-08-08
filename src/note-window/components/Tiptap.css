@@ -68,7 +68,7 @@
   flex: 1;
   padding: 16px 16px 8px 16px; /* Reduced bottom padding */
   overflow-y: auto;
-  line-height: 1.5;
+  line-height: 1.3; /* Tighter line height for minimal spacing */
   /* Background color is now set by the parent component */
   color: #333;
   font-family: 'Chirp', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
@@ -78,34 +78,43 @@
 }
 
 .tiptap-content p {
-  margin: 0.5em 0;
+  margin: 0; /* No margins between paragraphs */
+  padding: 0; /* No padding either */
+  line-height: 1.3; /* Ensure consistent tight line height */
 }
 
 .tiptap-content h1 {
   font-size: 1.8em;
-  margin: 0.8em 0 0.4em;
+  margin: 0.5em 0 0.25em; /* Reduced spacing to match standard editors */
 }
 
 .tiptap-content h2 {
   font-size: 1.5em;
-  margin: 0.7em 0 0.3em;
+  margin: 0.4em 0 0.2em; /* Reduced spacing */
 }
 
 .tiptap-content h3 {
   font-size: 1.3em;
-  margin: 0.6em 0 0.3em;
+  margin: 0.35em 0 0.15em; /* Reduced spacing */
+}
+
+/* Add some space before headings when they follow other content */
+.tiptap-content p + h1,
+.tiptap-content p + h2,
+.tiptap-content p + h3 {
+  margin-top: 0.5em;
 }
 
 .tiptap-content ul, .tiptap-content ol {
   padding-left: 1.5em;
-  margin: 0.5em 0;
+  margin: 0.25em 0; /* Reduced margin to match standard spacing */
 }
 
 /* Improved list styling */
 .tiptap-content ul li,
 .tiptap-content ol li {
   position: relative;
-  margin: 0.2em 0;
+  margin: 0.1em 0; /* Tighter list item spacing */
 }
 
 /* Ensure proper bullet display */
@@ -123,7 +132,7 @@
 .tiptap-content ol ol,
 .tiptap-content ul ol,
 .tiptap-content ol ul {
-  margin: 0.2em 0 0.2em 1em;
+  margin: 0.1em 0 0.1em 1em; /* Tighter nested list spacing */
 }
 
 /* Nested bullet types */
@@ -137,13 +146,13 @@
 
 /* Fix for list item spacing */
 .tiptap-content li p {
-  margin: 0;
+  margin: 0; /* No margin for paragraphs within list items */
 }
 
 .tiptap-content blockquote {
   border-left: 3px solid rgba(0, 0, 0, 0.2);
   padding-left: 1em;
-  margin-left: 0;
+  margin: 0.25em 0; /* Consistent with paragraph spacing */
   color: #555;
   background-color: rgba(255, 255, 255, 0.3);
 }
@@ -190,21 +199,25 @@
 }
 
 .tiptap-content .task-list {
-  list-style-type: none;
-  padding-left: 1.5em; /* Match other lists */
-  margin: 0.5em 0;
+  list-style-type: none !important;
+  padding-left: 0 !important; /* No left padding for task lists */
+  margin: 0.25em 0; /* Consistent with other lists */
 }
 
 .tiptap-content .task-list-item {
   display: flex;
   align-items: flex-start;
-  margin: 0.2em 0;
+  margin: 0.1em 0; /* Tighter task item spacing */
   position: relative;
+  list-style: none !important; /* Ensure no bullets */
+  padding-left: 0 !important; /* No padding */
 }
 
+.tiptap-content .task-list-item input[type="checkbox"],
 .tiptap-content .task-list-item-checkbox {
   margin-right: 0.5em;
-  margin-top: 0.3em;
+  margin-top: 0.1em;
+  margin-left: 0;
   appearance: none;
   -webkit-appearance: none;
   width: 1em;
@@ -214,13 +227,16 @@
   background-color: rgba(255, 255, 255, 0.5);
   cursor: pointer;
   position: relative;
+  flex-shrink: 0; /* Prevent checkbox from shrinking */
 }
 
+.tiptap-content .task-list-item input[type="checkbox"]:checked,
 .tiptap-content .task-list-item-checkbox:checked {
   background-color: rgba(0, 120, 212, 0.2);
   border-color: rgba(0, 120, 212, 0.5);
 }
 
+.tiptap-content .task-list-item input[type="checkbox"]:checked::after,
 .tiptap-content .task-list-item-checkbox:checked::after {
   content: '✓';
   position: absolute;
@@ -284,14 +300,14 @@
 
 /* Ensure proper spacing between list items */
 .ProseMirror li + li {
-  margin-top: 0.2em;
+  margin-top: 0.1em; /* Tighter spacing between consecutive list items */
 }
 
 /* Ensure proper spacing for nested lists */
 .ProseMirror li > ul,
 .ProseMirror li > ol {
-  margin-top: 0.2em;
-  margin-bottom: 0.2em;
+  margin-top: 0.1em;
+  margin-bottom: 0.1em; /* Tighter nested list margins */
 }
 
 /* Toolbar toggle state */
@@ -308,6 +324,7 @@
   cursor: text !important;
   position: relative;
   z-index: 1;
+  line-height: 1.3; /* Ensure base line height is tight */
 }
 
 .ProseMirror-focused {
@@ -328,6 +345,20 @@
 .ProseMirror blockquote {
   caret-color: #333 !important;
   cursor: text !important;
+}
+
+/* Override any default paragraph spacing from ProseMirror */
+.ProseMirror p {
+  margin-block-start: 0 !important;
+  margin-block-end: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+/* Ensure consecutive paragraphs have minimal gap */
+.ProseMirror p + p {
+  margin-top: 0;
+  padding-top: 0;
 }
 
 /* Specific styling for our editor instance */
@@ -351,6 +382,9 @@
 .ProseMirror p {
   caret-color: #000 !important;
   cursor: text !important;
+  margin: 0; /* No margins */
+  padding: 0; /* No padding */
+  line-height: 1.3; /* Tight line height */
 }
 
 /* Force cursor visibility in the editor */
@@ -651,65 +685,192 @@
 }
 
 /* Enhanced task list styling */
-.tiptap-content .task-list {
-  list-style-type: none;
-  padding-left: 0;
-  margin: 0.5em 0;
+.tiptap-content .task-list,
+.ProseMirror ul[data-type="taskList"] {
+  list-style-type: none !important;
+  padding-left: 0 !important;
+  margin: 0.25em 0; /* Consistent with standard spacing */
 }
 
-.tiptap-content .task-list-item {
+.tiptap-content .task-list-item,
+.ProseMirror li[data-type="taskItem"] {
   display: flex;
   align-items: flex-start;
-  margin: 0.3em 0;
+  margin: 0.15em 0; /* Reduced spacing between task items */
   position: relative;
-  padding-left: 1.8em;
-  line-height: 1.4;
+  padding-left: 0 !important; /* No left padding */
+  line-height: 1.3; /* Match main content line height */
+  list-style: none !important;
 }
 
-.tiptap-content .task-list-item-checkbox {
-  position: absolute;
-  left: 0;
-  top: 0.2em;
+/* Ensure task list item content is on same line as checkbox */
+.tiptap-content .task-list-item > div,
+.ProseMirror li[data-type="taskItem"] > div {
+  display: inline-block;
+  flex: 1;
   margin: 0;
+  padding: 0;
+}
+
+.tiptap-content .task-list-item input[type="checkbox"],
+.tiptap-content .task-list-item-checkbox,
+.ProseMirror li[data-type="taskItem"] > input[type="checkbox"] {
+  position: relative !important;
+  left: auto !important;
+  top: auto !important;
+  margin: 0 0.6em 0 0 !important;
   appearance: none;
   -webkit-appearance: none;
-  width: 1.1em;
-  height: 1.1em;
-  border: 2px solid rgba(0, 0, 0, 0.3);
-  border-radius: 3px;
-  background-color: rgba(255, 255, 255, 0.8);
+  width: 1.2em;
+  height: 1.2em;
+  border: 2px solid #d1d5db;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
   cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+  vertical-align: middle;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+  position: relative;
+  overflow: hidden;
+}
+
+.tiptap-content .task-list-item input[type="checkbox"]:hover,
+.tiptap-content .task-list-item-checkbox:hover {
+  border-color: #3b82f6;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  box-shadow: 0 4px 6px rgba(59, 130, 246, 0.1), 0 2px 4px rgba(59, 130, 246, 0.06);
+  transform: translateY(-1px);
+}
+
+.tiptap-content .task-list-item input[type="checkbox"]:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(59, 130, 246, 0.2);
+}
+
+.tiptap-content .task-list-item input[type="checkbox"]:checked,
+.tiptap-content .task-list-item-checkbox:checked {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  border-color: #3b82f6;
+  box-shadow: 0 4px 6px rgba(59, 130, 246, 0.25), 0 2px 4px rgba(59, 130, 246, 0.15);
+}
+
+.tiptap-content .task-list-item input[type="checkbox"]:checked::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0.4em;
+  height: 0.7em;
+  border: 2px solid white;
+  border-top: none;
+  border-left: none;
+  transform: translate(-50%, -60%) rotate(45deg);
+  opacity: 0;
+  animation: checkmark 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.tiptap-content .task-list-item input[type="checkbox"]:checked::after,
+.tiptap-content .task-list-item-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+  opacity: 0;
+  animation: ripple 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes checkmark {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -60%) rotate(45deg) scale(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -60%) rotate(45deg) scale(1.2);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -60%) rotate(45deg) scale(1);
+  }
+}
+
+@keyframes ripple {
+  0% {
+    opacity: 0.8;
+    transform: scale(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2);
+  }
+}
+
+/* Focus states for accessibility */
+.tiptap-content .task-list-item input[type="checkbox"]:focus,
+.tiptap-content .task-list-item-checkbox:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2), 0 4px 6px rgba(59, 130, 246, 0.1);
+}
+
+.dark-theme .tiptap-content .task-list-item input[type="checkbox"]:focus,
+.dark-theme .tiptap-content .task-list-item-checkbox:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.3), 0 4px 6px rgba(96, 165, 250, 0.2);
+}
+
+/* Subtle hover effect for task list items */
+.tiptap-content .task-list-item:hover {
+  background-color: rgba(59, 130, 246, 0.02);
+  border-radius: 6px;
+  padding: 2px 4px;
+  margin: -2px -4px;
   transition: all 0.2s ease;
 }
 
-.tiptap-content .task-list-item-checkbox:hover {
-  border-color: rgba(59, 130, 246, 0.6);
-  background-color: rgba(59, 130, 246, 0.1);
-}
-
-.tiptap-content .task-list-item-checkbox:checked {
-  background-color: rgba(59, 130, 246, 0.8);
-  border-color: rgba(59, 130, 246, 0.8);
-}
-
-.tiptap-content .task-list-item-checkbox:checked::after {
-  content: '✓';
-  position: absolute;
-  top: -0.1em;
-  left: 0.15em;
-  font-size: 0.8em;
-  color: white;
-  font-weight: bold;
+.dark-theme .tiptap-content .task-list-item:hover {
+  background-color: rgba(96, 165, 250, 0.05);
 }
 
 /* Completed task styling */
+.tiptap-content .task-list-item:has(input[type="checkbox"]:checked),
 .tiptap-content .task-list-item:has(.task-list-item-checkbox:checked) {
-  opacity: 0.7;
+  opacity: 0.75;
+  transition: opacity 0.3s ease;
 }
 
+.tiptap-content .task-list-item:has(input[type="checkbox"]:checked) p,
 .tiptap-content .task-list-item:has(.task-list-item-checkbox:checked) p {
   text-decoration: line-through;
-  color: rgba(0, 0, 0, 0.6);
+  text-decoration-color: #9ca3af;
+  text-decoration-thickness: 1.5px;
+  color: #6b7280;
+  transition: all 0.3s ease;
+}
+
+.tiptap-content .task-list-item:has(input[type="checkbox"]:checked) p::before,
+.tiptap-content .task-list-item:has(.task-list-item-checkbox:checked) p::before {
+  content: '';
+  position: absolute;
+  left: -0.5em;
+  top: 50%;
+  width: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, #9ca3af 50%, transparent 100%);
+  animation: strikethrough 0.4s ease-out forwards;
+}
+
+@keyframes strikethrough {
+  0% {
+    width: 0;
+  }
+  100% {
+    width: calc(100% + 1em);
+  }
 }
 
 /* Enhanced nested list indentation */
@@ -717,19 +878,19 @@
 .tiptap-content ol ol,
 .tiptap-content ul ol,
 .tiptap-content ol ul {
-  margin: 0.2em 0 0.2em 0;
+  margin: 0.1em 0 0.1em 0; /* Tighter nested list spacing */
   padding-left: 1.5em;
 }
 
 /* Improved list item spacing and alignment */
 .tiptap-content li {
   position: relative;
-  margin: 0.15em 0;
-  line-height: 1.4;
+  margin: 0.1em 0; /* Tighter list item spacing */
+  line-height: 1.3; /* Match main content line height */
 }
 
 .tiptap-content li p {
-  margin: 0;
+  margin: 0; /* No margin for paragraphs in lists */
   line-height: inherit;
 }
 
@@ -778,18 +939,37 @@
   border-left-color: rgba(236, 72, 153, 0.5);
 }
 
-.dark-theme .tiptap-content .task-list-item-checkbox {
-  border-color: rgba(255, 255, 255, 0.4);
-  background-color: rgba(255, 255, 255, 0.1);
+.dark-theme .tiptap-content .task-list-item input[type="checkbox"],
+.dark-theme .tiptap-content .task-list-item-checkbox,
+.dark-theme .ProseMirror li[data-type="taskItem"] > input[type="checkbox"] {
+  border-color: #4b5563;
+  background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
+.dark-theme .tiptap-content .task-list-item input[type="checkbox"]:hover,
 .dark-theme .tiptap-content .task-list-item-checkbox:hover {
-  border-color: rgba(59, 130, 246, 0.8);
-  background-color: rgba(59, 130, 246, 0.2);
+  border-color: #60a5fa;
+  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+  box-shadow: 0 4px 6px rgba(96, 165, 250, 0.2), 0 2px 4px rgba(96, 165, 250, 0.1);
 }
 
+.dark-theme .tiptap-content .task-list-item input[type="checkbox"]:checked,
+.dark-theme .tiptap-content .task-list-item-checkbox:checked {
+  background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+  border-color: #60a5fa;
+  box-shadow: 0 4px 6px rgba(96, 165, 250, 0.3), 0 2px 4px rgba(96, 165, 250, 0.2);
+}
+
+.dark-theme .tiptap-content .task-list-item:has(input[type="checkbox"]:checked) p,
 .dark-theme .tiptap-content .task-list-item:has(.task-list-item-checkbox:checked) p {
-  color: rgba(255, 255, 255, 0.6);
+  color: #9ca3af;
+  text-decoration-color: #6b7280;
+}
+
+.dark-theme .tiptap-content .task-list-item:has(input[type="checkbox"]:checked) p::before,
+.dark-theme .tiptap-content .task-list-item:has(.task-list-item-checkbox:checked) p::before {
+  background: linear-gradient(90deg, transparent 0%, #6b7280 50%, transparent 100%);
 }
 
 .dark-theme .list-item-focused {
@@ -816,3 +996,5 @@
 .dark-theme .list-manipulation-hint {
   color: rgba(255, 255, 255, 0.4);
 }
+
+/* Remove the CSS-only approach since it's not interactive */
