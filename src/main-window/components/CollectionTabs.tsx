@@ -413,12 +413,12 @@ const CollectionTabs: React.FC<CollectionTabsProps> = React.memo(({
                       {renderIcon(collection.icon || 'notes', "w-4 h-4")}
                     </div>
 
-                    <span className="font-medium text-xs tracking-wide">
+                    <span className="font-normal text-xs tracking-wide">
                       {collection.name}
                     </span>
 
                     <span className={`
-                    text-xs px-1.5 py-0.5 rounded-full font-medium min-w-[1.25rem] text-center transition-colors
+                    text-xs px-1.5 py-0.5 rounded-full font-normal min-w-[1.25rem] text-center transition-colors
                     ${activeCollectionId === collection.id
                         ? `
                         light:bg-gray-100 light:text-gray-600
@@ -447,7 +447,7 @@ const CollectionTabs: React.FC<CollectionTabsProps> = React.memo(({
               onClick={() => setShowCreateModal(true)}
               aria-label="Create new collection"
               className={`
-                flex items-center justify-center w-8 h-8 rounded-lg text-sm font-medium transition-all duration-200
+                flex items-center justify-center w-8 h-8 rounded-lg text-sm font-normal transition-all duration-200
                 border border-dashed border-border/50 hover:border-border
                 text-muted-foreground hover:text-foreground hover:bg-background/30
                 light:hover:bg-gray-50 light:text-gray-500 light:hover:text-gray-700
@@ -483,11 +483,11 @@ const CollectionTabs: React.FC<CollectionTabsProps> = React.memo(({
           }}
         >
           <div className="bg-background rounded-xl p-6 w-full max-w-lg mx-4 shadow-xl border border-border">
-            <h3 id="create-collection-title" className="text-lg font-semibold mb-6 text-foreground">Create New Collection</h3>
+            <h3 id="create-collection-title" className="text-lg font-medium mb-6 text-foreground">Create New Collection</h3>
 
             <div className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
+                <label className="block text-sm font-normal text-foreground mb-2">
                   Collection Name
                 </label>
                 <input
@@ -502,7 +502,7 @@ const CollectionTabs: React.FC<CollectionTabsProps> = React.memo(({
 
               {/* Icon Selection */}
               <div>
-                <label className="block text-sm font-medium text-foreground mb-3">
+                <label className="block text-sm font-normal text-foreground mb-3">
                   Choose Icon
                 </label>
                 <div className="grid grid-cols-6 gap-2">
@@ -528,7 +528,7 @@ const CollectionTabs: React.FC<CollectionTabsProps> = React.memo(({
 
               {/* Color Selection */}
               <div>
-                <label className="block text-sm font-medium text-foreground mb-3">
+                <label className="block text-sm font-normal text-foreground mb-3">
                   Choose Color
                 </label>
                 <div className="grid grid-cols-6 gap-2">

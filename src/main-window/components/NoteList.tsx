@@ -29,6 +29,23 @@ const NoteList = ({ notes, onNoteClick, activeNoteId, onNoteDelete, onCollection
   const [deletedNotes, setDeletedNotes] = useState<string[]>([]);
   const [showSortMenu, setShowSortMenu] = useState(false);
   
+  // Detect if we're on macOS for vibrancy effects
+  const [isMacOS, setIsMacOS] = useState(false);
+  
+  useEffect(() => {
+    // Check if running on macOS
+    const checkPlatform = async () => {
+      if (window.electronAPI?.platform) {
+        const platform = await window.electronAPI.platform();
+        setIsMacOS(platform === 'darwin');
+      } else {
+        // Fallback: check user agent
+        setIsMacOS(navigator.platform.toLowerCase().includes('mac'));
+      }
+    };
+    checkPlatform();
+  }, []);
+  
   // Initialize sort option with lazy initial state to ensure it reads from localStorage
   const [sortOption, setSortOption] = useState<SortOption>(() => {
     const savedOption = getNotesSortOption();
@@ -37,11 +54,15 @@ const NoteList = ({ notes, onNoteClick, activeNoteId, onNoteDelete, onCollection
   });
   
   const sortMenuRef = useRef<HTMLDivElement>(null);
+  // Container ref that wraps both the button and the menu so outside-clicks work correctly
+  const sortContainerRef = useRef<HTMLDivElement>(null);
 
   // Close sort menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (sortMenuRef.current && !sortMenuRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      // Close only if the click is fully outside the sort container (button + menu)
+      if (sortContainerRef.current && !sortContainerRef.current.contains(target)) {
         setShowSortMenu(false);
       }
     };
@@ -99,7 +120,8 @@ const NoteList = ({ notes, onNoteClick, activeNoteId, onNoteDelete, onCollection
 
   // Toggle sort menu
   const toggleSortMenu = () => {
-    setShowSortMenu(!showSortMenu);
+    // Use functional update to avoid stale state and race conditions
+    setShowSortMenu(prev => !prev);
   };
 
   // Handle sort option selection with useCallback
@@ -168,7 +190,7 @@ const NoteList = ({ notes, onNoteClick, activeNoteId, onNoteDelete, onCollection
       {favoriteNotes.length > 0 && (
         <div className="notes-section mb-4">
           <div className="section-title flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2 text-xs font-medium text-text-tertiary tracking-wider">
+            <div className="flex items-center gap-2 text-xs font-normal text-text-tertiary tracking-wider">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
               </svg>
@@ -195,7 +217,7 @@ const NoteList = ({ notes, onNoteClick, activeNoteId, onNoteDelete, onCollection
       {/* Notes Section */}
       <div className="notes-section transparency-layer-content mb-4">
         <div className="section-title flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2 text-xs font-medium text-text-tertiary tracking-wider">
+          <div className="flex items-center gap-2 text-xs font-normal text-text-tertiary tracking-wider">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
               <polyline points="14 2 14 8 20 8"></polyline>
@@ -210,10 +232,11 @@ const NoteList = ({ notes, onNoteClick, activeNoteId, onNoteDelete, onCollection
           </div>
 
           {/* Sort Button */}
-          <div className="relative">
+          <div ref={sortContainerRef} className="relative">
             <button
               className="sort-button flex items-center justify-center w-6 h-6 text-text-tertiary rounded-full hover:bg-background-tertiary/30 transition-colors"
               onClick={toggleSortMenu}
+              onMouseDown={(e) => e.stopPropagation()}
               title="Sort notes"
               tabIndex={-1}
             >
@@ -228,46 +251,77 @@ const NoteList = ({ notes, onNoteClick, activeNoteId, onNoteDelete, onCollection
             </button>
 
             {/* Sort Menu */}
-            {showSortMenu && (
+{showSortMenu && (
               <div
                 ref={sortMenuRef}
-                className="absolute right-0 top-8 bg-[#21222c] rounded-md shadow-[0_5px_15px_rgba(0,0,0,0.3)] z-[100] min-w-[180px] overflow-hidden border border-white/5 text-xs font-twitter"
+                className={`sort-menu absolute right-0 top-8 rounded-md z-[100] min-w-[180px] overflow-hidden border text-xs font-twitter ${isMacOS ? 'backdrop-blur-xl bg-popover/80 light:bg-white/80 border-white/20 light:border-black/10 shadow-2xl' : 'bg-popover border-border shadow-card light:bg-white'}`}
+                onMouseDown={(e) => e.stopPropagation()}
               >
-                <div className="py-1.5 px-3 text-text-tertiary border-b border-white/5">Sort by</div>
+                <div className={`py-1.5 px-3 text-text-tertiary border-b ${isMacOS ? 'border-white/10 light:border-black/10' : 'border-border'}`}>Sort By</div>
                 <button
-                  className={`flex items-center gap-2 w-full px-3 py-1.5 bg-transparent border-none text-left cursor-pointer transition-colors hover:bg-background-notes/20 ${sortOption.field === 'title' && sortOption.direction === 'asc' ? 'text-primary' : 'text-text-secondary'}`}
+                  className={`sort-menu-item flex items-center gap-2 w-full px-3 py-1.5 bg-transparent text-left cursor-pointer transition-colors ${isMacOS ? 'hover:bg-white/10 light:hover:bg-black/5' : 'hover:bg-secondary/60 light:hover:bg-secondary'} ${sortOption.field === 'title' && sortOption.direction === 'asc' ? `${isMacOS ? 'bg-white/20 light:bg-black/10' : 'bg-secondary/60 light:bg-secondary'} text-primary font-medium` : 'text-text-secondary'}`}
                   onClick={() => handleSortOptionSelect({ label: 'Title (A-Z)', field: 'title', direction: 'asc' })}
                 >
+                  {sortOption.field === 'title' && sortOption.direction === 'asc' && (
+                    <svg className="w-3.5 h-3.5 text-primary shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-7.25 7.25a1 1 0 01-1.414 0l-3.25-3.25a1 1 0 111.414-1.414l2.543 2.543 6.543-6.543a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
                   <span>Title (A-Z)</span>
                 </button>
                 <button
-                  className={`flex items-center gap-2 w-full px-3 py-1.5 bg-transparent border-none text-left cursor-pointer transition-colors hover:bg-background-notes/20 ${sortOption.field === 'title' && sortOption.direction === 'desc' ? 'text-primary' : 'text-text-secondary'}`}
+                  className={`sort-menu-item flex items-center gap-2 w-full px-3 py-1.5 bg-transparent text-left cursor-pointer transition-colors ${isMacOS ? 'hover:bg-white/10 light:hover:bg-black/5' : 'hover:bg-secondary/60 light:hover:bg-secondary'} ${sortOption.field === 'title' && sortOption.direction === 'desc' ? `${isMacOS ? 'bg-white/20 light:bg-black/10' : 'bg-secondary/60 light:bg-secondary'} text-primary font-medium` : 'text-text-secondary'}`}
                   onClick={() => handleSortOptionSelect({ label: 'Title (Z-A)', field: 'title', direction: 'desc' })}
                 >
+                  {sortOption.field === 'title' && sortOption.direction === 'desc' && (
+                    <svg className="w-3.5 h-3.5 text-primary shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-7.25 7.25a1 1 0 01-1.414 0l-3.25-3.25a1 1 0 111.414-1.414l2.543 2.543 6.543-6.543a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
                   <span>Title (Z-A)</span>
                 </button>
                 <button
-                  className={`flex items-center gap-2 w-full px-3 py-1.5 bg-transparent border-none text-left cursor-pointer transition-colors hover:bg-background-notes/20 ${sortOption.field === 'createdAt' && sortOption.direction === 'desc' ? 'text-primary' : 'text-text-secondary'}`}
+                  className={`sort-menu-item flex items-center gap-2 w-full px-3 py-1.5 bg-transparent text-left cursor-pointer transition-colors ${isMacOS ? 'hover:bg-white/10 light:hover:bg-black/5' : 'hover:bg-secondary/60 light:hover:bg-secondary'} ${sortOption.field === 'createdAt' && sortOption.direction === 'desc' ? `${isMacOS ? 'bg-white/20 light:bg-black/10' : 'bg-secondary/60 light:bg-secondary'} text-primary font-medium` : 'text-text-secondary'}`}
                   onClick={() => handleSortOptionSelect({ label: 'Date Created (Newest)', field: 'createdAt', direction: 'desc' })}
                 >
+                  {sortOption.field === 'createdAt' && sortOption.direction === 'desc' && (
+                    <svg className="w-3.5 h-3.5 text-primary shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-7.25 7.25a1 1 0 01-1.414 0l-3.25-3.25a1 1 0 111.414-1.414l2.543 2.543 6.543-6.543a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
                   <span>Date Created (Newest)</span>
                 </button>
                 <button
-                  className={`flex items-center gap-2 w-full px-3 py-1.5 bg-transparent border-none text-left cursor-pointer transition-colors hover:bg-background-notes/20 ${sortOption.field === 'createdAt' && sortOption.direction === 'asc' ? 'text-primary' : 'text-text-secondary'}`}
+                  className={`sort-menu-item flex items-center gap-2 w-full px-3 py-1.5 bg-transparent text-left cursor-pointer transition-colors ${isMacOS ? 'hover:bg-white/10 light:hover:bg-black/5' : 'hover:bg-secondary/60 light:hover:bg-secondary'} ${sortOption.field === 'createdAt' && sortOption.direction === 'asc' ? `${isMacOS ? 'bg-white/20 light:bg-black/10' : 'bg-secondary/60 light:bg-secondary'} text-primary font-medium` : 'text-text-secondary'}`}
                   onClick={() => handleSortOptionSelect({ label: 'Date Created (Oldest)', field: 'createdAt', direction: 'asc' })}
                 >
+                  {sortOption.field === 'createdAt' && sortOption.direction === 'asc' && (
+                    <svg className="w-3.5 h-3.5 text-primary shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-7.25 7.25a1 1 0 01-1.414 0l-3.25-3.25a1 1 0 111.414-1.414l2.543 2.543 6.543-6.543a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
                   <span>Date Created (Oldest)</span>
                 </button>
                 <button
-                  className={`flex items-center gap-2 w-full px-3 py-1.5 bg-transparent border-none text-left cursor-pointer transition-colors hover:bg-background-notes/20 ${sortOption.field === 'updatedAt' && sortOption.direction === 'desc' ? 'text-primary' : 'text-text-secondary'}`}
+                  className={`sort-menu-item flex items-center gap-2 w-full px-3 py-1.5 bg-transparent text-left cursor-pointer transition-colors ${isMacOS ? 'hover:bg-white/10 light:hover:bg-black/5' : 'hover:bg-secondary/60 light:hover:bg-secondary'} ${sortOption.field === 'updatedAt' && sortOption.direction === 'desc' ? `${isMacOS ? 'bg-white/20 light:bg-black/10' : 'bg-secondary/60 light:bg-secondary'} text-primary font-medium` : 'text-text-secondary'}`}
                   onClick={() => handleSortOptionSelect({ label: 'Date Modified (Newest)', field: 'updatedAt', direction: 'desc' })}
                 >
+                  {sortOption.field === 'updatedAt' && sortOption.direction === 'desc' && (
+                    <svg className="w-3.5 h-3.5 text-primary shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-7.25 7.25a1 1 0 01-1.414 0l-3.25-3.25a1 1 0 111.414-1.414l2.543 2.543 6.543-6.543a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
                   <span>Date Modified (Newest)</span>
                 </button>
                 <button
-                  className={`flex items-center gap-2 w-full px-3 py-1.5 bg-transparent border-none text-left cursor-pointer transition-colors hover:bg-background-notes/20 ${sortOption.field === 'updatedAt' && sortOption.direction === 'asc' ? 'text-primary' : 'text-text-secondary'}`}
+                  className={`sort-menu-item flex items-center gap-2 w-full px-3 py-1.5 bg-transparent text-left cursor-pointer transition-colors ${isMacOS ? 'hover:bg-white/10 light:hover:bg-black/5' : 'hover:bg-secondary/60 light:hover:bg-secondary'} ${sortOption.field === 'updatedAt' && sortOption.direction === 'asc' ? `${isMacOS ? 'bg-white/20 light:bg-black/10' : 'bg-secondary/60 light:bg-secondary'} text-primary font-medium` : 'text-text-secondary'}`}
                   onClick={() => handleSortOptionSelect({ label: 'Date Modified (Oldest)', field: 'updatedAt', direction: 'asc' })}
                 >
+                  {sortOption.field === 'updatedAt' && sortOption.direction === 'asc' && (
+                    <svg className="w-3.5 h-3.5 text-primary shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-7.25 7.25a1 1 0 01-1.414 0l-3.25-3.25a1 1 0 111.414-1.414l2.543 2.543 6.543-6.543a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
                   <span>Date Modified (Oldest)</span>
                 </button>
               </div>
@@ -292,7 +346,7 @@ const NoteList = ({ notes, onNoteClick, activeNoteId, onNoteDelete, onCollection
                 />
               </svg>
             </div>
-            <h2 className="text-xl font-semibold mb-2">
+            <h2 className="text-xl font-normal mb-2">
               {activeCollectionId === 'all' || !activeCollectionName 
                 ? 'No notes yet' 
                 : `No notes in ${activeCollectionName}`}

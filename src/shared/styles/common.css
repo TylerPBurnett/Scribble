@@ -78,7 +78,6 @@
 .theme-light [role="dialog"] h3 {
   /* Dark headings for strong contrast */
   color: rgba(0, 0, 0, 0.9) !important;
-  font-weight: 600 !important;
 }
 
 .theme-light [data-radix-dialog-content] label,
@@ -87,7 +86,6 @@
 .theme-light [role="dialog"] .text-base {
   /* Dark labels for better readability */
   color: rgba(0, 0, 0, 0.8) !important;
-  font-weight: 500 !important;
 }
 
 .theme-light [data-radix-dialog-content] p,
@@ -339,8 +337,8 @@ div.notes-container.notes-container-transparent,
 
 /* ===== COLLECTION TABS STYLES ===== */
 
-/* Light theme section titles - make black for better visibility and match collection tabs font */
-/* Override all possible selectors with maximum specificity */
+/* Light theme section titles - only adjust color for visibility */
+/* Let font size, weight, and line-height inherit from base styles like dark/dim */
 .theme-light .section-title,
 .theme-light .notes-container .section-title,
 .theme-light .notes-container-transparent .section-title,
@@ -354,10 +352,6 @@ div.notes-container.notes-container-transparent,
 .theme-light [class*="title"]:not(.note-title-input):not(.note-title),
 .theme-light [class*="header"] {
   color: rgba(0, 0, 0, 0.9) !important;
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif !important;
-  font-weight: 400 !important;
-  font-size: 16px !important;
-  line-height: 1.5 !important;
 }
 
 /* Ultra-specific override for any text that might be section titles */
@@ -368,10 +362,6 @@ html.theme-light body h3,
 html.theme-light body *[class*="section"],
 html.theme-light body *[class*="title"]:not(.note-title-input):not(.note-title) {
   color: rgba(0, 0, 0, 0.9) !important;
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif !important;
-  font-weight: 400 !important;
-  font-size: 16px !important;
-  line-height: 1.5 !important;
 }
 
 /* Brute force approach - target any element in light theme that might be a section title */
@@ -379,52 +369,8 @@ html.theme-light body *[class*="title"]:not(.note-title-input):not(.note-title) 
   --section-title-color: rgba(0, 0, 0, 0.9) !important;
 }
 
-/* Targeted section titles with capitalization and collection tabs font */
-.theme-light .section-title,
-.theme-light .notes-container .section-title,
-.theme-light .notes-container-transparent .section-title,
-.theme-light h1,
-.theme-light h2,
-.theme-light h3,
-.theme-light h4,
-.theme-light h5,
-.theme-light h6,
-.theme-light *[class*="section"]:not(input):not(textarea):not(button):not(a),
-.theme-light *[class*="title"]:not(input):not(textarea):not(button):not(a):not(.note-title-input):not(.note-title),
-.theme-light *[class*="header"]:not(input):not(textarea):not(button):not(a),
-.theme-light *[class*="favorite"]:not(input):not(textarea):not(button):not(a),
-.theme-light *[class*="Favorite"]:not(input):not(textarea):not(button):not(a),
-.theme-light *[class*="FAVORITE"]:not(input):not(textarea):not(button):not(a) {
-  text-transform: capitalize !important;
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif !important;
-  font-weight: 400 !important;
-  font-size: 16px !important;
-  line-height: 1.5 !important;
-  color: rgba(0, 0, 0, 0.9) !important;
-}
 
-/* BRUTE FORCE: Target the first few elements that might contain section titles */
-.theme-light .notes-container>*:first-child,
-.theme-light .notes-container>*:nth-child(2),
-.theme-light .notes-container>*:nth-child(3),
-.theme-light .notes-container-transparent>*:first-child,
-.theme-light .notes-container-transparent>*:nth-child(2),
-.theme-light .notes-container-transparent>*:nth-child(3) {
-  text-transform: capitalize !important;
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif !important;
-  font-weight: 400 !important;
-  font-size: 16px !important;
-  line-height: 1.5 !important;
-  color: rgba(0, 0, 0, 0.9) !important;
-}
 
-/* MAXIMUM SPECIFICITY: Try to override any existing styles - BUT EXCLUDE NOTE EDITOR AND NOTE CARDS */
-/* Note: We need to exclude the elements themselves, not their descendants */
-html body .theme-light *:not(.note-editor):not(.note-editor *):not(.note-card):not(.note-card *):not(.note-title-input):not(.note-title),
-html body .theme-light *::before,
-html body .theme-light *::after {
-  text-transform: capitalize !important;
-}
 
 /* Apply color only to non-excluded elements - properly exclude note components */
 html body .theme-light *:not(.note-editor):not(.note-editor *):not(.note-card):not(.note-card *):not(.note-title-input):not(.note-title) {
@@ -439,24 +385,7 @@ html body .theme-light a {
   text-transform: none !important;
 }
 
-/* MAXIMUM SPECIFICITY: Override Tailwind uppercase class */
-html body .theme-light .section-title .flex.items-center.gap-2.text-xs.font-medium.text-text-tertiary.uppercase.tracking-wider span,
-html body .theme-light .section-title .uppercase span,
-html body .theme-light .uppercase span,
-html body .theme-light span {
-  text-transform: capitalize !important;
-  color: rgba(0, 0, 0, 0.9) !important;
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif !important;
-  font-weight: 400 !important;
-  font-size: 16px !important;
-  line-height: 1.5 !important;
-}
 
-/* Nuclear override for any uppercase class in light theme */
-html body .theme-light .uppercase,
-html body .theme-light .uppercase * {
-  text-transform: capitalize !important;
-}
 
 /* Keep other text with normal color but don't force font changes - EXCLUDE NOTE EDITOR AND NOTE CARDS */
 .theme-light *:not(.section-title):not([class*="section"]):not([class*="title"]):not([class*="header"]):not(input):not(textarea):not(button):not(a):not(.note-editor):not(.note-editor *):not(.note-card):not(.note-card *):not(.note-title-input):not(.note-title) {
@@ -620,12 +549,10 @@ html body .theme-light .uppercase * {
 .theme-light [data-radix-dialog-content] h3,
 .theme-light [data-radix-dialog-content] h4 {
   color: rgb(17, 24, 39) !important;
-  font-weight: 600 !important;
 }
 
 .theme-light [data-radix-dialog-content] label {
   color: rgb(55, 65, 81) !important;
-  font-weight: 500 !important;
 }
 
 .theme-light [data-radix-dialog-content] p,
@@ -692,17 +619,50 @@ html body .theme-light .uppercase * {
   transform: translateY(-1px) !important;
 }
 
+/* ===== NoteCard Menus - Light Theme ===== */
+/* Right-click context menu and the three-dots dropdown menu */
+.theme-light .note-card .dropdown-menu,
+.theme-light .fixed .bg-popover {
+  background-color: #ffffff !important; /* clean white */
+  border: 1px solid rgba(0, 0, 0, 0.12) !important; /* subtle border */
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.06) !important; /* soft elevation */
+  color: rgba(17, 24, 39, 0.95) !important; /* near-black text */
+}
+
+/* Menu items */
+.theme-light .note-card .dropdown-menu button,
+.theme-light .fixed .bg-popover button {
+  color: rgba(55, 65, 81, 0.95) !important; /* gray-700 text */
+  background: transparent !important;
+}
+
+/* Hover/active states */
+.theme-light .note-card .dropdown-menu button:hover,
+.theme-light .fixed .bg-popover button:hover {
+  background-color: rgba(0, 0, 0, 0.06) !important; /* light gray hover */
+  color: rgba(17, 24, 39, 1) !important; /* darken on hover */
+}
+
+/* Danger action keeps accent color but uses light hover */
+.theme-light .note-card .dropdown-menu .delete-action,
+.theme-light .fixed .bg-popover .delete-action {
+  color: #f43f5e !important; /* danger */
+}
+.theme-light .note-card .dropdown-menu .delete-action:hover,
+.theme-light .fixed .bg-popover .delete-action:hover {
+  background-color: rgba(244, 63, 94, 0.08) !important; /* red-tinted hover */
+}
+
+
 /* Section headers with better contrast */
 .theme-light [data-radix-dialog-content] .space-y-6.p-6 h3 {
   color: rgb(31, 41, 55) !important;
-  font-weight: 600 !important;
   border-bottom-color: rgba(209, 213, 219, 0.8) !important;
 }
 
 /* Subsection headers */
 .theme-light [data-radix-dialog-content] .space-y-6.p-6 h4 {
   color: rgb(55, 65, 81) !important;
-  font-weight: 600 !important;
 }
 
 /* ===== EXPLICIT OVERRIDES FOR NOTE COMPONENTS ===== */

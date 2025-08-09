@@ -508,7 +508,7 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
         style={{ backgroundColor: colorStyle.headerBg || '' }}
       >
         <h3 
-          className="note-title text-sm font-semibold whitespace-nowrap overflow-hidden text-ellipsis max-w-[180px] font-twitter"
+          className="note-title text-sm font-normal whitespace-nowrap overflow-hidden text-ellipsis max-w-[180px] font-inter"
           style={{ color: 'var(--note-text-color, inherit)' }}
         >
           {note.title || 'Untitled Note'}
