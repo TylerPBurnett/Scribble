@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Note } from '../../shared/types/Note';
 import { deleteNote } from '../../shared/services/noteService';
 import { getNotesSortOption, saveNotesSortOption, SortOption } from '../../shared/services/settingsService';
@@ -28,7 +28,14 @@ const NoteList = ({ notes, onNoteClick, activeNoteId, onNoteDelete, onCollection
 
   const [deletedNotes, setDeletedNotes] = useState<string[]>([]);
   const [showSortMenu, setShowSortMenu] = useState(false);
-  const [sortOption, setSortOption] = useState<SortOption>(getNotesSortOption());
+  
+  // Initialize sort option with lazy initial state to ensure it reads from localStorage
+  const [sortOption, setSortOption] = useState<SortOption>(() => {
+    const savedOption = getNotesSortOption();
+    console.log('NoteList - Initializing sort option from settings:', savedOption);
+    return savedOption;
+  });
+  
   const sortMenuRef = useRef<HTMLDivElement>(null);
 
   // Close sort menu when clicking outside
@@ -48,8 +55,31 @@ const NoteList = ({ notes, onNoteClick, activeNoteId, onNoteDelete, onCollection
     };
   }, [showSortMenu]);
 
-  // Sort notes based on current sort option
-  const sortNotes = (notesToSort: Note[]): Note[] => {
+  // Listen for sort option changes from other windows/tabs
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'app_settings' && e.newValue) {
+        try {
+          const newSettings = JSON.parse(e.newValue);
+          if (newSettings.notesSortOption) {
+            console.log('NoteList - Sort option changed from another window:', newSettings.notesSortOption);
+            setSortOption(newSettings.notesSortOption);
+          }
+        } catch (error) {
+          console.error('Error parsing settings from storage event:', error);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
+  // Sort notes based on current sort option - memoized to avoid recreating function
+  const sortNotes = useCallback((notesToSort: Note[]): Note[] => {
     return [...notesToSort].sort((a, b) => {
       if (sortOption.field === 'title') {
         const titleA = a.title.toLowerCase();
@@ -65,7 +95,7 @@ const NoteList = ({ notes, onNoteClick, activeNoteId, onNoteDelete, onCollection
           : dateB - dateA;
       }
     });
-  };
+  }, [sortOption]);
 
   // Toggle sort menu
   const toggleSortMenu = () => {
@@ -74,6 +104,7 @@ const NoteList = ({ notes, onNoteClick, activeNoteId, onNoteDelete, onCollection
 
   // Handle sort option selection with useCallback
   const handleSortOptionSelect = useCallback((option: SortOption) => {
+    console.log('NoteList - Saving sort option:', option);
     setSortOption(option);
     saveNotesSortOption(option);
     setShowSortMenu(false);

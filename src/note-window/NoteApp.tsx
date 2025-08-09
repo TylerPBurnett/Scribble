@@ -10,12 +10,7 @@ function NoteApp() {
   const [activeNote, setActiveNote] = useState<Note | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [appSettings, setAppSettings] = useState<AppSettings>({
-    saveLocation: '',
-    autoSave: true,
-    autoSaveInterval: 5,
-    theme: 'dim',
-  })
+  const [appSettings, setAppSettings] = useState<AppSettings | null>(null)
 
   // Load note on startup
   useEffect(() => {
@@ -136,7 +131,7 @@ function NoteApp() {
   }
 
   // Show note editor
-  if (activeNote) {
+  if (activeNote && appSettings) {
     return (
       <ThemeProvider initialSettings={appSettings}>
         <div className="note-window">

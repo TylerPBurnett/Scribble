@@ -26,12 +26,8 @@ function MainApp() {
   const [activeNote] = useState<Note | null>(null)
 
   const [searchQuery, setSearchQuery] = useState('')
-  const [appSettings, setAppSettings] = useState<AppSettings>({
-    saveLocation: '',
-    autoSave: true,
-    autoSaveInterval: 5,
-    theme: 'dim',
-  })
+  // Initialize settings with null to indicate loading state
+  const [appSettings, setAppSettings] = useState<AppSettings | null>(null)
 
   // Collection state
   const [collections, setCollections] = useState<CollectionWithNoteCount[]>([])
@@ -138,7 +134,7 @@ function MainApp() {
     };
   }, []);
 
-  // Load settings and initial notes on startup
+  // Load settings synchronously on first render to prevent theme flicker
   useEffect(() => {
     const init = async () => {
       try {
@@ -155,6 +151,13 @@ function MainApp() {
         await loadAllNotes();
       } catch (error) {
         console.error('Error during initialization:', error)
+        // If initialization fails, set default settings
+        setAppSettings({
+          saveLocation: '',
+          autoSave: true,
+          autoSaveInterval: 5,
+          theme: 'dim',
+        })
       }
     }
 
@@ -349,6 +352,8 @@ function MainApp() {
 
   // Handle toggling dark mode
   const handleToggleDarkMode = () => {
+    if (!appSettings) return;
+    
     // Get the current theme
     const currentTheme = appSettings.theme || 'dim';
 
@@ -417,6 +422,15 @@ function MainApp() {
   const [isSearchOpen, setSearchOpen] = useState(false);
 
 
+
+  // Don't render until settings are loaded to prevent theme flicker
+  if (!appSettings) {
+    return (
+      <div className="app-container flex flex-col h-screen items-center justify-center">
+        <div className="text-text-secondary">Loading...</div>
+      </div>
+    )
+  }
 
   // Render the main window
   return (

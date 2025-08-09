@@ -386,6 +386,15 @@ export const initSettings = async (): Promise<AppSettings> => {
     }
   }
 
+  // Ensure notesSortOption is set
+  if (!updatedSettings.notesSortOption) {
+    console.log('Setting default notes sort option');
+    updatedSettings.notesSortOption = DEFAULT_SETTINGS.notesSortOption;
+    needsUpdate = true;
+  } else {
+    console.log('Existing notes sort option found:', updatedSettings.notesSortOption);
+  }
+
   // Save updated settings if needed
   if (needsUpdate) {
     console.log('Updating settings:', updatedSettings);

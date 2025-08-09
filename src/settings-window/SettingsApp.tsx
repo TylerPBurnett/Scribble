@@ -5,12 +5,7 @@ import { ThemeProvider } from '../shared/services/themeService'
 import TitleBar from '../shared/components/TitleBar'
 
 function SettingsApp() {
-  const [appSettings, setAppSettings] = useState<AppSettings>({
-    saveLocation: '',
-    autoSave: true,
-    autoSaveInterval: 5,
-    theme: 'dim',
-  })
+  const [appSettings, setAppSettings] = useState<AppSettings | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   // Load settings on startup
@@ -25,6 +20,13 @@ function SettingsApp() {
         setAppSettings(settings)
       } catch (error) {
         console.error('Error during initialization:', error)
+        // If initialization fails, set default settings
+        setAppSettings({
+          saveLocation: '',
+          autoSave: true,
+          autoSaveInterval: 5,
+          theme: 'dim',
+        })
       } finally {
         setIsLoading(false)
       }
@@ -48,8 +50,8 @@ function SettingsApp() {
     }
   }
 
-  // Show loading state
-  if (isLoading) {
+  // Show loading state or when settings are not yet loaded
+  if (isLoading || !appSettings) {
     return <div className="h-screen w-screen flex items-center justify-center bg-background-notes text-foreground">
       <p className="text-lg">Loading settings...</p>
     </div>
