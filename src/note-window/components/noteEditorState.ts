@@ -1,5 +1,6 @@
 import { Note } from '../../shared/types/Note';
 import { AppSettings } from '../../shared/services/settingsService';
+import { getDefaultNoteColorForTheme } from '../../shared/constants/colors';
 
 // Consolidated state interface
 export interface NoteEditorState {
@@ -66,11 +67,22 @@ export const noteEditorReducer = (state: NoteEditorState, action: NoteEditorActi
     
     case 'INITIALIZE_FROM_NOTE':
       const { note, settings } = action.payload;
+      const defaultColor = getDefaultNoteColorForTheme(settings.theme || 'dim');
+      const noteColor = note.color || defaultColor;
+      
+      console.log('INITIALIZE_FROM_NOTE:', {
+        noteId: note.id,
+        noteColor: note.color,
+        settingsTheme: settings.theme,
+        defaultColor,
+        finalColor: noteColor
+      });
+      
       return {
         noteData: {
           title: note.title,
           content: note.content,
-          color: note.color || '#fff9c4',
+          color: noteColor,
           transparency: note.transparency || 1,
           isPinned: note.pinned || false,
           isFavorite: note.favorite || false,
@@ -96,11 +108,11 @@ export const noteEditorReducer = (state: NoteEditorState, action: NoteEditorActi
 };
 
 // Helper function to get default state
-export const getDefaultNoteEditorState = (): NoteEditorState => ({
+export const getDefaultNoteEditorState = (theme: string = 'dim'): NoteEditorState => ({
   noteData: {
     title: 'Untitled Note',
     content: '<p></p>',
-    color: '#fff9c4',
+    color: getDefaultNoteColorForTheme(theme),
     transparency: 1,
     isPinned: false,
     isFavorite: false,
@@ -122,7 +134,7 @@ export const getDefaultNoteEditorState = (): NoteEditorState => ({
 
 // Helper function to initialize state from note and settings
 export const initializeStateFromNote = (note: Note, settings: AppSettings): NoteEditorState => {
-  return noteEditorReducer(getDefaultNoteEditorState(), {
+  return noteEditorReducer(getDefaultNoteEditorState(settings.theme || 'dim'), {
     type: 'INITIALIZE_FROM_NOTE',
     payload: { note, settings }
   });

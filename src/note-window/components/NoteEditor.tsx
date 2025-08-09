@@ -7,7 +7,8 @@ import { getHotkeys, formatHotkeyForDisplay } from '../../shared/services/hotkey
 import { NoteHotkeys } from './NoteHotkeys';
 import { useDebounce } from '../../shared/hooks/useDebounce';
 import { ColorPicker } from '../../shared/components/ColorPicker';
-import { NOTE_COLOR_OPTIONS, getTextColorForBackground, getDarkerShade } from '../../shared/constants/colors';
+import { NOTE_COLOR_OPTIONS, getTextColorForBackground, getDarkerShade, getDefaultNoteColorForTheme } from '../../shared/constants/colors';
+import { useTheme } from '../../shared/services/themeService';
 import { 
   noteEditorReducer, 
   initializeStateFromNote, 
@@ -33,18 +34,21 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
   const { measureOperation } = useNoteEditorPerformance(componentName);
   useRenderPerformance(componentName);
 
+  // Get current theme from context
+  const { theme } = useTheme();
+
   // Initialize consolidated state
   const [appSettings, setAppSettings] = useState<AppSettings>({
     saveLocation: '',
     autoSave: true,
     autoSaveInterval: 5,
-    theme: 'dim',
+    theme: theme, // Use current theme from context
   });
   
   // Initialize state from note and settings
   const [state, dispatch] = useReducer(
     noteEditorReducer, 
-    initializeStateFromNote(note, appSettings)
+    initializeStateFromNote(note, { ...appSettings, theme })
   );
 
   // Extract values from consolidated state for easier access
@@ -97,7 +101,8 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
   useEffect(() => {
     // Initial settings load
     const settings = getSettings();
-    setAppSettings(settings);
+    const settingsWithCurrentTheme = { ...settings, theme };
+    setAppSettings(settingsWithCurrentTheme);
     
     // Update consolidated state with settings
     dispatch(updateEditorState({
@@ -108,7 +113,8 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
     // Subscribe to settings changes for immediate hotkey updates
     const unsubscribe = subscribeToSettingsChanges((newSettings) => {
       console.log('NoteEditor - Settings changed, updating hotkeys:', JSON.stringify(newSettings.hotkeys, null, 2));
-      setAppSettings(newSettings);
+      const newSettingsWithCurrentTheme = { ...newSettings, theme };
+      setAppSettings(newSettingsWithCurrentTheme);
       
       // Update consolidated state with new settings
       dispatch(updateEditorState({
@@ -119,7 +125,21 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
 
     // Cleanup subscription on unmount
     return unsubscribe;
-  }, []);
+  }, [theme]);
+
+  // Handle theme changes
+  useEffect(() => {
+    setAppSettings(prev => ({ ...prev, theme }));
+    
+    // If this is a new note without a custom color, update it to use the theme-appropriate default
+    if (isNewNote && (noteColor === '#F9FAFB' || noteColor === '#fff9c4' || noteColor === '#44475a' || noteColor === '#2d2d2d')) {
+      const newDefaultColor = getDefaultNoteColorForTheme(theme);
+      if (noteColor !== newDefaultColor) {
+        console.log('Updating new note color for theme change:', { from: noteColor, to: newDefaultColor, theme });
+        dispatch(updateNoteData({ color: newDefaultColor }));
+      }
+    }
+  }, [theme, isNewNote, noteColor]);
 
 // Autosave service setup
 const autosaveService = useRef<SmartAutosaveService | null>(null);
@@ -527,7 +547,26 @@ const saveNote = useCallback(async () => {
 
   // Use shared color helper functions
   const getTextColor = () => {
-    return getTextColorForBackground(noteColor);
+    const textColor = getTextColorForBackground(noteColor);
+    console.log('NoteEditor getTextColor:', {
+      noteColor,
+      textColor,
+      theme
+    });
+    return textColor;
+  };
+
+
+  // Get appropriate button colors based on note background
+  const getButtonColors = () => {
+    const textColor = getTextColor();
+    const isDarkBackground = textColor === '#ffffff';
+    
+    return {
+      inactive: isDarkBackground ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)',
+      hover: '#3b82f6', // Blue color that works on both light and dark
+      active: '#3b82f6'
+    };
   };
 
   return (
@@ -546,8 +585,9 @@ const saveNote = useCallback(async () => {
         style={{
           WebkitAppRegion: 'drag',
           borderBottomColor: 'rgba(0,0,0,0.08)',
-          backgroundColor: noteColor === '#333333' ? '#21222C' : getDarkerShade(noteColor)
-        }}
+          backgroundColor: noteColor === '#333333' ? '#21222C' : getDarkerShade(noteColor),
+          '--dynamic-text-color': getTextColor()
+        } as React.CSSProperties & { '--dynamic-text-color': string }}
       >
         <div className="flex items-center justify-between w-full">
           {/* Left side: Window controls */}
@@ -555,9 +595,21 @@ const saveNote = useCallback(async () => {
             {/* Close button */}
             <button
               onClick={handleClose}
-              className="w-6 h-6 rounded-full bg-gray-500/20 hover:bg-red-500 flex items-center justify-center transition-colors"
+              className="w-6 h-6 rounded-full flex items-center justify-center transition-colors"
               title="Close note"
-              style={{ WebkitAppRegion: 'no-drag' }}
+              style={{ 
+                WebkitAppRegion: 'no-drag',
+                backgroundColor: getButtonColors().inactive.replace('0.5', '0.2'),
+                color: getButtonColors().inactive
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#ef4444';
+                e.currentTarget.style.color = '#ffffff';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = getButtonColors().inactive.replace('0.5', '0.2');
+                e.currentTarget.style.color = getButtonColors().inactive;
+              }}
             >
               <svg
                 width="10"
@@ -577,9 +629,21 @@ const saveNote = useCallback(async () => {
             {/* Minimize button */}
             <button
               onClick={() => window.windowControls.minimize()}
-              className="w-6 h-6 rounded-full bg-gray-500/20 hover:bg-gray-500/50 flex items-center justify-center transition-colors"
+              className="w-6 h-6 rounded-full flex items-center justify-center transition-colors"
               title="Minimize"
-              style={{ WebkitAppRegion: 'no-drag' }}
+              style={{ 
+                WebkitAppRegion: 'no-drag',
+                backgroundColor: getButtonColors().inactive.replace('0.5', '0.2'),
+                color: getButtonColors().inactive
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = getButtonColors().inactive.replace('0.5', '0.5');
+                e.currentTarget.style.color = getButtonColors().hover;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = getButtonColors().inactive.replace('0.5', '0.2');
+                e.currentTarget.style.color = getButtonColors().inactive;
+              }}
             >
               <svg
                 width="10"
@@ -600,7 +664,7 @@ const saveNote = useCallback(async () => {
           <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center">
             <input
               type="text"
-              className={`note-title-input text-sm font-medium bg-transparent border-none outline-none focus:outline-none focus:ring-0 font-['Chirp',_'Segoe_UI',_sans-serif] cursor-text caret-black text-center ${isTitleFocused ? 'ring-1 ring-blue-400/30 bg-white/10' : ''}`}
+              className={`note-title-input text-sm font-medium bg-transparent border-none outline-none focus:outline-none focus:ring-0 font-['Chirp',_'Segoe_UI',_sans-serif] cursor-text text-center ${isTitleFocused ? 'ring-1 ring-blue-400/30 bg-white/10' : ''}`}
               style={{
                 WebkitAppRegion: 'no-drag',
                 boxShadow: 'none',
@@ -608,7 +672,9 @@ const saveNote = useCallback(async () => {
                 padding: isTitleFocused ? '2px 6px' : '2px 0px',
                 width: isTitleFocused ?
                   `${Math.min(Math.max((tempTitle?.length || 1) * 8, 50), 250)}px` :
-                  `${Math.min(Math.max((title?.length || 1) * 8, 50), 250)}px`
+                  `${Math.min(Math.max((title?.length || 1) * 8, 50), 250)}px`,
+                color: getTextColor(),
+                caretColor: getTextColor()
               }}
               ref={titleInputRef}
               value={isTitleFocused ? tempTitle : title}
@@ -649,7 +715,13 @@ const saveNote = useCallback(async () => {
   {!autoSaveEnabled && (
     <button
       onClick={handleManualSave}
-      className="text-black/50 hover:text-blue-600 transition-colors p-1 cursor-pointer"
+      className="transition-colors p-1 cursor-pointer"
+      style={{
+        color: getButtonColors().inactive,
+        '--hover-color': getButtonColors().hover
+      } as React.CSSProperties & { '--hover-color': string }}
+      onMouseEnter={(e) => (e.currentTarget.style.color = getButtonColors().hover)}
+      onMouseLeave={(e) => (e.currentTarget.style.color = getButtonColors().inactive)}
       title="Save now"
     >
       <svg
@@ -673,9 +745,20 @@ const saveNote = useCallback(async () => {
             <div className="relative">
               <button
                 onClick={() => dispatch(updateUIState({ showSettingsMenu: !showSettingsMenu }))}
-                className={`settings-button transition-colors p-1 cursor-pointer ${
-                  showSettingsMenu ? 'text-blue-600' : 'text-black/50 hover:text-blue-600'
-                }`}
+                className="settings-button transition-colors p-1 cursor-pointer"
+                style={{
+                  color: showSettingsMenu ? getButtonColors().active : getButtonColors().inactive
+                }}
+                onMouseEnter={(e) => {
+                  if (!showSettingsMenu) {
+                    e.currentTarget.style.color = getButtonColors().hover;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!showSettingsMenu) {
+                    e.currentTarget.style.color = getButtonColors().inactive;
+                  }
+                }}
                 title="Note settings"
               >
                 <svg
@@ -849,7 +932,17 @@ const saveNote = useCallback(async () => {
                           style={{ backgroundColor: noteColor }}
                           title="Current color"
                         />
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-black/40">
+                        <svg 
+                          width="12" 
+                          height="12" 
+                          viewBox="0 0 24 24" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          strokeWidth="2" 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round"
+                          style={{ color: `${getButtonColors().inactive}` }}
+                        >
                           <polyline points="6 9 12 15 18 9"></polyline>
                         </svg>
                       </div>
@@ -971,7 +1064,33 @@ const saveNote = useCallback(async () => {
         className="flex-1 overflow-hidden flex flex-col"
         style={{
           backgroundColor: noteColor,
-          color: getTextColor()
+          color: getTextColor(),
+          '--dynamic-text-color': getTextColor()
+        } as React.CSSProperties & { '--dynamic-text-color': string }}
+        onMouseEnter={() => {
+          const tiptapContent = document.querySelector('.note-editor .tiptap-content');
+          const proseMirror = document.querySelector('.note-editor .ProseMirror');
+          
+          const tiptapStyles = tiptapContent ? window.getComputedStyle(tiptapContent) : null;
+          const proseMirrorStyles = proseMirror ? window.getComputedStyle(proseMirror) : null;
+          
+          console.log('DOM inspection:', {
+            backgroundColor: noteColor,
+            calculatedTextColor: getTextColor(),
+            theme: theme,
+            tiptapContentComputedColor: tiptapStyles?.color,
+            proseMirrorComputedColor: proseMirrorStyles?.color,
+            tiptapContentClasses: tiptapContent?.className,
+            proseMirrorClasses: proseMirror?.className,
+            documentThemeClass: document.documentElement.className,
+            // Additional style properties that might affect appearance
+            tiptapTextShadow: tiptapStyles?.textShadow,
+            proseMirrorTextShadow: proseMirrorStyles?.textShadow,
+            tiptapOpacity: tiptapStyles?.opacity,
+            proseMirrorOpacity: proseMirrorStyles?.opacity,
+            tiptapFilter: tiptapStyles?.filter,
+            proseMirrorFilter: proseMirrorStyles?.filter
+          });
         }}
       >
         <Tiptap
@@ -980,8 +1099,9 @@ const saveNote = useCallback(async () => {
           onUpdate={handleContentUpdate}
           placeholder="Start typing here..."
           autofocus={!isNewNote}
-          editorClass={noteColor === '#333333' ? 'dark-theme' : ''}
+          editorClass={getTextColorForBackground(noteColor) === '#ffffff' ? 'dark-theme' : ''}
           backgroundColor={noteColor}
+          textColor={getTextColor()}
           toolbarColor={getDarkerShade(noteColor)}
         />
       </div>

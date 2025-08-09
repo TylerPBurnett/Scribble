@@ -495,27 +495,34 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
         onContextMenu={handleContextMenu}
         style={{
           backgroundColor: colorStyle.backgroundColor,
-          color: colorStyle.color
-        }}
+          color: colorStyle.color,
+          '--note-text-color': colorStyle.color,
+          '--note-text-secondary': `${colorStyle.color}99`,
+          '--note-text-tertiary': `${colorStyle.color}66`,
+          ...colorStyle.cssVars
+        } as React.CSSProperties}
       >
       {/* Note Header */}
       <div
         className="note-header px-3 py-2 flex items-center justify-between border-b border-black/5"
         style={{ backgroundColor: colorStyle.headerBg || '' }}
       >
-        <h3 className="note-title text-sm font-semibold whitespace-nowrap overflow-hidden text-ellipsis max-w-[180px] font-twitter">
+        <h3 
+          className="note-title text-sm font-semibold whitespace-nowrap overflow-hidden text-ellipsis max-w-[180px] font-twitter"
+          style={{ color: 'var(--note-text-color, inherit)' }}
+        >
           {note.title || 'Untitled Note'}
         </h3>
         <div className="note-actions flex items-center gap-1 relative">
           {/* Favorite icon */}
           {isFavoriteNote && (
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="favorite-icon text-text-secondary">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="favorite-icon opacity-70">
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
             </svg>
           )}
           {/* Pin icon */}
           {isPinnedNote && (
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="pin-icon text-text-secondary">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="pin-icon opacity-70">
               <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
               <circle cx="12" cy="10" r="3"></circle>
             </svg>
@@ -523,7 +530,8 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
 
           {/* More options button - only visible on hover */}
           <button
-            className="more-button w-4 h-4 flex items-center justify-center bg-transparent border-none text-text-tertiary rounded-full hover:bg-background-notes/20 hover:text-text opacity-0 group-hover:opacity-100 transition-all duration-150"
+            className="more-button w-4 h-4 flex items-center justify-center bg-transparent border-none rounded-full hover:bg-background-notes/20 opacity-0 group-hover:opacity-100 transition-all duration-150"
+            style={{ color: 'var(--note-text-secondary, currentColor)' }}
             onClick={toggleMenu}
             title="More options"
           >
@@ -775,14 +783,21 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
       </div>
 
       {/* Note Content */}
-      <div className="note-content flex-1 px-4 py-3 text-xs overflow-hidden whitespace-pre-line font-twitter">
+      <div 
+        className="note-content flex-1 px-4 py-3 text-xs overflow-hidden whitespace-pre-line font-twitter"
+        style={{ color: 'var(--note-text-color, inherit)' }}
+      >
         {getContentPreview(note.content) || <span className="empty-content italic opacity-60">No content</span>}
       </div>
 
       {/* Note Footer */}
       <div
-        className="note-footer px-3 py-2 flex items-center justify-end text-xs text-text-tertiary font-twitter"
-        style={{ backgroundColor: colorStyle.footerBg || '' }}
+        className="note-footer px-3 py-2 flex items-center justify-end text-xs font-twitter"
+        style={{ 
+          backgroundColor: colorStyle.footerBg || '',
+          color: 'var(--note-text-tertiary, currentColor)',
+          opacity: 0.7
+        }}
       >
         <span className="note-date">{formatDate(note.createdAt)}</span>
       </div>

@@ -351,7 +351,7 @@ div.notes-container.notes-container-transparent,
 .theme-light h5,
 .theme-light h6,
 .theme-light [class*="section"],
-.theme-light [class*="title"],
+.theme-light [class*="title"]:not(.note-title-input),
 .theme-light [class*="header"] {
   color: rgba(0, 0, 0, 0.9) !important;
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif !important;
@@ -366,7 +366,7 @@ html.theme-light body h1,
 html.theme-light body h2,
 html.theme-light body h3,
 html.theme-light body *[class*="section"],
-html.theme-light body *[class*="title"] {
+html.theme-light body *[class*="title"]:not(.note-title-input) {
   color: rgba(0, 0, 0, 0.9) !important;
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif !important;
   font-weight: 400 !important;
@@ -390,7 +390,7 @@ html.theme-light body *[class*="title"] {
 .theme-light h5,
 .theme-light h6,
 .theme-light *[class*="section"]:not(input):not(textarea):not(button):not(a),
-.theme-light *[class*="title"]:not(input):not(textarea):not(button):not(a),
+.theme-light *[class*="title"]:not(input):not(textarea):not(button):not(a):not(.note-title-input),
 .theme-light *[class*="header"]:not(input):not(textarea):not(button):not(a),
 .theme-light *[class*="favorite"]:not(input):not(textarea):not(button):not(a),
 .theme-light *[class*="Favorite"]:not(input):not(textarea):not(button):not(a),
@@ -418,11 +418,15 @@ html.theme-light body *[class*="title"] {
   color: rgba(0, 0, 0, 0.9) !important;
 }
 
-/* MAXIMUM SPECIFICITY: Try to override any existing styles */
-html body .theme-light *,
+/* MAXIMUM SPECIFICITY: Try to override any existing styles - BUT EXCLUDE NOTE EDITOR AND NOTE CARDS */
+html body .theme-light *:not(.note-editor *):not(.note-card *):not(.note-title-input),
 html body .theme-light *::before,
 html body .theme-light *::after {
   text-transform: capitalize !important;
+}
+
+/* Apply color only to non-excluded elements */
+html body .theme-light *:not(.note-editor *):not(.note-card *):not(.note-title-input) {
   color: rgba(0, 0, 0, 0.9) !important;
 }
 
@@ -453,8 +457,8 @@ html body .theme-light .uppercase * {
   text-transform: capitalize !important;
 }
 
-/* Keep other text with normal color but don't force font changes */
-.theme-light *:not(.section-title):not([class*="section"]):not([class*="title"]):not([class*="header"]):not(input):not(textarea):not(button):not(a) {
+/* Keep other text with normal color but don't force font changes - EXCLUDE NOTE EDITOR AND NOTE CARDS */
+.theme-light *:not(.section-title):not([class*="section"]):not([class*="title"]):not([class*="header"]):not(input):not(textarea):not(button):not(a):not(.note-editor *):not(.note-card *):not(.note-title-input) {
   color: rgba(0, 0, 0, 0.9) !important;
 }
 
@@ -698,4 +702,35 @@ html body .theme-light .uppercase * {
 .theme-light [data-radix-dialog-content] .space-y-6.p-6 h4 {
   color: rgb(55, 65, 81) !important;
   font-weight: 600 !important;
+}
+
+/* ===== EXPLICIT OVERRIDES FOR NOTE COMPONENTS ===== */
+/* Allow note editor content areas to control their own text colors */
+/* Be selective - only target text content, not UI elements like buttons */
+.theme-light .note-editor .tiptap-content,
+.theme-light .note-editor .tiptap-content *,
+.theme-light .note-editor .ProseMirror,
+.theme-light .note-editor .ProseMirror * {
+  color: inherit !important;
+}
+
+/* CRITICAL: Override for note title input with MAXIMUM specificity */
+html.theme-light body .note-editor input.note-title-input,
+html.theme-light body input.note-title-input,
+.theme-light input.note-title-input {
+  color: var(--dynamic-text-color, inherit) !important;
+  caret-color: var(--dynamic-text-color, inherit) !important;
+}
+
+/* CRITICAL: Override for note card title with MAXIMUM specificity */
+html.theme-light body .note-card .note-title,
+html.theme-light body .note-card h3.note-title,
+.theme-light .note-card .note-title,
+.theme-light .note-card h3.note-title {
+  color: var(--note-text-color, inherit) !important;
+}
+
+/* Ensure note card content uses CSS variables */
+.theme-light .note-card .note-content {
+  color: var(--note-text-color, inherit) !important;
 }

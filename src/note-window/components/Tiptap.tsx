@@ -27,6 +27,7 @@ interface TiptapProps {
   editable?: boolean;
   editorClass?: string; // Additional class for the editor
   backgroundColor?: string; // Background color for the editor
+  textColor?: string; // Text color for the editor
   toolbarColor?: string; // Background color for the toolbar
 }
 
@@ -44,6 +45,7 @@ const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
   editable = true,
   editorClass = '',
   backgroundColor,
+  textColor,
 }, ref) => {
   // State to track toolbar visibility
   const [isToolbarVisible, setIsToolbarVisible] = useState(true);
@@ -396,7 +398,10 @@ const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
     <div
       className="tiptap-editor"
       ref={editorContainerRef}
-      style={{ backgroundColor: backgroundColor || '' }}
+      style={{ 
+        backgroundColor: backgroundColor || '',
+        color: textColor || ''
+      }}
     >
       <EssentialToolbar
         editor={editor}
@@ -409,7 +414,10 @@ const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
       <EditorContent
         editor={editor}
         className={`tiptap-content ${editorClass}`}
-        style={{ backgroundColor: backgroundColor || '' }}
+        style={{ 
+          backgroundColor: backgroundColor || '',
+          color: textColor || ''
+        }}
         onClick={() => {
           if (editor && !editor.isFocused && !editor.isDestroyed) {
             editor.commands.focus();
