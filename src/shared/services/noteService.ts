@@ -119,7 +119,15 @@ export const getNotes = async (): Promise<Note[]> => {
       }
     }
 
-    return notes;
+    // Filter out any notes that shouldn't be displayed
+    // This ensures transient unsaved notes don't appear in the list
+    const displayableNotes = notes.filter(note => {
+      // Only show notes that are actually saved to disk
+      // Notes with _unsaved flag should not appear in the list
+      return !note._unsaved;
+    });
+
+    return displayableNotes;
   } catch (error) {
     console.error('Error reading notes from file system:', error);
     return [];
@@ -188,16 +196,45 @@ export const createNote = async (): Promise<Note> => {
   return newNote;
 };
 
+// Helper function to check if note has meaningful content
+const hasValidContent = (note: Note): boolean => {
+  // List of empty HTML patterns that represent no real content
+  const emptyHtmlPatterns = [
+    '<p></p>',
+    '<p><br></p>',
+    '<p><br/></p>',
+    '<p>&nbsp;</p>',
+    '<div></div>',
+    '<div><br></div>',
+    '<div><br/></div>'
+  ];
+  
+  // Check if content is truly empty
+  if (!note.content || note.content.trim().length === 0) {
+    return false;
+  }
+  
+  // Check if content matches any empty pattern
+  const trimmedContent = note.content.trim();
+  if (emptyHtmlPatterns.includes(trimmedContent)) {
+    return false;
+  }
+  
+  // Check if content only contains whitespace and HTML tags
+  const textOnly = trimmedContent.replace(/<[^>]*>/g, '').trim();
+  if (textOnly.length === 0 || textOnly === '&nbsp;') {
+    return false;
+  }
+  
+  return true;
+};
+
 // Update a note
 export const updateNote = async (updatedNote: Note): Promise<Note> => {
   // Check if this is an unsaved note that shouldn't be saved yet
   if (updatedNote._unsaved) {
     // Check if the note has meaningful content or a custom title
-    const hasContent = updatedNote.content && 
-                      updatedNote.content !== '<p></p>' && 
-                      updatedNote.content !== '<p><br></p>' &&
-                      updatedNote.content.trim().length > 0;
-    
+    const hasContent = hasValidContent(updatedNote);
     const hasCustomTitle = updatedNote.title && 
                           !updatedNote.title.startsWith('Untitled Note');
     

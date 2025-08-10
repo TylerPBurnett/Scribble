@@ -1126,27 +1126,91 @@ ipcMain.handle('create-note', async () => {
   const noteId = uuidv4();
   console.log('[Main Process] IPC: create-note called, generated UUID:', noteId);
 
-  // For now, we'll create the note inline to avoid import issues
-  // We'll delegate to the renderer process for the actual file creation
+  // Get save location from settings
+  const settingsStore = new Store({ name: 'settings' });
+  const settings = settingsStore.get('settings') as any || {};
+  const saveLocation = settings.saveLocation || await getDefaultSaveLocation();
+  
+  // Generate unique title by checking existing files
+  let title = 'Untitled Note';
+  if (saveLocation && fsSync.existsSync(saveLocation)) {
+    try {
+      const files = await fs.readdir(saveLocation);
+      const markdownFiles = files.filter(f => f.endsWith('.md'));
+      
+      // Extract titles from existing notes to find unique title
+      const existingTitles = new Set<string>();
+      for (const file of markdownFiles) {
+        try {
+          const filePath = path.join(saveLocation, file);
+          const content = await fs.readFile(filePath, 'utf8');
+          // Extract title from first line if it's a heading
+          const titleMatch = content.match(/^# (.+)$/m);
+          if (titleMatch) {
+            existingTitles.add(titleMatch[1]);
+          }
+        } catch (err) {
+          // Skip files we can't read
+        }
+      }
+      
+      // Generate unique title
+      if (existingTitles.has('Untitled Note')) {
+        let number = 2;
+        while (existingTitles.has(`Untitled Note ${number}`)) {
+          number++;
+        }
+        title = `Untitled Note ${number}`;
+      }
+    } catch (error) {
+      console.error('[Main Process] Error checking existing titles:', error);
+    }
+  }
+  
+  console.log('[Main Process] Generated unique title:', title);
+  
+  // Create the note object
   const newNote: Note = {
     id: noteId,
-    title: 'Untitled Note', // The renderer will handle unique title generation
+    title: title,
     content: '<p></p>',
     createdAt: new Date(),
     updatedAt: new Date(),
-    _isNew: true,
-    _unsaved: true  // Mark as unsaved - will be saved when user adds content
+    _isNew: true
   };
-
-  console.log('[Main Process] Generated new note object:', newNote);
-
-  // Store the note in the transient registry
+  
+  // Save the note file immediately (industry standard behavior)
+  if (saveLocation) {
+    try {
+      // Create the markdown content
+      const titleHeader = `# ${title}\n\n`;
+      const metadata = {
+        id: noteId
+      };
+      const metadataComment = `\n\n<!-- scribble-metadata: ${JSON.stringify(metadata)} -->`;
+      const fullContent = titleHeader + metadataComment;
+      
+      // Generate safe filename
+      const fileName = getSafeFileName(title, noteId);
+      const filePath = path.join(saveLocation, fileName);
+      
+      // Write the file
+      await fs.writeFile(filePath, fullContent);
+      noteFileRegistry.set(noteId, filePath);
+      
+      console.log('[Main Process] Created and saved new note file:', filePath);
+    } catch (error) {
+      console.error('[Main Process] Error saving new note file:', error);
+    }
+  }
+  
+  // Store in transient registry for quick access
   transientNewNotes.set(noteId, newNote);
-
+  
   // Open the note window immediately
   console.log('[Main Process] Opening note window for new note:', noteId);
   createNoteWindow(noteId);
-
+  
   return newNote;
 })
 
@@ -1254,6 +1318,26 @@ ipcMain.handle('save-note-to-file', async (_, noteId: string, title: string, con
 
       // Update the registry with the new file path
       noteFileRegistry.set(noteId, newFilePath);
+      
+      // Check if this was a transient note being saved for the first time
+      if (transientNewNotes.has(noteId)) {
+        console.log(`[Main Process] Transient note ${noteId} has been saved to disk`);
+        // Remove the transient flag since it's now saved
+        const transientNote = transientNewNotes.get(noteId);
+        if (transientNote) {
+          transientNote._unsaved = false;
+          transientNote._isNew = false;
+        }
+        
+        // Broadcast to all windows that they should refresh their notes list
+        // This ensures the newly saved note appears in the list
+        BrowserWindow.getAllWindows().forEach(window => {
+          if (!window.isDestroyed()) {
+            console.log(`[Main Process] Broadcasting refresh-notes-list to window`);
+            window.webContents.send('refresh-notes-list');
+          }
+        });
+      }
 
       return { success: true, filePath: newFilePath, newNoteId: noteId };
     } else {

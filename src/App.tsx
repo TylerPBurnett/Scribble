@@ -199,8 +199,12 @@ function App() {
       console.log('New note created via IPC:', newNote)
       
       // The note window will open automatically from the main process
-      // We don't need to do anything else here
-      // The note will only appear in the list once it's saved (has content)
+      // Important: The note is marked as _unsaved and won't appear in the list
+      // until the user adds content or changes the title.
+      // This prevents empty "Untitled Note" entries from cluttering the UI.
+      
+      // Do NOT add the note to the notes list here - it will appear
+      // automatically once it's saved to disk (when user adds content)
     } catch (error) {
       console.error('Error creating new note:', error)
     }
