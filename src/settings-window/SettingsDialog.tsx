@@ -2,7 +2,16 @@ import { useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { Folder } from 'lucide-react';
+import { 
+  FolderOpen, 
+  Edit3, 
+  Palette, 
+  Keyboard, 
+  Settings as SettingsIcon,
+  Check,
+  ChevronRight,
+  X
+} from 'lucide-react';
 import { AppSettings } from '../shared/services/settingsService';
 import { DEFAULT_HOTKEYS, HotkeyAction } from '../shared/services/hotkeyService';
 import { useTheme } from '../shared/services/themeService';
@@ -76,39 +85,38 @@ export function SettingsDialog({
     return mergedHotkeys;
   });
 
-  // Settings sections configuration
+  // Settings sections configuration - using Lucide icons
   const settingsSections = [
     { 
       id: 'file-management', 
       label: 'File Management', 
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-        </svg>
-      )
+      icon: FolderOpen,
+      color: 'text-note-sky'
     },
     { 
       id: 'application', 
       label: 'Application', 
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="3"></circle>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-        </svg>
-      )
+      icon: SettingsIcon,
+      color: 'text-note-violet'
     },
     { 
       id: 'keyboard-shortcuts', 
       label: 'Keyboard Shortcuts', 
-      icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M20 5H7c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h13c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2z"></path>
-          <path d="M2 12h20"></path>
-          <path d="M12 12v7"></path>
-        </svg>
-      )
+      icon: Keyboard,
+      color: 'text-note-amber'
     },
   ];
+
+  const scrollToSection = (id: string) => {
+    setActiveSection(id);
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
+  };
 
   // Update hotkeys state when initialSettings changes (e.g., when dialog is reopened)
   useEffect(() => {
@@ -231,171 +239,306 @@ export function SettingsDialog({
   };
 
   return (
-    <div className={`h-full w-full flex flex-col font-twitter ${theme === 'light' ? 'bg-gray-50 text-gray-900' : 'bg-background text-foreground'}`}>
+    <div className={`h-full w-full flex ${
+      theme === 'light' 
+        ? 'bg-gradient-to-br from-white via-gray-50/50 to-primary-10/5'
+        : theme === 'dim'
+        ? 'bg-gradient-to-br from-background via-background-sidebar to-background-notes'
+        : 'bg-gradient-to-br from-background via-background/95 to-background-notes'
+    }`}>
+      
+      {/* TOC Sidebar */}
+      <nav className={`w-72 sticky top-0 h-full backdrop-blur-sm border-r ${
+        theme === 'light'
+          ? 'bg-white/80 border-gray-100/60'
+          : theme === 'dim'
+          ? 'bg-background-sidebar/90 border-border/30'
+          : 'bg-background/80 border-border/20'
+      }`}>
+        <div className="p-8">
+          <h1 className={`text-2xl font-bold mb-8 ${
+            theme === 'light' ? 'text-gray-900' : 'text-foreground'
+          }`}>Settings</h1>
+          
+          <div className="space-y-2">
+            {settingsSections.map(section => {
+              const Icon = section.icon;
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => scrollToSection(section.id)}
+                  className={`
+                    w-full flex items-center gap-4 px-4 py-3.5 rounded-xl
+                    transition-all duration-300 group relative overflow-hidden
+                    ${activeSection === section.id 
+                      ? theme === 'light'
+                        ? 'bg-gradient-to-r from-primary-10 to-transparent text-primary-dark shadow-sm'
+                        : 'bg-gradient-to-r from-primary/20 to-transparent text-primary shadow-sm' 
+                      : theme === 'light'
+                        ? 'hover:bg-gray-50 text-gray-600 hover:text-gray-900'
+                        : 'hover:bg-muted/30 text-muted-foreground hover:text-foreground'
+                    }
+                  `}
+                >
+                  {/* Active indicator */}
+                  {activeSection === section.id && (
+                    <div className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-r-full ${
+                      theme === 'light' ? 'bg-primary-dark' : 'bg-primary'
+                    }`} />
+                  )}
+                  
+                  <Icon className={`
+                    w-5 h-5 transition-all duration-300
+                    ${activeSection === section.id 
+                      ? section.color 
+                      : theme === 'light'
+                        ? 'text-gray-400 group-hover:text-gray-600'
+                        : 'text-muted-foreground/70 group-hover:text-muted-foreground'
+                    }
+                  `} />
+                  <span className="font-medium text-sm">{section.label}</span>
+                  
+                  {activeSection === section.id && (
+                    <ChevronRight className="w-4 h-4 ml-auto" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </nav>
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
           {/* Main content with sidebar */}
           <div className="flex flex-1 min-h-0">
-            {/* Sidebar Navigation */}
-            <div className={`w-48 flex-shrink-0 border-r ${theme === 'light' ? 'border-gray-200/60 bg-gray-50/50' : 'border-border/30 bg-background/20'}`}>
-              <div className="p-3">
-                <h2 className={`text-sm font-semibold mb-3 ${theme === 'light' ? 'text-gray-900' : 'text-foreground'}`}>Settings</h2>
-                <nav className="space-y-1">
-                  {settingsSections.map((section) => (
-                    <button
-                      key={section.id}
-                      type="button"
-                      onClick={() => setActiveSection(section.id)}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors text-left ${activeSection === section.id
-                        ? (theme === 'light'
-                          ? 'bg-blue-100 text-blue-900 border border-blue-200'
-                          : 'bg-primary/20 text-primary border border-primary/30')
-                        : (theme === 'light'
-                          ? 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                          : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground')
-                        }`}
-                    >
-                      <span className="flex-shrink-0">{section.icon}</span>
-                      <span>{section.label}</span>
-                    </button>
-                  ))}
-                </nav>
+
+            {/* Main Content Area */}
+            <main className="flex-1 overflow-y-auto">
+              <div className="max-w-4xl mx-auto p-8 lg:p-12 space-y-16">
+                
+                {/* File Management Section */}
+                {activeSection === 'file-management' && (
+                  <section id="file-management" className="scroll-mt-8">
+                    <div className={`rounded-2xl shadow-sm border p-8 hover:shadow-md transition-shadow duration-300 ${
+                      theme === 'light'
+                        ? 'bg-white border-gray-100/50'
+                        : theme === 'dim'
+                        ? 'bg-card border-border/30'
+                        : 'bg-card/90 border-border/20'
+                    }`}>
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2.5 bg-note-sky/10 rounded-xl">
+                          <FolderOpen className="w-6 h-6 text-note-sky" />
+                        </div>
+                        <h2 className={`text-xl font-semibold ${
+                          theme === 'light' ? 'text-gray-900' : 'text-foreground'
+                        }`}>File Management</h2>
+                      </div>
+
+                      <div className="space-y-6">
+                        {/* Save Location */}
+                        <FormField
+                          control={form.control}
+                          name="saveLocation"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className={`block text-sm font-medium mb-2 ${
+                                theme === 'light' ? 'text-gray-700' : 'text-foreground'
+                              }`}>
+                                Save Location
+                              </FormLabel>
+                              <FormControl>
+                                <div className="flex gap-3">
+                                  <Input
+                                    {...field}
+                                    readOnly
+                                    placeholder="Choose where your notes are saved..."
+                                    className={`flex-1 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer transition-colors ${
+                                      theme === 'light'
+                                        ? 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                                        : theme === 'dim'
+                                        ? 'bg-secondary border-border text-secondary-foreground hover:bg-secondary/80'
+                                        : 'bg-secondary/70 border-border/50 text-secondary-foreground hover:bg-secondary/90'
+                                    }`}
+                                    onClick={handleSaveLocationSelect}
+                                  />
+                                  <Button
+                                    type="button"
+                                    onClick={handleSaveLocationSelect}
+                                    disabled={isSelectingLocation}
+                                    className={`px-5 py-3 rounded-xl font-medium transition-colors duration-200 ${
+                                      theme === 'light'
+                                        ? 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                                        : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'
+                                    }`}
+                                  >
+                                    {isSelectingLocation ? (
+                                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                      </svg>
+                                    ) : (
+                                      'Browse'
+                                    )}
+                                  </Button>
+                                </div>
+                              </FormControl>
+                              <FormDescription className={`mt-2 text-sm ${
+                                theme === 'light' ? 'text-gray-500' : 'text-muted-foreground'
+                              }`}>
+                                Choose where your notes are saved
+                              </FormDescription>
+                            </FormItem>
+                          )}
+                        />
+
+                        <div className={`pt-4 border-t ${
+                          theme === 'light' ? 'border-gray-100' : 'border-border/30'
+                        }`}>
+                          {/* Auto Save */}
+                          <FormField
+                            control={form.control}
+                            name="autoSave"
+                            render={({ field }) => (
+                              <FormItem className="flex items-center justify-between">
+                                <div>
+                                  <FormLabel className={`font-medium ${
+                                    theme === 'light' ? 'text-gray-900' : 'text-foreground'
+                                  }`}>Auto-save</FormLabel>
+                                  <FormDescription className={`text-sm mt-1 ${
+                                    theme === 'light' ? 'text-gray-500' : 'text-muted-foreground'
+                                  }`}>
+                                    Automatically save your work
+                                  </FormDescription>
+                                </div>
+                                <FormControl>
+                                  <label className="relative inline-flex items-center cursor-pointer">
+                                    <input 
+                                      type="checkbox" 
+                                      className="sr-only peer" 
+                                      checked={field.value}
+                                      onChange={(e) => field.onChange(e.target.checked)}
+                                    />
+                                    <div className={`w-11 h-6 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-note-emerald ${
+                                      theme === 'light' 
+                                        ? 'bg-gray-200'
+                                        : 'bg-muted'
+                                    }`}></div>
+                                  </label>
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+                )}
+
+                {/* Application Settings Section */}
+                {activeSection === 'application' && (
+                  <section id="application" className="scroll-mt-8">
+                    <div className={`rounded-2xl shadow-sm border p-8 hover:shadow-md transition-shadow duration-300 ${
+                      theme === 'light'
+                        ? 'bg-white border-gray-100/50'
+                        : theme === 'dim'
+                        ? 'bg-card border-border/30'
+                        : 'bg-card/90 border-border/20'
+                    }`}>
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2.5 bg-note-violet/10 rounded-xl">
+                          <SettingsIcon className="w-6 h-6 text-note-violet" />
+                        </div>
+                        <h2 className={`text-xl font-semibold ${
+                          theme === 'light' ? 'text-gray-900' : 'text-foreground'
+                        }`}>Application</h2>
+                      </div>
+                      <ApplicationSettingsSection form={form} theme={theme} />
+                    </div>
+                  </section>
+                )}
+
+                {/* Keyboard Shortcuts Section */}
+                {activeSection === 'keyboard-shortcuts' && (
+                  <section id="keyboard-shortcuts" className="scroll-mt-8">
+                    <div className={`rounded-2xl shadow-sm border p-8 hover:shadow-md transition-shadow duration-300 ${
+                      theme === 'light'
+                        ? 'bg-white border-gray-100/50'
+                        : theme === 'dim'
+                        ? 'bg-card border-border/30'
+                        : 'bg-card/90 border-border/20'
+                    }`}>
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2.5 bg-note-amber/10 rounded-xl">
+                          <Keyboard className="w-6 h-6 text-note-amber" />
+                        </div>
+                        <div className="flex-1 flex items-center justify-between">
+                          <h2 className={`text-xl font-semibold ${
+                            theme === 'light' ? 'text-gray-900' : 'text-foreground'
+                          }`}>Keyboard Shortcuts</h2>
+                          <button
+                            type="button"
+                            className={`px-4 py-2 rounded-xl font-medium text-sm transition-colors duration-200 ${
+                              theme === 'light'
+                                ? 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                                : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'
+                            }`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleHotkeyChange(DEFAULT_HOTKEYS);
+                            }}
+                          >
+                            Reset to Defaults
+                          </button>
+                        </div>
+                      </div>
+                      <div className="space-y-4">
+                        <HotkeysSection
+                          hotkeys={hotkeys}
+                          onChange={handleHotkeyChange}
+                          theme={theme}
+                        />
+                      </div>
+                    </div>
+                  </section>
+                )}
+
               </div>
-            </div>
-
-            {/* Content area */}
-            <div className="flex-1 overflow-y-auto space-y-3 p-3">
-              {/* File Management Section */}
-              {activeSection === 'file-management' && (
-                <div className={`rounded-lg border ${theme === 'light' ? 'bg-gray-200/90 border-gray-300/70' : 'bg-background/30 border-border/30'}`}>
-                  <div className={`px-3 py-2 border-b ${theme === 'light' ? 'border-gray-200/60' : 'border-border/30'}`}>
-                    <h3 className={`text-base font-medium ${theme === 'light' ? 'text-gray-900' : 'text-foreground'}`}>File Management</h3>
-                  </div>
-                  <div className="p-3 space-y-3">
-                    {/* Save Location */}
-                    <FormField
-                      control={form.control}
-                      name="saveLocation"
-                      render={({ field }) => (
-                        <FormItem className={`flex flex-col space-y-2 rounded-lg border p-5 ${theme === 'light' ? 'bg-white border-gray-200 shadow-sm' : 'backdrop-blur-sm border-border/30 bg-black/20'}`}>
-                          <FormLabel className={`text-sm font-medium ${theme === 'light' ? 'text-gray-900' : 'text-foreground'}`}>Save Location</FormLabel>
-                          <FormDescription className={`text-xs ${theme === 'light' ? 'text-gray-600' : 'text-muted-foreground'}`}>
-                            Choose where to save your notes
-                          </FormDescription>
-                          <FormControl>
-                            <div className="relative">
-                              <Input
-                                {...field}
-                                readOnly
-                                placeholder="Select folder location..."
-                                className={`pr-12 h-9 text-sm cursor-pointer ${theme === 'light' ? 'bg-gray-50 border-gray-300 text-gray-900 hover:bg-gray-100' : 'bg-secondary border-border/50 text-secondary-foreground hover:bg-secondary/80'} transition-colors`}
-                                onClick={handleSaveLocationSelect}
-                              />
-                              <button
-                                type="button"
-                                onClick={handleSaveLocationSelect}
-                                disabled={isSelectingLocation}
-                                className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md transition-colors ${theme === 'light' ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-200' : 'text-muted-foreground hover:text-foreground hover:bg-background/50'} ${isSelectingLocation ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                              >
-                                {isSelectingLocation ? (
-                                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                  </svg>
-                                ) : (
-                                  <Folder size={16} />
-                                )}
-                              </button>
-                            </div>
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-
-                    {/* Auto Save */}
-                    <FormField
-                      control={form.control}
-                      name="autoSave"
-                      render={({ field }) => (
-                        <FormItem className={`flex flex-row items-start justify-between rounded-lg border p-5 ${theme === 'light' ? 'bg-white border-gray-200 shadow-sm' : 'backdrop-blur-sm border-border/30 bg-black/20'}`}>
-                          <div className="flex-1 min-w-0 pr-4">
-                            <FormLabel className={`text-sm font-medium ${theme === 'light' ? 'text-gray-900' : 'text-foreground'}`}>Auto Save</FormLabel>
-                            <FormDescription className={`text-xs mt-1 ${theme === 'light' ? 'text-gray-600' : 'text-muted-foreground'}`}>
-                              Automatically save notes while typing
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <div className="flex items-center shrink-0">
-                              <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                                className=""
-                              />
-                              <span className={`ml-2 text-sm font-medium ${field.value ? (theme === 'light' ? 'text-blue-600' : 'text-primary') : (theme === 'light' ? 'text-gray-500' : 'text-muted-foreground')}`}>
-                                {field.value ? 'On' : 'Off'}
-                              </span>
-                            </div>
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Application Settings Section */}
-              {activeSection === 'application' && (
-                <ApplicationSettingsSection form={form} theme={theme} />
-              )}
-
-              {/* Keyboard Shortcuts Section */}
-              {activeSection === 'keyboard-shortcuts' && (
-                <div className={`rounded-lg border ${theme === 'light' ? 'bg-gray-200/90 border-gray-300/70' : 'bg-background/30 border-border/30'}`}>
-                  <div className={`px-3 py-2 border-b ${theme === 'light' ? 'border-gray-200/60' : 'border-border/30'} flex items-center justify-between`}>
-                    <h3 className={`text-base font-medium ${theme === 'light' ? 'text-gray-900' : 'text-foreground'}`}>Keyboard Shortcuts</h3>
-                    <button
-                      className={`flex items-center gap-1 px-3 py-1 text-sm rounded-md transition-colors ${theme === 'light' ? 'bg-gray-100 hover:bg-gray-200 text-gray-700' : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'}`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleHotkeyChange(DEFAULT_HOTKEYS);
-                      }}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-80">
-                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
-                        <path d="M3 3v5h5"></path>
-                      </svg>
-                      <span>Reset</span>
-                    </button>
-                  </div>
-                  <div className="p-3">
-                    <HotkeysSection
-                      hotkeys={hotkeys}
-                      onChange={handleHotkeyChange}
-                      theme={theme}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
+            </main>
           </div>
 
-          {/* Footer */}
-          <div className={`flex-shrink-0 flex items-center justify-end gap-2 py-3 px-6 border-t ${theme === 'light' ? 'border-gray-200/80 bg-gray-50/80' : 'border-border/40 bg-background/60'}`}>
-            <Button
+          {/* Footer with Save/Cancel buttons */}
+          <div className={`absolute bottom-0 left-0 w-72 p-8 bg-gradient-to-t ${
+            theme === 'light'
+              ? 'from-white via-white to-transparent'
+              : theme === 'dim'
+              ? 'from-background-sidebar via-background-sidebar to-transparent'
+              : 'from-background via-background to-transparent'
+          }`}>
+            <Button 
+              type="submit"
+              className={`w-full py-3 rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-300 mb-3 ${
+                theme === 'light'
+                  ? 'bg-primary-dark hover:bg-primary-dark/90 text-white'
+                  : 'bg-primary hover:bg-primary/90 text-primary-foreground'
+              }`}
+            >
+              Save Changes
+            </Button>
+            <Button 
               type="button"
               variant="ghost"
-              size="sm"
               onClick={() => onOpenChange(false)}
-              className={`transition-all duration-200 hover:scale-105 ${theme === 'light' ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'}`}>
+              className={`w-full py-3 rounded-xl font-medium transition-all duration-200 ${
+                theme === 'light'
+                  ? 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                  : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'
+              }`}
+            >
               Cancel
-            </Button>
-            <Button
-              type="submit"
-              size="sm"
-              className={`transition-all duration-200 hover:scale-105 ${theme === 'light' ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md' : 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm hover:shadow-md'}`}>
-              Save Changes
             </Button>
           </div>
         </form>
