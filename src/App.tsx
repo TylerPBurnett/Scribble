@@ -4,9 +4,9 @@ import NoteList from './components/NoteList'
 import NoteEditor from './components/NoteEditor'
 import SettingsWindow from './components/SettingsWindow'
 import TitleBar from './components/TitleBar'
-import { Note } from './types/Note'
-import { getNotes, createNote, getNoteById, deleteNote } from './services/noteService'
-import { getSettings, saveSettings, initSettings, AppSettings } from './services/settingsService'
+import { Note } from './shared/types/Note'
+import { getNotes, createNote, getNoteById, deleteNote } from './shared/services/noteService'
+import { getSettings, saveSettings, initSettings, AppSettings } from './shared/services/settingsService'
 
 function App() {
   // Check if this is a note window using the window flag
@@ -94,6 +94,9 @@ function App() {
               setActiveNote(note)
             } else {
               console.error('Note not found with ID:', noteId)
+              // If the note can't be found, it might be a stale reference
+              // Show an error message to the user
+              console.log('Note with ID', noteId, 'could not be found. It may have been deleted or moved.')
             }
           }
         } else {
@@ -138,12 +141,35 @@ function App() {
       }
     }
 
-    // Add event listener
+    // Set up listener for removing unsaved notes
+    const handleRemoveUnsavedNote = (_event: any, noteId: string) => {
+      console.log('Removing unsaved note from list:', noteId)
+      // Remove the unsaved note from the local state
+      setNotes(prevNotes => prevNotes.filter(note => note.id !== noteId))
+    }
+
+    // Set up listener for full notes list refresh
+    const handleRefreshNotesList = async () => {
+      console.log('Refreshing entire notes list')
+      try {
+        const updatedNotes = await getNotes()
+        setNotes(updatedNotes)
+        console.log('Notes list refreshed, count:', updatedNotes.length)
+      } catch (error) {
+        console.error('Error refreshing notes list:', error)
+      }
+    }
+
+    // Add event listeners
     window.ipcRenderer.on('note-updated', handleNoteUpdated)
+    window.ipcRenderer.on('remove-unsaved-note', handleRemoveUnsavedNote)
+    window.ipcRenderer.on('refresh-notes-list', handleRefreshNotesList)
 
     // Clean up
     return () => {
       window.ipcRenderer.off('note-updated', handleNoteUpdated)
+      window.ipcRenderer.off('remove-unsaved-note', handleRemoveUnsavedNote)
+      window.ipcRenderer.off('refresh-notes-list', handleRefreshNotesList)
     }
   }, [isNoteWindow])
 
@@ -167,19 +193,14 @@ function App() {
   // Handle creating a new note
   const handleNewNote = async () => {
     try {
-      // Create a new note in the main window
-      console.log('Creating new note...')
-      const newNote = await createNote()
-      console.log('New note created:', newNote)
-
-      // Use the createNote IPC method directly instead of openNote
-      // This will create a new window with a temporary ID and then create the note
-      console.log('Creating note window directly via IPC')
-      const result = await window.noteWindow.createNote()
-      console.log('Result from creating note window:', result)
-
-      // Notify other windows that a new note has been created
-      window.noteWindow.noteUpdated(newNote.id)
+      // Create a new note via IPC which returns the note with UUID
+      console.log('Creating new note via IPC...')
+      const newNote = await window.noteWindow.createNote()
+      console.log('New note created via IPC:', newNote)
+      
+      // The note window will open automatically from the main process
+      // We don't need to do anything else here
+      // The note will only appear in the list once it's saved (has content)
     } catch (error) {
       console.error('Error creating new note:', error)
     }

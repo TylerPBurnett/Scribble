@@ -489,7 +489,7 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
       <div
         ref={noteCardRef}
         className={`note-card ${isActive ? 'selected' : ''} ${isAnimating ? 'scale-95 opacity-90' : ''} rounded-xl overflow-hidden flex flex-col shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer h-note-card
-          hover:translate-y-[-2px] hover:scale-[1.02] group ease-out`}
+          hover:translate-y-[-2px] hover:scale-[1.02] group ease-out border border-black/[0.10] dark:border-white/[0.10] dim:border-white/[0.12]`}
         onClick={handleNoteClick}
         tabIndex={-1}
         onContextMenu={handleContextMenu}

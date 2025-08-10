@@ -424,8 +424,25 @@ function createNoteWindow(noteId: string) {
     console.log(`[Main Process] Note window closed: ${noteId}`);
     noteWindows.delete(noteId);
 
-    // Clean up any transient data for this note
+    // Check if this was an unsaved note that should be removed from the notes list
     if (transientNewNotes.has(noteId)) {
+      const transientNote = transientNewNotes.get(noteId);
+      
+      // If the note was still unsaved (never saved to disk), notify the main window to remove it
+      if (transientNote && transientNote._unsaved) {
+        console.log(`[Main Process] Unsaved note closed without saving, triggering refresh: ${noteId}`);
+        
+        // Broadcast to all windows that they should refresh their notes list
+        // This ensures the unsaved note is removed from the list
+        BrowserWindow.getAllWindows().forEach(window => {
+          if (!window.isDestroyed()) {
+            // Send both events - remove the specific note and trigger a full refresh
+            window.webContents.send('remove-unsaved-note', noteId);
+            window.webContents.send('refresh-notes-list');
+          }
+        });
+      }
+      
       console.log(`[Main Process] Cleaning up transient data for note: ${noteId}`);
       transientNewNotes.delete(noteId);
     }
@@ -676,7 +693,8 @@ function registerGlobalHotkeys() {
         content: '<p></p>',
         createdAt: new Date(),
         updatedAt: new Date(),
-        _isNew: true
+        _isNew: true,
+        _unsaved: true  // Mark as unsaved - will be saved when user adds content
       };
 
       console.log('[Main Process] Global hotkey: Generated new note object:', newNote);
@@ -1108,20 +1126,26 @@ ipcMain.handle('create-note', async () => {
   const noteId = uuidv4();
   console.log('[Main Process] IPC: create-note called, generated UUID:', noteId);
 
-  // Create a new note object
+  // For now, we'll create the note inline to avoid import issues
+  // We'll delegate to the renderer process for the actual file creation
   const newNote: Note = {
     id: noteId,
-    title: 'Untitled Note',
+    title: 'Untitled Note', // The renderer will handle unique title generation
     content: '<p></p>',
     createdAt: new Date(),
     updatedAt: new Date(),
-    _isNew: true
+    _isNew: true,
+    _unsaved: true  // Mark as unsaved - will be saved when user adds content
   };
 
   console.log('[Main Process] Generated new note object:', newNote);
 
   // Store the note in the transient registry
   transientNewNotes.set(noteId, newNote);
+
+  // Open the note window immediately
+  console.log('[Main Process] Opening note window for new note:', noteId);
+  createNoteWindow(noteId);
 
   return newNote;
 })
@@ -1160,9 +1184,17 @@ ipcMain.handle('get-note-id', (event) => {
 ipcMain.handle('get-transient-new-note-data', async (_, noteId: string) => {
   const note = transientNewNotes.get(noteId);
   if (note) {
-    console.log(`[Main Process] Serving transient data for new note ID: ${noteId}`);
+    console.log(`[Main Process] Serving transient data for note ID: ${noteId}`);
     return note;
   }
+  
+  // Check if there's a file for this note ID in the registry
+  const filePath = noteFileRegistry.get(noteId);
+  if (filePath) {
+    console.log(`[Main Process] Note ${noteId} has a file, not serving transient data`);
+    return null;
+  }
+  
   console.warn(`[Main Process] No transient new note data found for ID: ${noteId}`);
   return null;
 })

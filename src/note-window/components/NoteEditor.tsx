@@ -158,7 +158,15 @@ useEffect(() => {
   };
 
   autosaveService.current = new SmartAutosaveService(config);
-  autosaveService.current.initializeAutosave(note, () => currentContentRef.current, savedNote => {
+  
+  // Pass the note with _unsaved flag preserved
+  const noteWithFlags = {
+    ...note,
+    _unsaved: note._unsaved,
+    _isNew: note._isNew
+  };
+  
+  autosaveService.current.initializeAutosave(noteWithFlags, () => currentContentRef.current, savedNote => {
     // Update references and notify on save
     currentNoteRef.current = savedNote;
     onSave?.(savedNote);
@@ -173,7 +181,18 @@ useEffect(() => {
 // Define a stable save function that uses refs to access the latest state
 const saveNote = useCallback(async () => {
   if (autosaveService.current) {
-    await autosaveService.current.triggerAutosave(currentNoteRef.current, currentContentRef.current, savedNote => {
+    // Ensure we pass the note with its _unsaved flag preserved
+    const noteToSave = {
+      ...currentNoteRef.current,
+      title: currentTitleRef.current,
+      content: currentContentRef.current,
+      // Preserve the _unsaved flag if it exists
+      _unsaved: currentNoteRef.current._unsaved,
+      _isNew: currentNoteRef.current._isNew
+    };
+    
+    await autosaveService.current.triggerAutosave(noteToSave, currentContentRef.current, savedNote => {
+      // Remove the _unsaved flag if the note was successfully saved
       currentNoteRef.current = savedNote;
       onSave?.(savedNote);
       dispatch(updateEditorState({ isDirty: false }));

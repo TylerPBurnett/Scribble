@@ -126,35 +126,112 @@ export const getNotes = async (): Promise<Note[]> => {
   }
 };
 
+// Helper function to generate unique title for new notes
+const generateUniqueTitle = async (): Promise<string> => {
+  const baseTitle = 'Untitled Note';
+  
+  try {
+    // Get all existing notes to check for conflicts
+    const existingNotes = await getNotes();
+    
+    // Find all notes that start with "Untitled Note"
+    const untitledNotes = existingNotes.filter(note => 
+      note.title === baseTitle || note.title.startsWith(`${baseTitle} `)
+    );
+    
+    if (untitledNotes.length === 0) {
+      return baseTitle;
+    }
+    
+    // Find the next available number
+    let number = 2;
+    while (existingNotes.some(note => note.title === `${baseTitle} ${number}`)) {
+      number++;
+    }
+    
+    return `${baseTitle} ${number}`;
+  } catch (error) {
+    console.error('Error generating unique title:', error);
+    // Fallback to timestamp-based unique title if there's an error
+    return `${baseTitle} ${Date.now()}`;
+  }
+};
+
 // Create a new note
 export const createNote = async (): Promise<Note> => {
-  // Create a new note with a temporary ID
+  // Generate a unique title for the new note
+  const uniqueTitle = await generateUniqueTitle();
+  
+  // Create a new note with a stable UUID
   const newNote: Note = {
-    id: generateId(),
-    title: 'Untitled Note', // Set a default title
+    id: generateId(), // This uses UUID for stability
+    title: uniqueTitle,
     content: '<p></p>',
     createdAt: new Date(),
     updatedAt: new Date(),
-    // Add a flag to indicate this is a new note that hasn't been saved yet
-    _isNew: true
+    _isNew: true,
+    _unsaved: true  // Mark as unsaved - will be saved when user adds content
   };
 
-  // We don't immediately save the file to disk
-  // This prevents creating multiple files as the user edits the title
-  // The first save will happen when the user makes changes or when they blur the title field
-  console.log('Created new note with temporary ID:', newNote.id);
+  // DO NOT save the note immediately - implement deferred save
+  // The note will only be saved when:
+  // 1. The user adds content to it
+  // 2. The user changes the title from "Untitled Note"
+  // This prevents empty untitled notes from cluttering the file system
+  
+  console.log('Created new note (not saved to disk yet):', {
+    id: newNote.id,
+    title: newNote.title,
+    unsaved: true
+  });
 
   return newNote;
 };
 
 // Update a note
 export const updateNote = async (updatedNote: Note): Promise<Note> => {
+  // Check if this is an unsaved note that shouldn't be saved yet
+  if (updatedNote._unsaved) {
+    // Check if the note has meaningful content or a custom title
+    const hasContent = updatedNote.content && 
+                      updatedNote.content !== '<p></p>' && 
+                      updatedNote.content !== '<p><br></p>' &&
+                      updatedNote.content.trim().length > 0;
+    
+    const hasCustomTitle = updatedNote.title && 
+                          !updatedNote.title.startsWith('Untitled Note');
+    
+    // If the note doesn't have content or a custom title, don't save it yet
+    if (!hasContent && !hasCustomTitle) {
+      console.log('Skipping save for empty untitled note:', {
+        id: updatedNote.id,
+        title: updatedNote.title,
+        hasContent,
+        hasCustomTitle
+      });
+      // Return the note as-is, still marked as unsaved
+      return {
+        ...updatedNote,
+        updatedAt: new Date()
+      };
+    }
+    
+    // If we get here, the note has content or a custom title, so we should save it
+    console.log('First save for previously unsaved note:', {
+      id: updatedNote.id,
+      title: updatedNote.title,
+      hasContent,
+      hasCustomTitle
+    });
+  }
+
   // Get the updated note with the new timestamp
   const finalNote = {
     ...updatedNote,
     updatedAt: new Date(),
-    // Remove the _isNew flag if it exists - the note is now being saved
-    _isNew: undefined
+    // Remove the _isNew and _unsaved flags - the note is now being saved
+    _isNew: undefined,
+    _unsaved: undefined
   };
 
   // Save to file if a save location is set
@@ -164,12 +241,14 @@ export const updateNote = async (updatedNote: Note): Promise<Note> => {
     console.log('Save location found:', settings.saveLocation);
 
     // Check if this is a new note being saved for the first time
-    const isFirstSave = updatedNote._isNew === true;
+    const isFirstSave = updatedNote._isNew === true || updatedNote._unsaved === true;
 
     // If this is a new note being saved for the first time, handle it specially
     if (isFirstSave) {
-      console.log('First save of a new note with custom title:', updatedNote.title);
-      // We'll skip the file lookup since there shouldn't be a file yet
+      console.log('First update of newly created note:', {
+        title: updatedNote.title
+      });
+      // We'll skip the file lookup since the file was just created
 
       // Convert HTML content to Markdown
       const markdownContent = htmlToMarkdown(finalNote.content);
@@ -326,6 +405,16 @@ export const deleteNote = async (noteId: string): Promise<void> => {
 // Get a note by ID
 export const getNoteById = async (noteId: string): Promise<Note | undefined> => {
   console.log('Getting note by ID:', noteId);
+  
+  // First check if this is a transient new note (not yet saved to disk)
+  // This is important for untitled notes that haven't been saved yet
+  const transientNote = await window.noteWindow.getTransientNewNoteData(noteId);
+  if (transientNote) {
+    console.log('Found transient note with ID:', noteId);
+    return transientNote;
+  }
+  
+  // If not transient, look in the file system
   const notes = await getNotes();
 
   // With stable UUIDs, we should be able to find the note directly by ID

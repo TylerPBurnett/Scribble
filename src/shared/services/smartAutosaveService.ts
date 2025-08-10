@@ -76,6 +76,28 @@ export class SmartAutosaveService {
     const contentChanged = currentContent !== this.lastSavedContent;
     if (!contentChanged) return;
 
+    // Check if this is an unsaved note that shouldn't be saved yet
+    if (note._unsaved) {
+      // Check if the note has meaningful content or a custom title
+      const hasContent = currentContent && 
+                        currentContent !== '<p></p>' && 
+                        currentContent !== '<p><br></p>' &&
+                        currentContent.trim().length > 0;
+      
+      const hasCustomTitle = note.title && 
+                            !note.title.startsWith('Untitled Note');
+      
+      // If the note doesn't have content or a custom title, skip autosave
+      if (!hasContent && !hasCustomTitle) {
+        console.log('Skipping autosave trigger for empty untitled note:', {
+          id: note.id,
+          title: note.title,
+          priority
+        });
+        return;
+      }
+    }
+
     const characterDelta = Math.abs(currentContent.length - this.lastSavedContent.length);
     
     // Determine save strategy based on priority and content changes
@@ -119,6 +141,34 @@ export class SmartAutosaveService {
     content: string,
     onSave: (savedNote: Note) => void
   ) {
+    // Check if this is an unsaved note that shouldn't be saved yet
+    if (note._unsaved) {
+      // Check if the note has meaningful content or a custom title
+      const hasContent = content && 
+                        content !== '<p></p>' && 
+                        content !== '<p><br></p>' &&
+                        content.trim().length > 0;
+      
+      const hasCustomTitle = note.title && 
+                            !note.title.startsWith('Untitled Note');
+      
+      // If the note doesn't have content or a custom title, don't save it
+      if (!hasContent && !hasCustomTitle) {
+        console.log('Skipping immediate save for empty untitled note:', {
+          id: note.id,
+          title: note.title,
+          unsaved: true
+        });
+        // Return the note as-is, still marked as unsaved
+        onSave({
+          ...note,
+          content,
+          updatedAt: new Date()
+        });
+        return;
+      }
+    }
+
     // Add to queue to prevent concurrent saves
     return new Promise<void>((resolve) => {
       this.saveQueue.push(async () => {
