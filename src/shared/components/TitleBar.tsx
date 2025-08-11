@@ -86,24 +86,30 @@ const TitleBar: React.FC<TitleBarProps> = ({ onMinimize, onMaximize, onClose, cl
   return (
     <div
       className={`relative flex flex-col h-10 border-b-0 z-20 select-none w-full ${className}`}
-      style={dragStyle}
     >
-      {/* Content positioned absolutely over the draggable area */}
-      <div className="relative w-full h-full">
+      {/* Draggable title bar area - always visible */}
+      <div 
+        className="absolute inset-x-0 top-0 h-full" 
+        style={dragStyle}
+      >
         {/* Platform-specific reserved spaces */}
         {platform === 'darwin' && (
-          <div className="absolute left-0 w-[72px] h-full flex-shrink-0" />
+          <div className="absolute left-0 w-[72px] h-full" style={noDragStyle} />
         )}
         {platform !== 'darwin' && renderWindowControls() && (
-          <div className="absolute right-0 h-full">
+          <div className="absolute right-0 h-full" style={noDragStyle}>
             {renderWindowControls()}
           </div>
         )}
-        
-        {/* Main content - children centered in full window */}
-        <div className="absolute inset-0" style={noDragStyle}>
-          {children}
-        </div>
+      </div>
+      
+      {/* Main content - children positioned below the drag area */}
+      <div className="relative w-full h-full">
+        {children && (
+          <div className="absolute inset-0" style={noDragStyle}>
+            {children}
+          </div>
+        )}
       </div>
     </div>
   );

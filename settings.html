@@ -10,6 +10,25 @@
       // It sets a flag that identifies this as a settings window
       window.IS_SETTINGS_WINDOW = true;
     </script>
+    <style>
+      /* Ensure drag regions work properly */
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      
+      /* Ensure no global styles interfere with drag regions */
+      [style*="-webkit-app-region: drag"] {
+        -webkit-app-region: drag !important;
+      }
+      
+      [style*="-webkit-app-region: no-drag"] {
+        -webkit-app-region: no-drag !important;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

@@ -57,18 +57,78 @@ function SettingsApp() {
     </div>
   }
 
+  // Detect platform
+  const isMac = navigator.userAgent.toLowerCase().includes('mac');
+
   // Render the settings window
   return (
     <ThemeProvider initialSettings={appSettings}>
-      <div className="flex flex-col h-screen w-screen">
-        <TitleBar
-          title="Settings"
-          onMinimize={() => window.windowControls.minimize()}
-          onMaximize={() => window.windowControls.maximize()}
-          onClose={() => window.windowControls.close()}
-          className="flex-shrink-0"
-        />
-        <div className="flex-1 min-h-0">
+      <div className="flex flex-col h-screen w-screen overflow-hidden">
+        {/* Draggable title bar - theme-aware */}
+        <div 
+          className="h-10 flex items-center flex-shrink-0 select-none border-b bg-background-titlebar border-border"
+          style={{ 
+            WebkitAppRegion: 'drag',
+            // Ensure the drag region is on top
+            position: 'relative',
+            zIndex: 100
+          } as React.CSSProperties}
+        >
+          {/* macOS traffic light space */}
+          {isMac && (
+            <div className="w-20 flex-shrink-0" />
+          )}
+          
+          {/* Title - centered */}
+          <div className="flex-1 flex items-center justify-center pointer-events-none">
+            <span className="text-sm font-semibold text-muted-foreground">Settings</span>
+          </div>
+          
+          {/* Window controls for Windows/Linux */}
+          {!isMac && (
+            <div 
+              className="flex items-center flex-shrink-0" 
+              style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+            >
+              <button
+                className="flex items-center justify-center w-11 h-10 transition-colors text-muted-foreground hover:bg-muted/30"
+                onClick={() => window.windowControls.minimize()}
+                title="Minimize"
+              >
+                <svg width="10" height="1" viewBox="0 0 10 1">
+                  <rect width="10" height="1" fill="currentColor" />
+                </svg>
+              </button>
+              <button
+                className="flex items-center justify-center w-11 h-10 transition-colors text-muted-foreground hover:bg-muted/30"
+                onClick={() => window.windowControls.maximize()}
+                title="Maximize"
+              >
+                <svg width="10" height="10" viewBox="0 0 10 10">
+                  <rect x="0" y="0" width="10" height="10" stroke="currentColor" strokeWidth="1" fill="none" />
+                </svg>
+              </button>
+              <button
+                className="flex items-center justify-center w-11 h-10 transition-colors text-muted-foreground hover:bg-destructive hover:text-destructive-foreground"
+                onClick={() => window.windowControls.close()}
+                title="Close"
+              >
+                <svg width="10" height="10" viewBox="0 0 10 10">
+                  <line x1="0" y1="0" x2="10" y2="10" stroke="currentColor" strokeWidth="1" />
+                  <line x1="10" y1="0" x2="0" y2="10" stroke="currentColor" strokeWidth="1" />
+                </svg>
+              </button>
+            </div>
+          )}
+          
+          {/* macOS right padding to balance */}
+          {isMac && (
+            <div className="w-20 flex-shrink-0" />
+          )}
+        </div>
+        
+        {/* Main content area */}
+        <div className="flex-1 min-h-0 overflow-hidden">
           <SettingsDialog
             onOpenChange={handleOpenChange}
             initialSettings={appSettings}
