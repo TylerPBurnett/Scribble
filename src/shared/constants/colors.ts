@@ -98,14 +98,20 @@ export function getTextColorForBackground(backgroundColor: string): string {
  * Get theme-aware default note color
  */
 export function getDefaultNoteColorForTheme(theme: string): string {
+  console.log('getDefaultNoteColorForTheme called with theme:', theme);
+  
   switch (theme) {
     case 'light':
       return '#F9FAFB'; // Light gray - matches main app note list
+    case 'lightv2':
+      // For LightV2, use the same light gray as note cards for consistency
+      return '#F9FAFB'; // Light gray - matches note cards in main window
     case 'dim':
       return '#44475a'; // Muted purple-gray - harmonizes with dim theme
     case 'dark':
       return '#2d2d2d'; // Dark gray - subtle contrast with dark theme
     default:
+      console.warn('Unknown theme in getDefaultNoteColorForTheme:', theme, '- using fallback');
       return '#F9FAFB'; // Fallback to light gray
   }
 }

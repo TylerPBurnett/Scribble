@@ -15,7 +15,7 @@ export interface AppSettings {
   saveLocation: string;
   autoSave: boolean;
   autoSaveInterval: number;
-  theme: string; // Theme name (replaces darkMode)
+  theme: 'dim' | 'dark' | 'light' | 'lightv2'; // Theme name with explicit types
   darkMode?: boolean; // Kept for backward compatibility
   hotkeys?: Partial<Record<HotkeyAction, string>>;
   autoLaunch?: boolean;
@@ -361,7 +361,7 @@ export const initSettings = async (): Promise<AppSettings> => {
   }
 
   // Ensure theme is set to a valid value
-  if (!updatedSettings.theme || !['dim', 'dark', 'light'].includes(updatedSettings.theme)) {
+  if (!updatedSettings.theme || !['dim', 'dark', 'light', 'lightv2'].includes(updatedSettings.theme)) {
     console.log('Setting default theme to dim');
     updatedSettings.theme = 'dim';
     needsUpdate = true;

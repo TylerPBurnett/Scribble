@@ -46,11 +46,11 @@ export function ApplicationSettingsSection({ form, theme = 'dim' }: ApplicationS
   };
 
   return (
-    <div className={`space-y-6 p-6 rounded-lg ${theme === 'light' ? 'bg-gray-200/90 border border-gray-300/70' : 'backdrop-blur-sm'}`}>
-      <h3 className={`text-base font-medium border-b pb-4 ${theme === 'light' ? 'text-gray-900 border-gray-200' : 'text-foreground border-border/50'}`}>Application Settings</h3>
+    <div className={`space-y-6 p-6 rounded-lg ${theme === 'light' ? 'bg-gray-200/90 border border-gray-300/70' : theme === 'lightv2' ? 'bg-transparent' : 'backdrop-blur-sm'}`}>
+      <h3 className={`text-base font-medium border-b pb-4 ${theme === 'light' ? 'text-gray-900 border-gray-200' : theme === 'lightv2' ? 'text-gray-900 border-gray-200' : 'text-foreground border-border/50'}`}>Application Settings</h3>
 
       {/* Theme Selection */}
-      <div className={`p-5 rounded-lg border ${theme === 'light' ? 'bg-white border-gray-200 shadow-sm' : 'backdrop-blur-sm border-border/30 bg-black/20'}`}>
+      <div className={`p-5 rounded-lg border ${theme === 'light' ? 'bg-white border-gray-200 shadow-sm' : theme === 'lightv2' ? 'bg-white border-gray-200 shadow-sm' : 'backdrop-blur-sm border-border/30 bg-black/20'}`}>
         <ThemesSection
           currentTheme={form.watch('theme') as ThemeName}
           onChange={(theme) => form.setValue('theme', theme)}
@@ -62,10 +62,10 @@ export function ApplicationSettingsSection({ form, theme = 'dim' }: ApplicationS
         control={form.control}
         name="autoLaunch"
         render={({ field }) => (
-          <FormItem className={`flex flex-row items-start justify-between rounded-lg border p-5 ${theme === 'light' ? 'bg-white border-gray-200 shadow-sm' : 'backdrop-blur-sm border-border/30 bg-black/20'}`}>
+          <FormItem className={`flex flex-row items-start justify-between rounded-lg border p-5 ${theme === 'light' ? 'bg-white border-gray-200 shadow-sm' : theme === 'lightv2' ? 'bg-white border-gray-200 shadow-sm' : 'backdrop-blur-sm border-border/30 bg-black/20'}`}>
             <div className="flex-1 min-w-0 pr-4">
-              <FormLabel className={`text-sm font-medium ${theme === 'light' ? 'text-gray-900' : 'text-foreground'}`}>Start with System</FormLabel>
-              <FormDescription className={`text-xs mt-1 ${theme === 'light' ? 'text-gray-600' : 'text-muted-foreground'}`}>
+              <FormLabel className={`text-sm font-medium ${theme === 'light' || theme === 'lightv2' ? 'text-gray-900' : 'text-foreground'}`}>Start with System</FormLabel>
+              <FormDescription className={`text-xs mt-1 ${theme === 'light' || theme === 'lightv2' ? 'text-gray-600' : 'text-muted-foreground'}`}>
                 Launch Scribble automatically when you log in
               </FormDescription>
             </div>
@@ -76,7 +76,7 @@ export function ApplicationSettingsSection({ form, theme = 'dim' }: ApplicationS
                   onCheckedChange={field.onChange}
                   className=""
                 />
-                <span className={`ml-2 text-sm font-medium ${field.value ? (theme === 'light' ? 'text-blue-600' : 'text-primary') : (theme === 'light' ? 'text-gray-500' : 'text-muted-foreground')}`}>
+                <span className={`ml-2 text-sm font-medium ${field.value ? (theme === 'light' || theme === 'lightv2' ? 'text-blue-600' : 'text-primary') : (theme === 'light' || theme === 'lightv2' ? 'text-gray-500' : 'text-muted-foreground')}`}>
                   {field.value ? 'On' : 'Off'}
                 </span>
               </div>
@@ -90,10 +90,10 @@ export function ApplicationSettingsSection({ form, theme = 'dim' }: ApplicationS
         control={form.control}
         name="minimizeToTray"
         render={({ field }) => (
-          <FormItem className={`flex flex-row items-start justify-between rounded-lg border p-5 ${theme === 'light' ? 'bg-white border-gray-200 shadow-sm' : 'backdrop-blur-sm border-border/30 bg-black/20'}`}>
+          <FormItem className={`flex flex-row items-start justify-between rounded-lg border p-5 ${theme === 'light' ? 'bg-white border-gray-200 shadow-sm' : theme === 'lightv2' ? 'bg-white border-gray-200 shadow-sm' : 'backdrop-blur-sm border-border/30 bg-black/20'}`}>
             <div className="flex-1 min-w-0 pr-4">
-              <FormLabel className={`text-sm font-medium ${theme === 'light' ? 'text-gray-900' : 'text-foreground'}`}>Minimize to System Tray</FormLabel>
-              <FormDescription className={`text-xs mt-1 ${theme === 'light' ? 'text-gray-600' : 'text-muted-foreground'}`}>
+              <FormLabel className={`text-sm font-medium ${theme === 'light' || theme === 'lightv2' ? 'text-gray-900' : 'text-foreground'}`}>Minimize to System Tray</FormLabel>
+              <FormDescription className={`text-xs mt-1 ${theme === 'light' || theme === 'lightv2' ? 'text-gray-600' : 'text-muted-foreground'}`}>
                 Keep Scribble running in the system tray when closed
               </FormDescription>
             </div>
@@ -104,7 +104,7 @@ export function ApplicationSettingsSection({ form, theme = 'dim' }: ApplicationS
                   onCheckedChange={field.onChange}
                   className=""
                 />
-                <span className={`ml-2 text-sm font-medium ${field.value ? (theme === 'light' ? 'text-blue-600' : 'text-primary') : (theme === 'light' ? 'text-gray-500' : 'text-muted-foreground')}`}>
+                <span className={`ml-2 text-sm font-medium ${field.value ? (theme === 'light' || theme === 'lightv2' ? 'text-blue-600' : 'text-primary') : (theme === 'light' || theme === 'lightv2' ? 'text-gray-500' : 'text-muted-foreground')}`}>
                   {field.value ? 'On' : 'Off'}
                 </span>
               </div>
@@ -114,10 +114,10 @@ export function ApplicationSettingsSection({ form, theme = 'dim' }: ApplicationS
       />
 
       {/* Global Hotkeys Subsection */}
-      <div className={`space-y-6 mt-6 pt-6 border-t ${theme === 'light' ? 'border-gray-200' : 'border-border/50'}`}>
+      <div className={`space-y-6 mt-6 pt-6 border-t ${theme === 'light' || theme === 'lightv2' ? 'border-gray-200' : 'border-border/50'}`}>
         <div>
-          <h4 className={`text-base font-medium ${theme === 'light' ? 'text-gray-900' : 'text-foreground'}`}>Global Hotkeys</h4>
-          <FormDescription className={`text-xs mt-2 ${theme === 'light' ? 'text-gray-600' : 'text-muted-foreground'}`}>
+          <h4 className={`text-base font-medium ${theme === 'light' || theme === 'lightv2' ? 'text-gray-900' : 'text-foreground'}`}>Global Hotkeys</h4>
+          <FormDescription className={`text-xs mt-2 ${theme === 'light' || theme === 'lightv2' ? 'text-gray-600' : 'text-muted-foreground'}`}>
             These hotkeys work even when Scribble is minimized to the system tray
           </FormDescription>
         </div>

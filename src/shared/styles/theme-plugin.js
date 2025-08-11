@@ -8,7 +8,9 @@ module.exports = plugin(function({ addBase, addVariant }) {
   // Add theme variants
   addVariant('dim', ['.theme-dim &', '[data-theme="dim"] &']);
   addVariant('dark', ['.theme-dark &', '[data-theme="dark"] &']);
-  addVariant('light', ['.theme-light &', '[data-theme="light"] &']);
+  // Legacy light theme variant now maps to lightv2
+  addVariant('light', ['.theme-lightv2 &', '[data-theme="lightv2"] &']);
+  addVariant('lightv2', ['.theme-lightv2 &', '[data-theme="lightv2"] &']);
 
   // Define the theme colors
   const dimTheme = {
@@ -65,31 +67,32 @@ module.exports = plugin(function({ addBase, addVariant }) {
     '--search-hover-outline': '0 0% 23%', // #3A3A3A
   };
 
-  const lightTheme = {
-    '--background': '0 0% 100% / 0',
-    '--foreground': '0 0% 20%',
-    '--card': '210 20% 98%',
-    '--card-foreground': '0 0% 20%',
-    '--popover': '0 0% 100%',
-    '--popover-foreground': '0 0% 20%',
-    '--primary': '217 91% 60%',
-    '--primary-foreground': '0 0% 100%',
-    '--secondary': '210 40% 96.1%',
-    '--secondary-foreground': '222.2 47.4% 11.2%',
-    '--muted': '210 40% 96.1%',
-    '--muted-foreground': '215.4 16.3% 46.9%',
-    '--accent': '210 40% 96.1%',
-    '--accent-foreground': '222.2 47.4% 11.2%',
-    '--destructive': '0 84.2% 60.2%',
-    '--destructive-foreground': '0 0% 100%',
-    '--border': '220 13% 91%',
-    '--input': '220 13% 91%',
-    '--ring': '224 71.4% 45%',
-    '--background-notes': '0 0% 100% / 0',
-    '--background-titlebar': '210 20% 98%',
-    '--background-sidebar': '210 20% 98%',
-    '--background-search': '240 11% 95%', // #F0F0F3
-    '--search-hover-outline': '240 11% 91%', // #E7E7EA
+  // LightV2: The new light theme
+  const lightV2Theme = {
+    '--background': '210 20% 98%',           // Light gray #F9FAFB for consistency
+    '--foreground': '217 19% 27%',         // Dark gray for text
+    '--card': '210 20% 98%',               // Same as background for consistency
+    '--card-foreground': '217 19% 27%',    // Dark gray for card text
+    '--popover': '0 0% 100%',              // Pure white for popovers
+    '--popover-foreground': '217 19% 27%', // Dark gray for popover text
+    '--primary': '217 91% 60%',            // Blue for primary actions
+    '--primary-foreground': '0 0% 100%',   // White on primary
+    '--secondary': '210 40% 96%',          // Light gray for secondary
+    '--secondary-foreground': '217 19% 27%', // Dark gray on secondary
+    '--muted': '210 40% 96%',              // Light gray for muted elements
+    '--muted-foreground': '215 16% 47%',   // Mid gray for muted text
+    '--accent': '210 40% 96%',             // Light gray for accents
+    '--accent-foreground': '217 19% 27%',  // Dark gray on accent
+    '--destructive': '0 84% 60%',          // Red for destructive actions
+    '--destructive-foreground': '0 0% 100%', // White on destructive
+    '--border': '214 32% 91%',             // Light border
+    '--input': '214 32% 91%',              // Light input border
+    '--ring': '217 91% 60%',               // Blue focus ring
+    '--background-notes': '210 20% 98%',   // #F9FAFB - matches note card background
+    '--background-titlebar': '210 20% 98%', // Light gray titlebar
+    '--background-sidebar': '210 20% 98%',  // Light gray sidebar
+    '--background-search': '220 13% 96%',   // #F8F8FA for search
+    '--search-hover-outline': '220 13% 91%', // Lighter outline on hover
   };
 
   // Add base styles for themes
@@ -99,10 +102,14 @@ module.exports = plugin(function({ addBase, addVariant }) {
     },
     '.theme-dim': dimTheme,
     '.theme-dark': darkTheme,
-    '.theme-light': lightTheme,
+    // Legacy light theme class now maps to lightv2
+    '.theme-light': lightV2Theme,
+    '.theme-lightv2': lightV2Theme,
     // For backward compatibility
     ':root.dim, [data-theme="dim"]': dimTheme,
     ':root.dark, [data-theme="dark"]': darkTheme,
-    ':root.light, [data-theme="light"]': lightTheme,
+    // Legacy light theme data attribute now maps to lightv2
+    ':root.light, [data-theme="light"]': lightV2Theme,
+    ':root.lightv2, [data-theme="lightv2"]': lightV2Theme,
   });
 });

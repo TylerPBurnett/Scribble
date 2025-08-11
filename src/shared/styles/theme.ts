@@ -2,7 +2,7 @@ import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 // Define the available theme names
-export type ThemeName = 'dim' | 'dark' | 'light';
+export type ThemeName = 'dim' | 'dark' | 'light' | 'lightv2';
 
 // Transparency configuration interface
 export interface ThemeTransparency {
@@ -79,6 +79,26 @@ export const themes: Record<ThemeName, Theme> = {
       backdropBlur: 'blur(20px)',
       overlayColor: 'rgba(255, 255, 255, 0.1)',
       overlayOpacity: 0.1,
+    },
+  },
+  // LightV2: Structural clone of Dim with light color values
+  lightv2: {
+    name: 'lightv2',
+    label: 'Light (New)',
+    description: 'A clean light theme with solid surfaces and clear contrast',
+    // Same preview structure as Dim, but with light colors
+    preview: {
+      background: '#ffffff',      // Solid white instead of Dim's #282a36
+      foreground: '#1f2937',      // Dark gray-800 instead of Dim's #f8f8f2
+      primary: '#3b82f6',         // Blue-500 instead of Dim's amber #f59e0b
+      card: '#f9fafb',            // Gray-50 instead of Dim's #21222c
+    },
+    // Same transparency structure as Dim, but with light-appropriate values
+    transparency: {
+      vibrancyMaterial: 'light',                    // Light material instead of 'dark'
+      backdropBlur: 'blur(20px)',                   // Same blur as Dim
+      overlayColor: 'rgba(255, 255, 255, 0.15)',    // White overlay instead of dark
+      overlayOpacity: 0.15,                         // Same opacity as Dim
     },
   },
 };

@@ -172,12 +172,48 @@ export function GlobalHotkeyEditor({
     setDisplayValue('');
   };
 
+  // Format display value with proper key symbols
+  const formatKeysForDisplay = (value: string) => {
+    if (!value || value === 'Press keys...') return value;
+    
+    const keys = value.split(' + ');
+    return keys.map(key => {
+      // Map special keys to symbols for Mac
+      switch(key.toLowerCase()) {
+        case '⌘': return '⌘';
+        case 'cmd': return '⌘';
+        case 'command': return '⌘';
+        case '⌥': return '⌥';
+        case 'alt': return '⌥';
+        case 'option': return '⌥';
+        case '⇧': return '⇧';
+        case 'shift': return '⇧';
+        case '⌃': return '⌃';
+        case 'ctrl': return '⌃';
+        case 'control': return '⌃';
+        default: return key.toUpperCase();
+      }
+    }).join(' + ');
+  };
+
   return (
-    <div className={`flex flex-row items-center justify-between rounded-lg border p-5 ${theme === 'light' ? 'bg-white border-gray-200 shadow-sm' : 'backdrop-blur-sm border-border/30 bg-black/20'}`}>
-      <div className={description ? "space-y-2" : ""}>
-        <div className={`text-sm font-medium ${theme === 'light' ? 'text-gray-900' : 'text-foreground'}`}>{label}</div>
+    <div className={`flex flex-row items-center justify-between rounded-lg border p-5 ${
+      theme === 'light' || theme === 'lightv2'
+        ? 'bg-white border-gray-200 shadow-sm' 
+        : 'backdrop-blur-sm border-border/30 bg-black/20'
+    }`}>
+      <div className={description ? "space-y-1" : ""}>
+        <div className={`text-sm font-medium ${
+          theme === 'light' || theme === 'lightv2'
+            ? 'text-gray-900' 
+            : 'text-foreground'
+        }`}>{label}</div>
         {description && (
-          <div className={`text-xs ${theme === 'light' ? 'text-gray-600' : 'text-muted-foreground'}`}>
+          <div className={`text-xs ${
+            theme === 'light' || theme === 'lightv2'
+              ? 'text-gray-600' 
+              : 'text-muted-foreground'
+          }`}>
             {description}
           </div>
         )}
@@ -185,14 +221,14 @@ export function GlobalHotkeyEditor({
       <div className="flex items-center gap-2">
         <div
           className={`
-            px-3 py-1.5 rounded-md border text-sm font-mono cursor-pointer min-w-[120px] text-center shadow-sm transition-colors duration-200
+            px-4 py-2 rounded-full text-sm font-medium cursor-pointer min-w-[140px] text-center transition-all duration-200 flex items-center justify-center gap-1 shadow-sm border
             ${isRecording
-              ? (theme === 'light' 
-                  ? 'border-blue-500 text-blue-700 ring-1 ring-blue-500/30 bg-blue-50' 
-                  : 'border-primary text-primary ring-1 ring-primary/30 bg-secondary')
-              : (theme === 'light'
-                  ? 'border-gray-300 hover:border-gray-400 hover:bg-gray-50 bg-white text-gray-900'
-                  : 'border-border/50 hover:border-border hover:bg-secondary bg-secondary text-secondary-foreground')}
+              ? (theme === 'light' || theme === 'lightv2'
+                  ? 'border-blue-400 bg-blue-50 text-blue-700 ring-2 ring-blue-200/50' 
+                  : 'border-primary text-primary ring-2 ring-primary/30 bg-secondary')
+              : (theme === 'light' || theme === 'lightv2'
+                  ? 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400'
+                  : 'border-border/50 hover:border-border bg-secondary text-secondary-foreground hover:bg-secondary/80')}
           `}
           onClick={handleClick}
         >
@@ -207,15 +243,19 @@ export function GlobalHotkeyEditor({
             onKeyDown={handleKeyDown}
             onKeyUp={handleKeyUp}
           />
-          <span>{displayValue || 'Not set'}</span>
+          <span className="tracking-wide font-mono text-[13px]">{formatKeysForDisplay(displayValue) || 'Not set'}</span>
         </div>
         {currentValue && (
           <button
-            className={`transition-colors duration-200 p-1.5 rounded-full active:scale-95 shadow-sm border border-transparent ${theme === 'light' ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-100 hover:border-gray-200' : 'text-muted-foreground hover:text-foreground hover:bg-secondary hover:border-border/50'}`}
+            className={`transition-all duration-200 p-2 rounded-full hover:scale-105 ${
+              theme === 'light' || theme === 'lightv2'
+                ? 'text-gray-400 hover:text-gray-600 hover:bg-gray-100' 
+                : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+            }`}
             onClick={handleClear}
             title="Clear hotkey"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>

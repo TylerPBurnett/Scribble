@@ -242,6 +242,8 @@ export function SettingsDialog({
     <div className={`h-full w-full flex ${
       theme === 'light' 
         ? 'bg-gradient-to-br from-white via-gray-50/50 to-primary-10/5'
+        : theme === 'lightv2'
+        ? 'bg-gradient-to-br from-gray-100 via-gray-200/70 to-gray-300/50'
         : theme === 'dim'
         ? 'bg-gradient-to-br from-background via-background-sidebar to-background-notes'
         : 'bg-gradient-to-br from-background via-background/95 to-background-notes'
@@ -443,6 +445,8 @@ export function SettingsDialog({
                     <div className={`rounded-2xl shadow-sm border p-8 hover:shadow-md transition-shadow duration-300 ${
                       theme === 'light'
                         ? 'bg-white border-gray-100/50'
+                        : theme === 'lightv2'
+                        ? 'bg-[#E8E9ED] border-gray-200/50'
                         : theme === 'dim'
                         ? 'bg-card border-border/30'
                         : 'bg-card/90 border-border/20'

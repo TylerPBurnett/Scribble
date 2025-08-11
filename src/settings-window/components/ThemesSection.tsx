@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Check, RefreshCw } from 'lucide-react';
+import { Check, RefreshCw, Beaker } from 'lucide-react';
 import { Theme, ThemeName, themes } from '../../shared/styles/theme';
 import { useTheme } from '../../shared/providers/ThemeProvider';
+import { getFeatureFlags, saveFeatureFlags } from '../../shared/services/featureFlags';
 
 
 
@@ -11,8 +12,21 @@ interface ThemesSectionProps {
 }
 
 export function ThemesSection({ currentTheme, onChange }: ThemesSectionProps) {
-  // Theme options
-  const themeOptions = Object.values(themes);
+  // Feature flags
+  const [showLightV2, setShowLightV2] = useState(() => getFeatureFlags().useLightV2Theme);
+  
+  // Filter theme options based on feature flag
+  const getThemeOptions = () => {
+    const allThemes = Object.values(themes);
+    if (!showLightV2) {
+      // Hide LightV2 if feature flag is off
+      return allThemes.filter(theme => theme.name !== 'lightv2');
+    }
+    return allThemes;
+  };
+  
+  const [themeOptions, setThemeOptions] = useState(getThemeOptions());
+  
   // Get the theme context
   const { setTheme } = useTheme();
   // State to force a refresh
@@ -95,7 +109,7 @@ export function ThemesSection({ currentTheme, onChange }: ThemesSectionProps) {
   // Apply theme classes to body
   useEffect(() => {
     // Remove all theme classes from body
-    document.body.classList.remove('dim', 'dark', 'light', 'theme-dim', 'theme-dark', 'theme-light');
+    document.body.classList.remove('dim', 'dark', 'light', 'lightv2', 'theme-dim', 'theme-dark', 'theme-light', 'theme-lightv2');
     // Add the current theme classes to body
     document.body.classList.add(currentTheme, `theme-${currentTheme}`);
     // Also set data attribute
@@ -119,19 +133,51 @@ export function ThemesSection({ currentTheme, onChange }: ThemesSectionProps) {
       window.removeEventListener('themechange', handleThemeChange);
     };
   }, []);
+  
+  // Update theme options when feature flag changes
+  useEffect(() => {
+    setThemeOptions(getThemeOptions());
+  }, [showLightV2]);
+  
+  // Toggle LightV2 feature flag
+  const toggleLightV2 = () => {
+    const newValue = !showLightV2;
+    setShowLightV2(newValue);
+    saveFeatureFlags({ useLightV2Theme: newValue });
+    
+    // If turning off LightV2 and currently using it, switch to regular light
+    if (!newValue && currentTheme === 'lightv2') {
+      handleThemeSelect('light');
+    }
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h3 className="text-base font-medium text-foreground border-b border-border pb-4">Themes</h3>
-        <button
-          onClick={forceRefresh}
-          className="flex items-center gap-1 px-3 py-1 text-sm rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
-          disabled={isRefreshing}
-        >
-          <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          <span>Refresh</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Experimental LightV2 toggle */}
+          <button
+            onClick={toggleLightV2}
+            className={`flex items-center gap-1 px-3 py-1 text-sm rounded-md transition-colors ${
+              showLightV2 
+                ? 'bg-primary text-primary-foreground' 
+                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+            }`}
+            title="Toggle experimental Light (New) theme"
+          >
+            <Beaker className="w-4 h-4" />
+            <span>Experimental</span>
+          </button>
+          <button
+            onClick={forceRefresh}
+            className="flex items-center gap-1 px-3 py-1 text-sm rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
+            disabled={isRefreshing}
+          >
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -40,12 +40,12 @@ export const ThemeProvider = ({
     console.log('Applying theme:', theme);
     
     // Apply theme class to document element
-    document.documentElement.classList.remove('dim', 'dark', 'light');
+    document.documentElement.classList.remove('dim', 'dark', 'light', 'lightv2');
     document.documentElement.classList.add(theme);
     document.documentElement.setAttribute('data-theme', theme);
     
     // Apply theme-specific class
-    document.documentElement.classList.remove('theme-dim', 'theme-dark', 'theme-light');
+    document.documentElement.classList.remove('theme-dim', 'theme-dark', 'theme-light', 'theme-lightv2');
     document.documentElement.classList.add(`theme-${theme}`);
     
     // Apply transparency CSS variables
@@ -63,7 +63,7 @@ export const ThemeProvider = ({
       root.style.setProperty('--transparency-vibrancy-material', transparency.vibrancyMaterial);
       
       // Add theme-specific transparency class for enhanced styling
-      root.classList.remove('transparency-light', 'transparency-dark', 'transparency-dim');
+      root.classList.remove('transparency-light', 'transparency-dark', 'transparency-dim', 'transparency-lightv2');
       root.classList.add(`transparency-${theme}`);
       
       // Add transparency class to document element

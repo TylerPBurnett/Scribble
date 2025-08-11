@@ -22,10 +22,25 @@
   color: hsl(210, 10%, 23%);
 }
 
+/* LightV2 theme with solid surfaces */
+.theme-lightv2:root,
+:root.lightv2,
+[data-theme="lightv2"]:root {
+  background-color: hsl(0, 0%, 100%);
+  color-scheme: light;
+  color: hsl(217, 19%, 27%);
+}
+
 /* Additional override for light theme window transparency */
 .theme-light #root,
 :root.light #root {
   background-color: transparent !important;
+}
+
+/* LightV2 has solid backgrounds */
+.theme-lightv2 #root,
+:root.lightv2 #root {
+  background-color: hsl(0, 0%, 100%);
 }
 
 * {
@@ -91,16 +106,19 @@ textarea {
 }
 
 /* Light theme scrollbar */
-.theme-light ::-webkit-scrollbar-track {
+.theme-light ::-webkit-scrollbar-track,
+.theme-lightv2 ::-webkit-scrollbar-track {
   background: rgba(241, 245, 249, 0.5);
 }
 
-.theme-light ::-webkit-scrollbar-thumb {
+.theme-light ::-webkit-scrollbar-thumb,
+.theme-lightv2 ::-webkit-scrollbar-thumb {
   background: rgba(100, 116, 139, 0.3);
   border-radius: 2px;
 }
 
-.theme-light ::-webkit-scrollbar-thumb:hover {
+.theme-light ::-webkit-scrollbar-thumb:hover,
+.theme-lightv2 ::-webkit-scrollbar-thumb:hover {
   background: rgba(100, 116, 139, 0.5);
 }
 
@@ -120,7 +138,8 @@ textarea {
   display: none;  /* Safari and Chrome */
 }
 
-.theme-light * {
+.theme-light *,
+.theme-lightv2 * {
   scrollbar-color: rgba(100, 116, 139, 0.3) rgba(241, 245, 249, 0.5);
 }
 
@@ -153,6 +172,13 @@ textarea {
     background-color: transparent;
     color: hsl(210, 10%, 23%);
   }
+
+  .theme-lightv2,
+  :root.lightv2,
+  [data-theme="lightv2"] {
+    background-color: hsl(0, 0%, 100%);
+    color: hsl(217, 19%, 27%);
+  }
 }
 
 
@@ -179,6 +205,19 @@ textarea {
   :root.light html,
   [data-theme="light"] html {
     background-color: transparent !important;
+  }
+  
+  /* LightV2 has solid backgrounds */
+  .theme-lightv2 body,
+  :root.lightv2 body,
+  [data-theme="lightv2"] body {
+    background-color: hsl(var(--background));
+  }
+  
+  .theme-lightv2 html,
+  :root.lightv2 html,
+  [data-theme="lightv2"] html {
+    background-color: hsl(var(--background));
   }
 }
 
