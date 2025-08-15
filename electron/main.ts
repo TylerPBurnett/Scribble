@@ -21,7 +21,7 @@ const isMacOS = process.platform === 'darwin'
 // Vibrancy material configuration based on theme for BrowserWindow constructor
 function getVibrancyMaterialForConstructor(theme: ThemeName): 'appearance-based' | 'titlebar' | 'selection' | 'menu' | 'popover' | 'sidebar' | 'header' | 'sheet' | 'window' | 'hud' | 'fullscreen-ui' | 'tooltip' | 'content' | 'under-window' | 'under-page' | null {
   if (!isMacOS) return null
-  
+
   switch (theme) {
     case 'light':
       return 'under-window'  // Test: try under-window instead of content
@@ -36,7 +36,7 @@ function getVibrancyMaterialForConstructor(theme: ThemeName): 'appearance-based'
 // Vibrancy material configuration based on theme for setVibrancy method
 function getVibrancyMaterialForSetMethod(theme: ThemeName): 'titlebar' | 'selection' | 'menu' | 'popover' | 'sidebar' | 'header' | 'sheet' | 'window' | 'hud' | 'fullscreen-ui' | 'tooltip' | 'content' | 'under-window' | 'under-page' | null {
   if (!isMacOS) return null
-  
+
   switch (theme) {
     case 'light':
       return 'under-window'  // Test: try under-window instead of content
@@ -166,14 +166,14 @@ function createMainWindow() {
   console.log('Window creation - Current theme:', currentTheme);
   console.log('Window creation - Vibrancy material:', vibrancyMaterial);
   console.log('Window creation - Is macOS:', isMacOS);
-  
+
   const vibrancyConfig = {
     transparent: true,
     ...(isMacOS && vibrancyMaterial ? {
       vibrancy: vibrancyMaterial,
     } : {})
   };
-  
+
   console.log('Window creation - Final vibrancy config:', vibrancyConfig);
 
   // Create the browser window with saved state or defaults
@@ -427,22 +427,24 @@ function createNoteWindow(noteId: string) {
     // Check if this was an unsaved note that should be removed from the notes list
     if (transientNewNotes.has(noteId)) {
       const transientNote = transientNewNotes.get(noteId);
-      
+
       // If the note was still unsaved (never saved to disk), notify the main window to remove it
       if (transientNote && transientNote._unsaved) {
         console.log(`[Main Process] Unsaved note closed without saving, triggering refresh: ${noteId}`);
-        
+
         // Broadcast to all windows that they should refresh their notes list
         // This ensures the unsaved note is removed from the list
         BrowserWindow.getAllWindows().forEach(window => {
           if (!window.isDestroyed()) {
-            // Send both events - remove the specific note and trigger a full refresh
             window.webContents.send('remove-unsaved-note', noteId);
-            window.webContents.send('refresh-notes-list');
           }
         });
+
+        // Use debounced refresh to prevent spam
+        invalidateFileListCache();
+        broadcastRefreshDebounced();
       }
-      
+
       console.log(`[Main Process] Cleaning up transient data for note: ${noteId}`);
       transientNewNotes.delete(noteId);
     }
@@ -592,7 +594,7 @@ function createTray() {
       click: () => {
         // Generate a unique UUID for the new note (for window management)
         const noteId = uuidv4();
-        
+
         // Create a new note object and store it in transient registry
         const newNote: Note = {
           title: 'Untitled Note',
@@ -605,7 +607,7 @@ function createTray() {
 
         // Store the note in the transient registry
         transientNewNotes.set(noteId, newNote);
-        
+
         createNoteWindow(noteId);
 
         // Show main window if it's hidden
@@ -651,7 +653,7 @@ function createTray() {
 
 // Default global hotkeys - use non-optional types here since these are guaranteed to exist
 const DEFAULT_GLOBAL_HOTKEYS: Readonly<Record<string, string>> = {
-  newNote  : 'CommandOrControl+Alt+N',
+  newNote: 'CommandOrControl+Alt+N',
   toggleApp: 'CommandOrControl+Alt+S',
 };
 
@@ -687,7 +689,7 @@ function registerGlobalHotkeys() {
   const usingDefaults =
     globalHotkeys?.newNote === DEFAULT_GLOBAL_HOTKEYS.newNote &&
     ((globalHotkeys?.toggleApp === DEFAULT_GLOBAL_HOTKEYS.toggleApp) ||
-     (globalHotkeys?.showApp === DEFAULT_GLOBAL_HOTKEYS.toggleApp)); // Support both old and new property names
+      (globalHotkeys?.showApp === DEFAULT_GLOBAL_HOTKEYS.toggleApp)); // Support both old and new property names
 
   console.log(`Using default hotkeys: ${usingDefaults}`);
 
@@ -705,14 +707,14 @@ function registerGlobalHotkeys() {
       const settingsStore = new Store({ name: 'settings' });
       const settings = settingsStore.get('settings') as any || {};
       const saveLocation = settings.saveLocation || await getDefaultSaveLocation();
-      
+
       // Generate unique title by checking existing files
       let title = 'Untitled Note';
       if (saveLocation && fsSync.existsSync(saveLocation)) {
         try {
           const files = await fs.readdir(saveLocation);
           const existingFiles = files.filter(f => f.endsWith('.md'));
-          
+
           // Use the file naming service to generate a unique title
           const result = fileNamingService.generateUniqueFilename(title, existingFiles);
           title = fileNamingService.extractTitle(result.filename);
@@ -720,7 +722,7 @@ function registerGlobalHotkeys() {
           console.error('[Main Process] Error checking existing titles:', error);
         }
       }
-      
+
       // Create the note object
       const newNote: Note = {
         id: title, // FIXED: Ensure ID matches title for consistency
@@ -729,7 +731,7 @@ function registerGlobalHotkeys() {
         createdAt: new Date(),
         updatedAt: new Date()
       };
-      
+
       // Save the note file immediately
       if (saveLocation) {
         try {
@@ -740,20 +742,15 @@ function registerGlobalHotkeys() {
           };
           const metadataComment = `\n\n<!-- scribble-metadata: ${JSON.stringify(metadata)} -->`;
           const fullContent = titleHeader + metadataComment;
-          
+
           const createResult = await fileOperationService.createNoteFile(title, fullContent, saveLocation);
-          
+
           if (createResult.success) {
             console.log('[Main Process] Global hotkey: Created and saved new note file:', createResult.filePath);
-            
-            // Broadcast refresh to all windows
-            setTimeout(() => {
-              BrowserWindow.getAllWindows().forEach(window => {
-                if (!window.isDestroyed()) {
-                  window.webContents.send('refresh-notes-list');
-                }
-              });
-            }, 100);
+
+            // Broadcast refresh to all windows with debouncing
+            invalidateFileListCache();
+            broadcastRefreshDebounced();
           }
         } catch (error) {
           console.error('[Main Process] Global hotkey: Error saving new note file:', error);
@@ -949,8 +946,7 @@ ipcMain.handle('open-note', (_, noteId: string, initialNoteData?: Note) => {
   return { success: !!window };
 })
 
-// Debounce refresh events to prevent duplicate file reads
-let refreshTimeout: NodeJS.Timeout | null = null;
+// Remove old refresh timeout - using new debounced system
 
 // Listen for note updates and broadcast to all windows
 ipcMain.on('note-updated', (event, noteId, updatedProperties) => {
@@ -970,19 +966,10 @@ ipcMain.on('note-updated', (event, noteId, updatedProperties) => {
   const shouldRefreshList = updatedProperties.title || updatedProperties.renamed || updatedProperties.content;
   if (shouldRefreshList) {
     console.log(`[Main Process] Triggering notes list refresh due to significant update`);
-    
-    // Debounce refresh events to prevent duplicate file reads
-    if (refreshTimeout) {
-      clearTimeout(refreshTimeout);
-    }
-    
-    refreshTimeout = setTimeout(() => {
-      BrowserWindow.getAllWindows().forEach(window => {
-        if (!window.isDestroyed()) {
-          window.webContents.send('refresh-notes-list');
-        }
-      });
-    }, 100); // 100ms debounce
+
+    // Invalidate cache and broadcast refresh with debouncing
+    invalidateFileListCache();
+    broadcastRefreshDebounced(100);
   }
 })
 
@@ -996,7 +983,7 @@ ipcMain.handle('set-window-transparency', (event, enabled: boolean) => {
       const settings = settingsStore.get('settings') as { theme?: ThemeName } || {};
       const currentTheme = settings.theme || 'dim';
       const vibrancyMaterial = getVibrancyMaterialForSetMethod(currentTheme);
-      
+
       if (vibrancyMaterial) {
         win.setVibrancy(vibrancyMaterial);
       }
@@ -1010,12 +997,12 @@ ipcMain.handle('set-window-transparency', (event, enabled: boolean) => {
 ipcMain.on('theme-changed', (event, newTheme: ThemeName) => {
   console.log('Theme changed from renderer process:', newTheme);
   console.log('Platform is macOS:', isMacOS);
-  
+
   // Update vibrancy for all windows if on macOS
   if (isMacOS) {
     const vibrancyMaterial = getVibrancyMaterialForSetMethod(newTheme);
     console.log('Setting vibrancy material for theme', newTheme, ':', vibrancyMaterial);
-    
+
     BrowserWindow.getAllWindows().forEach((window, index) => {
       if (vibrancyMaterial) {
         console.log(`Setting vibrancy for window ${index}:`, vibrancyMaterial);
@@ -1032,7 +1019,7 @@ ipcMain.on('theme-changed', (event, newTheme: ThemeName) => {
 // Handle vibrancy changes
 ipcMain.on('vibrancy-changed', (event, vibrancyData: { theme: ThemeName; material: string }) => {
   console.log('Vibrancy changed from renderer process:', vibrancyData);
-  
+
   if (isMacOS) {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (win) {
@@ -1181,33 +1168,33 @@ ipcMain.handle('create-note', async () => {
   const settingsStore = new Store({ name: 'settings' });
   const settings = settingsStore.get('settings') as any || {};
   const saveLocation = settings.saveLocation || await getDefaultSaveLocation();
-  
+
   console.log('[Main Process] Settings from electron-store:', settings);
   console.log('[Main Process] Save location:', saveLocation);
   console.log('[Main Process] Default save location would be:', await getDefaultSaveLocation());
-  
+
   // Generate unique title by checking existing files
   let title = 'Untitled Note';
   if (saveLocation && fsSync.existsSync(saveLocation)) {
     try {
       const files = await fs.readdir(saveLocation);
       const existingFiles = files.filter(f => f.endsWith('.md'));
-      
+
       console.log('[Main Process] Save location:', saveLocation);
       console.log('[Main Process] All files:', files);
       console.log('[Main Process] Existing .md files:', existingFiles);
-      
+
       // Use the file naming service to generate a unique title
       const result = fileNamingService.generateUniqueFilename(title, existingFiles);
       title = fileNamingService.extractTitle(result.filename);
-      
+
       console.log('[Main Process] Generated result:', result);
       console.log('[Main Process] Generated unique title:', title);
     } catch (error) {
       console.error('[Main Process] Error checking existing titles:', error);
     }
   }
-  
+
   // Create the note object (title is now the primary identifier)
   const newNote: Note = {
     id: title, // FIXED: Ensure ID matches title for consistency
@@ -1218,7 +1205,7 @@ ipcMain.handle('create-note', async () => {
     // SIMPLIFIED: Remove conflicting _isNew and _unsaved flags
     // The note will be saved immediately, so it's not unsaved
   };
-  
+
   // Save the note file immediately (industry standard behavior)
   if (saveLocation) {
     try {
@@ -1231,36 +1218,21 @@ ipcMain.handle('create-note', async () => {
       };
       const metadataComment = `\n\n<!-- scribble-metadata: ${JSON.stringify(metadata)} -->`;
       const fullContent = titleHeader + metadataComment;
-      
+
       // Use the file operation service to create the file
       const createResult = await fileOperationService.createNoteFile(title, fullContent, saveLocation);
-      
+
       if (createResult.success) {
         console.log('[Main Process] Created and saved new note file:', createResult.filePath);
-        
+
         // IMMEDIATE: Broadcast refresh right away
         console.log('[Main Process] Broadcasting immediate refresh for new note creation');
-        const allWindows = BrowserWindow.getAllWindows();
-        console.log(`[Main Process] Found ${allWindows.length} windows to notify`);
-        
-        allWindows.forEach(window => {
-          if (!window.isDestroyed()) {
-            const windowTitle = window.getTitle();
-            console.log(`[Main Process] Sending refresh-notes-list to window: "${windowTitle}" (ID: ${window.id})`);
-            window.webContents.send('refresh-notes-list');
-          }
-        });
-        
-        // ALSO: Send delayed refresh as backup
-        setTimeout(() => {
-          console.log('[Main Process] Sending backup refresh after delay');
-          BrowserWindow.getAllWindows().forEach(window => {
-            if (!window.isDestroyed()) {
-              window.webContents.send('refresh-notes-list');
-            }
-          });
-        }, 200);
-        
+        console.log('[Main Process] Broadcasting refresh for new note creation');
+
+        // Use debounced refresh to prevent spam
+        invalidateFileListCache();
+        broadcastRefreshDebounced();
+
       } else {
         console.error('[Main Process] Error saving new note file:', createResult.error);
       }
@@ -1268,14 +1240,14 @@ ipcMain.handle('create-note', async () => {
       console.error('[Main Process] Error saving new note file:', error);
     }
   }
-  
+
   // Store in transient registry for quick access (using noteId for window management)
   transientNewNotes.set(noteId, newNote);
-  
+
   // Open the note window immediately
   console.log('[Main Process] Opening note window for new note:', noteId);
   createNoteWindow(noteId);
-  
+
   return newNote;
 })
 
@@ -1316,10 +1288,10 @@ ipcMain.handle('get-transient-new-note-data', async (_, noteId: string) => {
     console.log(`[Main Process] Serving transient data for note ID: ${noteId}`);
     return note;
   }
-  
+
   // In the new system, we don't need to check file registry
   // Transient notes are only for new unsaved notes
-  
+
   console.warn(`[Main Process] No transient new note data found for ID: ${noteId}`);
   return null;
 })
@@ -1352,14 +1324,14 @@ ipcMain.handle('get-default-save-location', async () => {
 
 // File operation handlers
 ipcMain.handle('save-note-to-file', async (_, noteTitle: string, content: string, saveLocation: string, oldTitle?: string) => {
-  
+
   // Input validation
   if (!noteTitle || typeof noteTitle !== 'string') {
     const error = 'Invalid note title provided';
     console.error('[Main Process]', error);
     return { success: false, error };
   }
-  
+
   if (!saveLocation || typeof saveLocation !== 'string') {
     const error = 'Invalid save location provided';
     console.error('[Main Process]', error);
@@ -1382,11 +1354,11 @@ ipcMain.handle('save-note-to-file', async (_, noteTitle: string, content: string
 
       // Use the file operation service to handle the rename
       const renameResult = await fileOperationService.renameNoteFile(oldFilePath, noteTitle);
-      
+
       if (!renameResult.success) {
         console.error('[Main Process] Failed to rename file:', renameResult.error);
-        return { 
-          success: false, 
+        return {
+          success: false,
           error: `Failed to rename file: ${renameResult.error}`,
           userMessage: 'Could not rename the note file. Please check file permissions and try again.'
         };
@@ -1394,22 +1366,19 @@ ipcMain.handle('save-note-to-file', async (_, noteTitle: string, content: string
 
       // Update the content in the renamed file
       const updateResult = await fileOperationService.updateNoteFile(renameResult.filePath!, content);
-      
+
       if (!updateResult.success) {
         console.error('[Main Process] Failed to update renamed file:', updateResult.error);
-        return { 
-          success: false, 
+        return {
+          success: false,
           error: `Failed to update renamed file: ${updateResult.error}`,
           userMessage: 'File was renamed but content could not be updated. Please try saving again.'
         };
       }
 
       // Broadcast refresh to all windows
-      BrowserWindow.getAllWindows().forEach(window => {
-        if (!window.isDestroyed()) {
-          window.webContents.send('refresh-notes-list');
-        }
-      });
+      invalidateFileListCache();
+      broadcastRefreshDebounced();
 
       return {
         success: true,
@@ -1420,26 +1389,23 @@ ipcMain.handle('save-note-to-file', async (_, noteTitle: string, content: string
 
     // Check if file already exists (for new notes or updates)
     const fileExists = fsSync.existsSync(newFilePath);
-    
+
     if (fileExists) {
       // Update existing file
       const updateResult = await fileOperationService.updateNoteFile(newFilePath, content);
-      
+
       if (!updateResult.success) {
         console.error('[Main Process] Failed to update file:', updateResult.error);
-        return { 
-          success: false, 
+        return {
+          success: false,
           error: `Failed to update file: ${updateResult.error}`,
           userMessage: 'Could not save the note. Please check file permissions and disk space.'
         };
       }
 
       // Broadcast refresh to all windows for file updates
-      BrowserWindow.getAllWindows().forEach(window => {
-        if (!window.isDestroyed()) {
-          window.webContents.send('refresh-notes-list');
-        }
-      });
+      invalidateFileListCache();
+      broadcastRefreshDebounced();
 
       return {
         success: true,
@@ -1447,28 +1413,25 @@ ipcMain.handle('save-note-to-file', async (_, noteTitle: string, content: string
       };
     } else {
       // Create new file
-      
+
       // Get list of existing files for conflict resolution
       const existingFiles = await fs.readdir(saveLocation).catch(() => []);
       const result = fileNamingService.generateUniqueFilename(noteTitle, existingFiles);
-      
+
       const createResult = await fileOperationService.createNoteFile(noteTitle, content, saveLocation);
-      
+
       if (!createResult.success) {
         console.error('[Main Process] Failed to create file:', createResult.error);
-        return { 
-          success: false, 
+        return {
+          success: false,
           error: `Failed to create file: ${createResult.error}`,
           userMessage: 'Could not create the note file. Please check file permissions and disk space.'
         };
       }
 
       // Broadcast refresh to all windows for new notes
-      BrowserWindow.getAllWindows().forEach(window => {
-        if (!window.isDestroyed()) {
-          window.webContents.send('refresh-notes-list');
-        }
-      });
+      invalidateFileListCache();
+      broadcastRefreshDebounced();
 
       return {
         success: true,
@@ -1479,8 +1442,8 @@ ipcMain.handle('save-note-to-file', async (_, noteTitle: string, content: string
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('[Main Process] Error saving note to file:', error);
-    return { 
-      success: false, 
+    return {
+      success: false,
       error: errorMessage,
       userMessage: 'An unexpected error occurred while saving the note. Please try again.'
     };
@@ -1489,94 +1452,166 @@ ipcMain.handle('save-note-to-file', async (_, noteTitle: string, content: string
 
 ipcMain.handle('delete-note-file', async (_, noteTitle: string, saveLocation: string) => {
   console.log('[Main Process] Deleting note file:', { noteTitle, saveLocation });
-  
+
   // Input validation
   if (!noteTitle || typeof noteTitle !== 'string') {
     const error = 'Invalid note title provided';
     console.error('[Main Process]', error);
     return { success: false, error, userMessage: 'Cannot delete note: invalid title provided.' };
   }
-  
+
   if (!saveLocation || typeof saveLocation !== 'string') {
     const error = 'Invalid save location provided';
     console.error('[Main Process]', error);
     return { success: false, error, userMessage: 'Cannot delete note: invalid save location.' };
   }
 
-  try {
-    // Generate the expected filename from the title
-    const fileName = getSafeFileName(noteTitle);
-    const filePath = path.join(saveLocation, fileName);
-    
-    console.log(`[Main Process] Expected file path: ${filePath}`);
+  // Queue the delete operation to prevent duplicates
+  return queueOperation(`delete-${noteTitle}-${saveLocation}`, async () => {
 
-    // Use the file operation service to delete the file
-    const deleteResult = await fileOperationService.deleteNoteFile(filePath);
-    
-    if (!deleteResult.success) {
-      console.error('[Main Process] Failed to delete file:', deleteResult.error);
-      return { 
-        success: false, 
-        error: deleteResult.error,
-        userMessage: 'Could not delete the note file. It may have been moved or deleted already.'
+    try {
+      // Generate the expected filename from the title
+      const fileName = getSafeFileName(noteTitle);
+      const filePath = path.join(saveLocation, fileName);
+
+      console.log(`[Main Process] Expected file path: ${filePath}`);
+
+      // Use the file operation service to delete the file
+      const deleteResult = await fileOperationService.deleteNoteFile(filePath);
+
+      if (!deleteResult.success) {
+        console.error('[Main Process] Failed to delete file:', deleteResult.error);
+        return {
+          success: false,
+          error: deleteResult.error,
+          userMessage: 'Could not delete the note file. It may have been moved or deleted already.'
+        };
+      }
+
+      console.log(`[Main Process] Successfully deleted note file: ${filePath}`);
+
+      // Broadcast refresh to all windows
+      invalidateFileListCache();
+      broadcastRefreshDebounced();
+
+      return { success: true };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[Main Process] Error deleting note file:', error);
+      return {
+        success: false,
+        error: errorMessage,
+        userMessage: 'An unexpected error occurred while deleting the note. Please try again.'
       };
     }
+  });
+})
 
-    console.log(`[Main Process] Successfully deleted note file: ${filePath}`);
-    
-    // Broadcast refresh to all windows
+// Cache for file listings to prevent excessive filesystem reads
+const fileListCache = new Map<string, { data: any[], timestamp: number }>();
+const CACHE_DURATION = 500; // 500ms cache
+
+// Debounced refresh broadcaster to prevent spam
+const refreshTimeouts = new Map<string, NodeJS.Timeout>();
+
+function broadcastRefreshDebounced(delay = 100) {
+  // Clear existing timeout
+  const existingTimeout = refreshTimeouts.get('global');
+  if (existingTimeout) {
+    clearTimeout(existingTimeout);
+  }
+
+  // Set new timeout
+  const timeout = setTimeout(() => {
     BrowserWindow.getAllWindows().forEach(window => {
       if (!window.isDestroyed()) {
         window.webContents.send('refresh-notes-list');
       }
     });
+    refreshTimeouts.delete('global');
+  }, delay);
 
-    return { success: true };
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[Main Process] Error deleting note file:', error);
-    return { 
-      success: false, 
-      error: errorMessage,
-      userMessage: 'An unexpected error occurred while deleting the note. Please try again.'
-    };
+  refreshTimeouts.set('global', timeout);
+}
+
+function invalidateFileListCache(directoryPath?: string) {
+  if (directoryPath) {
+    fileListCache.delete(directoryPath);
+  } else {
+    fileListCache.clear();
   }
-})
+}
+
+// Simple operation queue to prevent concurrent file operations
+const operationQueue = new Map<string, Promise<any>>();
+
+async function queueOperation<T>(key: string, operation: () => Promise<T>): Promise<T> {
+  // If operation is already running, wait for it
+  const existing = operationQueue.get(key);
+  if (existing) {
+    await existing;
+  }
+
+  // Run the new operation
+  const promise = operation();
+  operationQueue.set(key, promise);
+
+  try {
+    const result = await promise;
+    return result;
+  } finally {
+    operationQueue.delete(key);
+  }
+}
 
 // List all markdown files in a directory
 ipcMain.handle('list-note-files', async (_, directoryPath) => {
   console.log(`[Main Process] Listing note files in directory: ${directoryPath}`);
-  console.log('[Main Process] DEBUG: Starting list-note-files handler');
-  
+
   // Input validation
   if (!directoryPath || typeof directoryPath !== 'string') {
     console.error('[Main Process] Invalid directory path provided');
     return [];
   }
 
-  try {
-    if (!fsSync.existsSync(directoryPath)) {
-      console.log(`[Main Process] Directory does not exist: ${directoryPath}`);
+  // Check cache first
+  const cached = fileListCache.get(directoryPath);
+  if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+    console.log(`[Main Process] Returning cached result (${cached.data.length} files)`);
+    return cached.data;
+  }
+
+  // Queue the operation to prevent concurrent calls
+  return queueOperation(`list-${directoryPath}`, async () => {
+    try {
+      if (!fsSync.existsSync(directoryPath)) {
+        console.log(`[Main Process] Directory does not exist: ${directoryPath}`);
+        return [];
+      }
+
+      // List actual note files from the filesystem
+      const noteFiles = await fileOperationService.listNoteFiles(directoryPath);
+      console.log(`[Main Process] Found ${noteFiles.length} note files`);
+
+      const result = noteFiles.map(noteFile => ({
+        title: noteFile.title,
+        name: path.basename(noteFile.filePath),
+        filePath: noteFile.filePath,
+        createdAt: noteFile.createdAt instanceof Date ? noteFile.createdAt.toISOString() : noteFile.createdAt,
+        modifiedAt: noteFile.modifiedAt instanceof Date ? noteFile.modifiedAt.toISOString() : noteFile.modifiedAt,
+        metadata: noteFile.metadata
+      }));
+
+      // Cache the result
+      fileListCache.set(directoryPath, { data: result, timestamp: Date.now() });
+
+      return result;
+    } catch (error: unknown) {
+      console.error('[Main Process] Error listing note files:', error);
+      // Return empty array instead of throwing to prevent UI crashes
       return [];
     }
-
-    // List actual note files from the filesystem
-    const noteFiles = await fileOperationService.listNoteFiles(directoryPath);
-    console.log(`[Main Process] Found ${noteFiles.length} note files`);
-    const result = noteFiles.map(noteFile => ({
-      title: noteFile.title,
-      name: path.basename(noteFile.filePath),
-      filePath: noteFile.filePath,
-      createdAt: noteFile.createdAt instanceof Date ? noteFile.createdAt.toISOString() : noteFile.createdAt,
-      modifiedAt: noteFile.modifiedAt instanceof Date ? noteFile.modifiedAt.toISOString() : noteFile.modifiedAt,
-      metadata: noteFile.metadata
-    }));
-    return result;
-  } catch (error: unknown) {
-    console.error('[Main Process] Error listing note files:', error);
-    // Return empty array instead of throwing to prevent UI crashes
-    return [];
-  }
+  });
 })
 
 // Read a markdown file
@@ -1596,11 +1631,11 @@ ipcMain.handle('read-note-file', async (_, filePath) => {
     }
 
     const content = await fs.readFile(filePath, 'utf8');
-    
+
     return content;
   } catch (error: unknown) {
     console.error('[Main Process] Error reading note file:', error);
-    
+
     // Provide more specific error messages
     if (error instanceof Error) {
       if (error.message.includes('ENOENT')) {
@@ -1611,7 +1646,7 @@ ipcMain.handle('read-note-file', async (_, filePath) => {
         throw new Error(`Path is a directory, not a file: ${filePath}`);
       }
     }
-    
+
     throw error;
   }
 })
@@ -1630,10 +1665,10 @@ ipcMain.handle('save-collections-file', async (_, collectionsData: string, saveL
 
     // Define the collections file path
     const collectionsFilePath = path.join(saveLocation, 'collections.json');
-    
+
     // Write the collections data to file
     await fs.writeFile(collectionsFilePath, collectionsData, 'utf8');
-    
+
     return { success: true, filePath: collectionsFilePath };
   } catch (error: unknown) {
     console.error('[Main Process] Error saving collections file:', error);
@@ -1648,7 +1683,7 @@ ipcMain.handle('read-collections-file', async (_, saveLocation: string) => {
     }
 
     const collectionsFilePath = path.join(saveLocation, 'collections.json');
-    
+
     // Check if the collections file exists
     if (!fsSync.existsSync(collectionsFilePath)) {
       return null;
@@ -1656,7 +1691,7 @@ ipcMain.handle('read-collections-file', async (_, saveLocation: string) => {
 
     // Read the collections data from file
     const collectionsData = await fs.readFile(collectionsFilePath, 'utf8');
-    
+
     return collectionsData;
   } catch (error: unknown) {
     console.error('[Main Process] Error reading collections file:', error);
@@ -1788,7 +1823,7 @@ ipcMain.handle('sync-settings', (_, inputSettings) => {
 
       // If hotkeys failed to register, try again
       if ((globalHotkeys.newNote && !newNoteRegistered) ||
-          (toggleAppHotkey && !toggleAppRegistered)) {
+        (toggleAppHotkey && !toggleAppRegistered)) {
         console.warn('Some hotkeys failed to register. Trying again...');
 
         // Try unregistering again to be sure
@@ -1818,7 +1853,7 @@ ipcMain.handle('sync-settings', (_, inputSettings) => {
 
     // Ensure the saved settings match what was passed in
     if (savedSettings && normalisedSettings.globalHotkeys &&
-        (savedSettings as SettingsType).globalHotkeys) {
+      (savedSettings as SettingsType).globalHotkeys) {
       const savedHotkeys = (savedSettings as SettingsType).globalHotkeys;
 
       // Check if the required properties match, handling optional properties
