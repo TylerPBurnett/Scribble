@@ -79,10 +79,10 @@ contextBridge.exposeInMainWorld('settings', {
 
 // Expose file operation APIs
 contextBridge.exposeInMainWorld('fileOps', {
-  saveNoteToFile: (noteId: string, title: string, content: string, saveLocation: string, isFirstSave: boolean) =>
-    ipcRenderer.invoke('save-note-to-file', noteId, title, content, saveLocation, isFirstSave),
-  deleteNoteFile: (noteId: string, saveLocation: string) =>
-    ipcRenderer.invoke('delete-note-file', noteId, saveLocation),
+  saveNoteToFile: (noteTitle: string, content: string, saveLocation: string, oldTitle?: string) =>
+    ipcRenderer.invoke('save-note-to-file', noteTitle, content, saveLocation, oldTitle),
+  deleteNoteFile: (noteTitle: string, saveLocation: string) =>
+    ipcRenderer.invoke('delete-note-file', noteTitle, saveLocation),
   listNoteFiles: (directoryPath: string) =>
     ipcRenderer.invoke('list-note-files', directoryPath),
   readNoteFile: (filePath: string) =>

@@ -1,19 +1,15 @@
 import { Note } from '../types/Note';
 import { htmlToMarkdown, markdownToHtml } from '../utils/markdownUtils';
 import { getSettings } from './settingsService';
-import { v4 as uuidv4 } from 'uuid'; // Add UUID for stable IDs
-
-// Generate a unique ID using UUID for stability
-const generateId = (): string => {
-  return uuidv4(); // Use UUID for stable IDs
-};
+import { fileNamingService } from './fileNamingService';
+import { fileOperationService, NoteFileInfo } from './fileOperationService';
 
 // Define the metadata interface
 interface NoteMetadata {
-  id?: string;
   color?: string;
   pinned?: boolean;
   favorite?: boolean;
+  transparency?: number;
   [key: string]: unknown;
 }
 
@@ -46,37 +42,61 @@ const parseMetadata = (content: string): { metadata: NoteMetadata, content: stri
   }
 };
 
-// Get notes from file system
-export const getNotes = async (): Promise<Note[]> => {
+// Helper function to create metadata comment
+const createMetadataComment = (metadata: NoteMetadata): string => {
+  if (Object.keys(metadata).length === 0) {
+    return '';
+  }
+  return `\n\n<!-- scribble-metadata: ${JSON.stringify(metadata)} -->`;
+};
+
+// Load notes directly from filesystem using IPC calls
+export const loadNotes = async (directory?: string): Promise<Note[]> => {
   const settings = getSettings();
-  if (!settings.saveLocation) return [];
+  const saveLocation = directory || settings.saveLocation;
+  
+  if (!saveLocation) return [];
 
   try {
-    const files = await window.fileOps.listNoteFiles(settings.saveLocation);
+    // Use file operation service to list note files
+    const noteFiles = await fileOperationService.listNoteFiles(saveLocation);
+    console.log('Frontend received noteFiles:', noteFiles.map(nf => ({ title: nf.title, filePath: nf.filePath })));
+    if (!Array.isArray(noteFiles)) {
+      console.error('Failed to list note files: Invalid response');
+      return [];
+    }
+
     const notes: Note[] = [];
 
-    for (const file of files) {
+    for (const fileInfo of noteFiles) {
       try {
-        // Read the file content
-        const fileContent = await window.fileOps.readNoteFile(file.path);
+        // Read the file content using IPC (returns content directly)
+        console.log('Reading file:', fileInfo.filePath);
+        const fileContent = await fileOperationService.readNoteFile(fileInfo.filePath);
+        console.log('File content length:', fileContent?.length || 0);
+        if (typeof fileContent !== 'string') {
+          console.error(`Failed to read file ${fileInfo.filePath}: Invalid content`);
+          continue;
+        }
 
         // Parse metadata from HTML comments
         const { metadata, content } = parseMetadata(fileContent);
+        console.log('Parsed content after metadata removal:', content.substring(0, 100) + '...');
 
-        // Extract title from the first line if it's a heading
-        let title = file.name.replace(/\.md$/, '');
+        // Extract title from filename (primary source of truth)
+        const title = fileNamingService.extractTitle(fileInfo.title);
+        
+        // Remove title heading from content if it exists
         let markdownContent = content;
-
-        // If content starts with a markdown heading, use it as the title
-        const headingMatch = content.match(/^# (.+)$/m);
+        const headingMatch = content.match(/^# (.+)\n\n?/);
         if (headingMatch) {
-          title = headingMatch[1];
-          // Remove the heading from the content for display
           markdownContent = content.replace(/^# .+\n\n?/, '');
         }
+        console.log('Markdown content after title removal:', markdownContent.substring(0, 100) + '...');
 
         // Convert markdown to HTML for the editor
         const htmlContent = markdownToHtml(markdownContent);
+        console.log('HTML content after conversion:', htmlContent.substring(0, 100) + '...');
         
         // Debug logging for nested list conversion during loading
         if (markdownContent.includes('-') || markdownContent.includes('1.')) {
@@ -85,29 +105,24 @@ export const getNotes = async (): Promise<Note[]> => {
           console.log('HTML:', htmlContent);
         }
 
-        // Use embedded ID from metadata if available, otherwise fall back to file.id
-        // This ensures we use the stable UUID that was embedded in the note
-        const noteId = metadata.id || file.id;
-        console.log('Using noteId:', noteId, 'from', metadata.id ? 'metadata' : 'filename');
-
-        // Create a Note object
+        // Create a Note object using title as the primary identifier
         const note: Note = {
-          id: noteId,
+          id: title, // Use title as ID in the new system
           title,
           content: htmlContent,
-          createdAt: new Date(file.createdAt),
-          updatedAt: new Date(file.modifiedAt),
+          createdAt: new Date(fileInfo.createdAt),
+          updatedAt: new Date(fileInfo.modifiedAt),
           // Add metadata properties
           color: metadata.color,
           pinned: metadata.pinned,
-          favorite: metadata.favorite
+          favorite: metadata.favorite,
+          transparency: metadata.transparency
         };
 
         console.log('Created note from file:', {
-          fileId: file.id,
-          fileName: file.name,
-          noteId: note.id,
+          fileName: fileInfo.title,
           noteTitle: note.title,
+          noteId: note.id,
           color: note.color,
           pinned: note.pinned,
           favorite: note.favorite
@@ -115,49 +130,48 @@ export const getNotes = async (): Promise<Note[]> => {
 
         notes.push(note);
       } catch (error) {
-        console.error(`Error processing file ${file.path}:`, error);
+        console.error(`Error processing file ${fileInfo.filePath}:`, error);
       }
     }
 
-    // Filter out any notes that shouldn't be displayed
-    // This ensures transient unsaved notes don't appear in the list
-    const displayableNotes = notes.filter(note => {
-      // Only show notes that are actually saved to disk
-      // Notes with _unsaved flag should not appear in the list
-      return !note._unsaved;
-    });
-
-    return displayableNotes;
+    return notes;
   } catch (error) {
-    console.error('Error reading notes from file system:', error);
+    console.error('Error loading notes from file system:', error);
     return [];
   }
 };
 
+// Keep backward compatibility with existing code
+export const getNotes = loadNotes;
+
 // Helper function to generate unique title for new notes
-const generateUniqueTitle = async (): Promise<string> => {
+const generateUniqueTitle = async (directory?: string): Promise<string> => {
   const baseTitle = 'Untitled Note';
   
   try {
     // Get all existing notes to check for conflicts
-    const existingNotes = await getNotes();
+    const existingNotes = await loadNotes(directory);
     
-    // Find all notes that start with "Untitled Note"
-    const untitledNotes = existingNotes.filter(note => 
-      note.title === baseTitle || note.title.startsWith(`${baseTitle} `)
-    );
+    console.log('generateUniqueTitle - Directory:', directory);
+    console.log('generateUniqueTitle - Found existing notes:', existingNotes.length);
+    console.log('generateUniqueTitle - Existing titles:', existingNotes.map(note => note.title));
     
-    if (untitledNotes.length === 0) {
-      return baseTitle;
-    }
+    // Extract existing filenames for conflict resolution
+    const existingTitles = existingNotes.map(note => note.title);
+    const existingFilenames = existingTitles.map(title => fileNamingService.generateFilename(title));
     
-    // Find the next available number
-    let number = 2;
-    while (existingNotes.some(note => note.title === `${baseTitle} ${number}`)) {
-      number++;
-    }
+    console.log('generateUniqueTitle - Existing filenames:', existingFilenames);
     
-    return `${baseTitle} ${number}`;
+    // Use file naming service to generate unique filename
+    const result = fileNamingService.generateUniqueFilename(baseTitle, existingFilenames);
+    
+    console.log('generateUniqueTitle - Generated result:', result);
+    
+    // Extract title from the generated filename
+    const finalTitle = fileNamingService.extractTitle(result.filename);
+    console.log('generateUniqueTitle - Final title:', finalTitle);
+    
+    return finalTitle;
   } catch (error) {
     console.error('Error generating unique title:', error);
     // Fallback to timestamp-based unique title if there's an error
@@ -165,35 +179,31 @@ const generateUniqueTitle = async (): Promise<string> => {
   }
 };
 
-// Create a new note
-export const createNote = async (): Promise<Note> => {
+// Create a new note - SIMPLIFIED: Always save immediately to disk
+export const createNote = async (directory?: string): Promise<Note> => {
   // Generate a unique title for the new note
-  const uniqueTitle = await generateUniqueTitle();
+  const uniqueTitle = await generateUniqueTitle(directory);
   
-  // Create a new note with a stable UUID
+  // Create a new note using title as ID
   const newNote: Note = {
-    id: generateId(), // This uses UUID for stability
+    id: uniqueTitle, // Use title as ID in the new system
     title: uniqueTitle,
     content: '<p></p>',
     createdAt: new Date(),
-    updatedAt: new Date(),
-    _isNew: true,
-    _unsaved: true  // Mark as unsaved - will be saved when user adds content
+    updatedAt: new Date()
   };
 
-  // DO NOT save the note immediately - implement deferred save
-  // The note will only be saved when:
-  // 1. The user adds content to it
-  // 2. The user changes the title from "Untitled Note"
-  // This prevents empty untitled notes from cluttering the file system
+  // SIMPLIFIED: Save the note immediately to disk
+  // This ensures the file exists and can be renamed later
+  const savedNote = await saveNote(newNote, directory);
   
-  console.log('Created new note (not saved to disk yet):', {
-    id: newNote.id,
-    title: newNote.title,
-    unsaved: true
+  console.log('Created and saved new note to disk:', {
+    id: savedNote.id,
+    title: savedNote.title,
+    saved: true
   });
 
-  return newNote;
+  return savedNote;
 };
 
 // Helper function to check if note has meaningful content
@@ -229,239 +239,159 @@ const hasValidContent = (note: Note): boolean => {
   return true;
 };
 
-// Update a note
-export const updateNote = async (updatedNote: Note): Promise<Note> => {
-  // Check if this is an unsaved note that shouldn't be saved yet
-  if (updatedNote._unsaved) {
-    // Check if the note has meaningful content or a custom title
-    const hasContent = hasValidContent(updatedNote);
-    const hasCustomTitle = updatedNote.title && 
-                          !updatedNote.title.startsWith('Untitled Note');
-    
-    // If the note doesn't have content or a custom title, don't save it yet
-    if (!hasContent && !hasCustomTitle) {
-      console.log('Skipping save for empty untitled note:', {
-        id: updatedNote.id,
-        title: updatedNote.title,
-        hasContent,
-        hasCustomTitle
-      });
-      // Return the note as-is, still marked as unsaved
-      return {
-        ...updatedNote,
-        updatedAt: new Date()
-      };
-    }
-    
-    // If we get here, the note has content or a custom title, so we should save it
-    console.log('First save for previously unsaved note:', {
-      id: updatedNote.id,
-      title: updatedNote.title,
-      hasContent,
-      hasCustomTitle
+// Save a note using title-based filenames - SIMPLIFIED
+export const saveNote = async (note: Note, directory?: string, originalTitle?: string): Promise<Note> => {
+  console.log('saveNote called with:', {
+    id: note.id,
+    title: note.title,
+    originalTitle
+  });
+
+  const settings = getSettings();
+  const saveLocation = directory || settings.saveLocation;
+  
+  if (!saveLocation) {
+    throw new Error('No save location specified');
+  }
+
+  // Validate note title
+  if (!note.title || typeof note.title !== 'string' || note.title.trim().length === 0) {
+    console.error('Invalid note title:', note.title);
+    throw new Error('Invalid note title provided');
+  }
+
+  try {
+    // Convert HTML content to Markdown
+    const markdownContent = htmlToMarkdown(note.content);
+
+    // Add title as H1 at the beginning
+    const titlePrefix = note.title ? `# ${note.title}\n\n` : '';
+
+    // Create metadata object (excluding title since it's in the filename)
+    const metadata: NoteMetadata = {};
+    if (note.color) metadata.color = note.color;
+    if (note.pinned !== undefined) metadata.pinned = note.pinned;
+    if (note.favorite !== undefined) metadata.favorite = note.favorite;
+    if (note.transparency !== undefined) metadata.transparency = note.transparency;
+
+    // Create metadata comment
+    const metadataComment = createMetadataComment(metadata);
+
+    const fullContent = titlePrefix + markdownContent + metadataComment;
+
+    // SIMPLIFIED: Determine if this is a rename operation
+    // If originalTitle is provided and different from current title, it's a rename
+    const isRename = originalTitle && originalTitle !== note.title;
+    const oldTitle = isRename ? originalTitle : undefined;
+
+    console.log('Save operation:', {
+      title: note.title,
+      oldTitle,
+      isRename
     });
-  }
 
-  // Get the updated note with the new timestamp
-  const finalNote = {
-    ...updatedNote,
-    updatedAt: new Date(),
-    // Remove the _isNew and _unsaved flags - the note is now being saved
-    _isNew: undefined,
-    _unsaved: undefined
-  };
+    // Use file operation service to save the note file
+    const result = await fileOperationService.saveNoteToFile(
+      note.title, // noteTitle
+      fullContent, // content
+      saveLocation, // saveLocation
+      oldTitle // oldTitle - for rename detection
+    );
 
-  // Save to file if a save location is set
-  const settings = getSettings();
-  console.log('Settings from getSettings():', settings);
-  if (settings.saveLocation) {
-    console.log('Save location found:', settings.saveLocation);
-
-    // Check if this is a new note being saved for the first time
-    const isFirstSave = updatedNote._isNew === true || updatedNote._unsaved === true;
-
-    // If this is a new note being saved for the first time, handle it specially
-    if (isFirstSave) {
-      console.log('First update of newly created note:', {
-        title: updatedNote.title
-      });
-      // We'll skip the file lookup since the file was just created
-
-      // Convert HTML content to Markdown
-      const markdownContent = htmlToMarkdown(finalNote.content);
-      
-      // Debug logging for nested list conversion
-      if (finalNote.content.includes('<ol>') || finalNote.content.includes('<ul>')) {
-        console.log('🔄 Converting HTML to Markdown (first save):');
-        console.log('HTML:', finalNote.content);
-        console.log('Markdown:', markdownContent);
-      }
-
-      // Add title as H1 at the beginning if it exists
-      const titlePrefix = finalNote.title ? `# ${finalNote.title}\n\n` : '';
-
-      // Create metadata as JSON in HTML comment at the end of the file
-      const metadata: NoteMetadata = {
-        // Always include the stable ID in metadata
-        id: finalNote.id
-      };
-
-      if (finalNote.color) {
-        metadata.color = finalNote.color;
-      }
-      if (finalNote.pinned !== undefined) {
-        metadata.pinned = finalNote.pinned;
-      }
-      if (finalNote.favorite !== undefined) {
-        metadata.favorite = finalNote.favorite;
-      }
-
-      // Only add metadata comment if there's actual metadata to store
-      const metadataComment = Object.keys(metadata).length > 0
-        ? `\n\n<!-- scribble-metadata: ${JSON.stringify(metadata)} -->`
-        : '';
-
-      const fullContent = titlePrefix + markdownContent + metadataComment;
-
-      // Save directly with the custom title
-      try {
-        // Type assertion to make TypeScript happy with the boolean parameter
-        const result = await window.fileOps.saveNoteToFile(
-          finalNote.id,
-          finalNote.title,
-          fullContent,
-          settings.saveLocation,
-          true as unknown as string // isFirstSave flag - will be fixed in main process
-        );
-        console.log('First save result:', result);
-        return finalNote;
-      } catch (saveError) {
-        console.error('Error in first saveNoteToFile:', saveError);
-        return finalNote;
-      }
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to save note');
     }
 
-    try {
-      // We no longer need to find the current file on disk
-      // The main process will handle file lookup using the stable ID
-      console.log('Updating existing note:', finalNote.id);
+    // Return updated note
+    const savedNote: Note = {
+      ...note,
+      id: note.title, // Ensure ID matches title
+      updatedAt: new Date()
+    };
 
-      // Convert HTML content to Markdown
-      const markdownContent = htmlToMarkdown(finalNote.content);
-      
-      // Debug logging for nested list conversion
-      if (finalNote.content.includes('<ol>') || finalNote.content.includes('<ul>')) {
-        console.log('🔄 Converting HTML to Markdown (update):');
-        console.log('HTML:', finalNote.content);
-        console.log('Markdown:', markdownContent);
-      }
+    console.log('Successfully saved note:', {
+      title: savedNote.title,
+      wasRenamed: isRename
+    });
 
-      // Add title as H1 at the beginning if it exists
-      const titlePrefix = finalNote.title ? `# ${finalNote.title}\n\n` : '';
-
-      // Create metadata as JSON in HTML comment at the end of the file
-      const metadata: NoteMetadata = {
-        // Always include the stable ID in metadata
-        id: finalNote.id
-      };
-
-      if (finalNote.color) {
-        metadata.color = finalNote.color;
-      }
-      if (finalNote.pinned !== undefined) {
-        metadata.pinned = finalNote.pinned;
-      }
-      if (finalNote.favorite !== undefined) {
-        metadata.favorite = finalNote.favorite;
-      }
-
-      // Only add metadata comment if there's actual metadata to store
-      const metadataComment = Object.keys(metadata).length > 0
-        ? `\n\n<!-- scribble-metadata: ${JSON.stringify(metadata)} -->`
-        : '';
-
-      const fullContent = titlePrefix + markdownContent + metadataComment;
-
-      // Save to file
-      console.log('Calling saveNoteToFile with:', {
-        id: finalNote.id,
-        title: finalNote.title,
-        saveLocation: settings.saveLocation,
-        isFirstSave: false
-      });
-
-      try {
-        // Type assertion to make TypeScript happy with the boolean parameter
-        const result = await window.fileOps.saveNoteToFile(
-          finalNote.id,
-          finalNote.title,
-          fullContent,
-          settings.saveLocation,
-          false as unknown as string // Not first save - will be fixed in main process
-        );
-        console.log('Save result:', result);
-      } catch (saveError) {
-        console.error('Error in saveNoteToFile:', saveError);
-      }
-    } catch (error) {
-      console.error('Error saving note to file:', error);
-    }
-  } else {
-    console.log('No save location found in settings');
-  }
-
-  return finalNote;
-};
-
-// Delete a note
-export const deleteNote = async (noteId: string): Promise<void> => {
-  // We no longer need to find the note first
-  // The main process will handle finding the file using the stable ID
-  const settings = getSettings();
-  if (settings.saveLocation) {
-    try {
-      console.log('Deleting note file with ID:', noteId);
-
-      try {
-        // Add empty string as placeholder for the title parameter that will be removed in main process
-        const result = await window.fileOps.deleteNoteFile(
-          noteId,
-          "", // Empty placeholder for title that will be removed
-          settings.saveLocation
-        );
-        console.log('Delete note file result:', result);
-      } catch (deleteError) {
-        console.error('Error in deleteNoteFile:', deleteError);
-      }
-    } catch (error) {
-      console.error('Error deleting note file:', error);
-    }
+    return savedNote;
+  } catch (error) {
+    console.error('Error saving note:', error);
+    throw error;
   }
 };
 
-// Get a note by ID
-export const getNoteById = async (noteId: string): Promise<Note | undefined> => {
-  console.log('Getting note by ID:', noteId);
+// Keep backward compatibility with existing code
+export const updateNote = saveNote;
+
+// Note: findNoteFilePath function removed as it's no longer used
+
+// Delete a note by title
+export const deleteNote = async (noteTitle: string, directory?: string): Promise<void> => {
+  const settings = getSettings();
+  const saveLocation = directory || settings.saveLocation;
+  
+  if (!saveLocation) {
+    throw new Error('No save location specified');
+  }
+
+  try {
+    // Use file operation service to delete the note file
+    const result = await fileOperationService.deleteNoteFile(noteTitle, saveLocation);
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to delete note');
+    }
+
+    console.log('Successfully deleted note:', {
+      title: noteTitle
+    });
+  } catch (error) {
+    console.error('Error deleting note:', error);
+    throw error;
+  }
+};
+
+// Get a note by title (ID in the new system)
+export const getNoteByTitle = async (noteTitle: string, directory?: string): Promise<Note | null> => {
+  console.log('Getting note by title:', noteTitle);
+  
+  try {
+    // Load all notes and find the matching one
+    const notes = await loadNotes(directory);
+    const note = notes.find(note => note.title === noteTitle);
+
+    if (note) {
+      console.log('Found note with title:', noteTitle);
+      return note;
+    } else {
+      console.log('Note not found with title:', noteTitle);
+      return null;
+    }
+  } catch (error) {
+    console.error('Error getting note by title:', error);
+    return null;
+  }
+};
+
+// Get a note by ID (backward compatibility - ID is now title)
+export const getNoteById = async (noteId: string, directory?: string): Promise<Note | undefined> => {
+  console.log('Getting note by ID (title):', noteId);
   
   // First check if this is a transient new note (not yet saved to disk)
   // This is important for untitled notes that haven't been saved yet
-  const transientNote = await window.noteWindow.getTransientNewNoteData(noteId);
-  if (transientNote) {
-    console.log('Found transient note with ID:', noteId);
-    return transientNote;
+  try {
+    const transientNote = await (window as any).noteWindow.getTransientNewNoteData(noteId);
+    if (transientNote) {
+      console.log('Found transient note with ID:', noteId);
+      return transientNote;
+    }
+  } catch (error) {
+    // Ignore errors from transient note lookup
+    console.log('No transient note found, checking filesystem');
   }
   
-  // If not transient, look in the file system
-  const notes = await getNotes();
-
-  // With stable UUIDs, we should be able to find the note directly by ID
-  const note = notes.find(note => note.id === noteId);
-
-  if (note) {
-    console.log('Found note with ID:', noteId);
-  } else {
-    console.log('Note not found with ID:', noteId);
-  }
-
-  return note;
+  // In the new system, ID is the title, so use getNoteByTitle
+  const note = await getNoteByTitle(noteId, directory);
+  return note || undefined;
 };

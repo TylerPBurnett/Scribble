@@ -19,6 +19,8 @@ import {
 import { useNoteEditorPerformance } from '../../shared/hooks/useExpensiveOperations';
 import { useRenderPerformance } from '../../shared/hooks/usePerformanceMonitoring';
 import { SmartAutosaveService, DEFAULT_AUTOSAVE_CONFIG } from '../../shared/services/smartAutosaveService';
+import { fileNamingService } from '../../shared/services/fileNamingService';
+import { fileOperationService } from '../../shared/services/fileOperationService';
 import './NoteEditor.css';
 import './SettingsMenu.css';
 
@@ -55,6 +57,47 @@ const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
   const { title, content, color: noteColor, transparency, isPinned, isFavorite } = state.noteData;
   const { showSettingsMenu, showColorPicker, isTitleFocused, isDragging } = state.uiState;
   const { isDirty, isNewNote, tempTitle, autoSaveEnabled, autoSaveInterval } = state.editorState;
+
+  // Track the original title for rename detection
+  const originalTitleRef = useRef(note.title);
+  
+  // Update original title ref when note changes (for new notes loaded from disk)
+  useEffect(() => {
+    originalTitleRef.current = note.title;
+  }, [note.id]); // Only update when note ID changes (different note loaded)
+
+  // Add state for title change feedback and validation
+  const [titleChangeStatus, setTitleChangeStatus] = useState<{
+    isChanging: boolean;
+    error: string | null;
+    success: boolean;
+  }>({
+    isChanging: false,
+    error: null,
+    success: false
+  });
+
+  // Title validation function
+  const validateTitle = useCallback((titleToValidate: string): { isValid: boolean; error?: string; sanitized?: string } => {
+    if (!titleToValidate || titleToValidate.trim() === '') {
+      return { isValid: false, error: 'Title cannot be empty' };
+    }
+
+    const trimmed = titleToValidate.trim();
+    const sanitized = fileNamingService.sanitizeTitle(trimmed);
+    const filename = fileNamingService.generateFilename(sanitized);
+
+    if (!fileNamingService.isValidFilename(filename)) {
+      return { isValid: false, error: 'Title contains invalid characters' };
+    }
+
+    // Check if sanitization changed the title significantly
+    if (sanitized !== trimmed && sanitized.length < trimmed.length * 0.5) {
+      return { isValid: false, error: 'Title contains too many invalid characters' };
+    }
+
+    return { isValid: true, sanitized };
+  }, []);
 
   // Use refs to store the latest values for use in debounced functions
   const currentTitleRef = useRef(title);
@@ -166,12 +209,17 @@ useEffect(() => {
     _isNew: note._isNew
   };
   
-  autosaveService.current.initializeAutosave(noteWithFlags, () => currentContentRef.current, savedNote => {
-    // Update references and notify on save
-    currentNoteRef.current = savedNote;
-    onSave?.(savedNote);
-    dispatch(updateEditorState({ isDirty: false }));
-  });
+  autosaveService.current.initializeAutosave(
+    noteWithFlags, 
+    () => currentContentRef.current, 
+    savedNote => {
+      // Update references and notify on save
+      currentNoteRef.current = savedNote;
+      onSave?.(savedNote);
+      dispatch(updateEditorState({ isDirty: false }));
+    },
+    () => currentNoteRef.current // FIXED: Pass current note reference
+  );
 
   return () => {
     autosaveService.current?.destroy();
@@ -192,6 +240,8 @@ const saveNote = useCallback(async () => {
     };
     
     await autosaveService.current.triggerAutosave(noteToSave, currentContentRef.current, savedNote => {
+      // Update the original title reference after successful save
+      originalTitleRef.current = savedNote.title;
       // Remove the _unsaved flag if the note was successfully saved
       currentNoteRef.current = savedNote;
       onSave?.(savedNote);
@@ -335,30 +385,126 @@ const saveNote = useCallback(async () => {
     window.windowControls.close();
   }, []);
 
-  // Handle title blur - process title changes when focus is lost
-  const handleTitleBlur = useCallback(() => {
+  // Handle title blur - process title changes when focus is lost with immediate file renaming
+  const handleTitleBlur = useCallback(async () => {
     // When focus is lost, apply the title change if it's valid
     dispatch(updateUIState({ isTitleFocused: false }));
 
-    // Only apply the change if the title is not empty and not the default
-    if (tempTitle && tempTitle.trim() !== '') {
-      if (tempTitle !== title) {
-        console.log('Applying title change on blur:', tempTitle);
-        dispatch(updateNoteData({ title: tempTitle }));
+    // Clear any previous status
+    setTitleChangeStatus({ isChanging: false, error: null, success: false });
 
-        // If this was a new note, mark it as no longer new
-        if (isNewNote && tempTitle !== 'Untitled Note') {
-          dispatch(updateEditorState({ isNewNote: false }));
-        }
-      } else {
-        console.log('Title unchanged, not marking as dirty');
-      }
-    } else {
-      console.log('Not applying empty title on blur');
-      // Reset to the previous title if empty
+    // Only apply the change if the title is not empty and different
+    if (!tempTitle || tempTitle.trim() === '') {
+      console.log('Empty title on blur, reverting to previous title');
       dispatch(updateEditorState({ tempTitle: title }));
+      return;
+    }
+
+    const newTitle = tempTitle.trim();
+    
+    // If title hasn't changed, no need to do anything
+    if (newTitle === title) {
+      console.log('Title unchanged, no action needed');
+      return;
+    }
+
+    // Validate the new title using file naming service
+    const sanitizedTitle = fileNamingService.sanitizeTitle(newTitle);
+    const proposedFilename = fileNamingService.generateFilename(sanitizedTitle);
+    
+    if (!fileNamingService.isValidFilename(proposedFilename)) {
+      console.log('Invalid title, reverting:', newTitle);
+      setTitleChangeStatus({
+        isChanging: false,
+        error: 'Invalid title. Please use only valid filename characters.',
+        success: false
+      });
+      dispatch(updateEditorState({ tempTitle: title }));
+      
+      // Clear error after 3 seconds
+      setTimeout(() => {
+        setTitleChangeStatus(prev => ({ ...prev, error: null }));
+      }, 3000);
+      return;
+    }
+
+    // If the sanitized title is different from what the user typed, show it
+    if (sanitizedTitle !== newTitle) {
+      console.log('Title was sanitized:', { original: newTitle, sanitized: sanitizedTitle });
+      dispatch(updateEditorState({ tempTitle: sanitizedTitle }));
+    }
+
+    try {
+      setTitleChangeStatus({ isChanging: true, error: null, success: false });
+      console.log('Starting title change process:', { from: title, to: sanitizedTitle });
+
+      // SIMPLIFIED: Always use the same rename mechanism
+      // Since all notes are now saved to disk immediately, we can always use rename
+      await performTitleRename(sanitizedTitle);
+
+    } catch (error) {
+      console.error('Error changing title:', error);
+      setTitleChangeStatus({
+        isChanging: false,
+        error: error instanceof Error ? error.message : 'Failed to change title',
+        success: false
+      });
+      
+      // Revert to original title
+      dispatch(updateEditorState({ tempTitle: title }));
+      
+      // Clear error after 5 seconds
+      setTimeout(() => {
+        setTitleChangeStatus(prev => ({ ...prev, error: null }));
+      }, 5000);
     }
   }, [tempTitle, title, isNewNote]);
+
+  // SIMPLIFIED: Perform title rename using the same save mechanism
+  const performTitleRename = useCallback(async (newTitle: string) => {
+    try {
+      console.log('Performing title rename via save:', { from: title, to: newTitle });
+      
+      // Create updated note with new title
+      const updatedNote = {
+        ...currentNoteRef.current,
+        title: newTitle,
+        content: currentContentRef.current,
+        updatedAt: new Date()
+      };
+
+      // Save the note with the original title for rename detection
+      const savedNote = await updateNote(updatedNote, undefined, originalTitleRef.current);
+
+      // Update local state
+      dispatch(updateNoteData({ title: newTitle }));
+      
+      // Update references
+      currentNoteRef.current = savedNote;
+      originalTitleRef.current = newTitle; // Update original title after successful rename
+
+      // Notify other windows about the title change
+      window.noteWindow.noteUpdated(title, { 
+        title: newTitle,
+        id: newTitle,
+        renamed: true,
+        oldId: title
+      });
+
+      console.log('Title rename completed successfully:', { newTitle });
+
+      setTitleChangeStatus({ isChanging: false, error: null, success: true });
+      
+      // Clear success status after 2 seconds
+      setTimeout(() => {
+        setTitleChangeStatus(prev => ({ ...prev, success: false }));
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error in performTitleRename:', error);
+      throw error;
+    }
+  }, [title]);
 
   // Manual save function
   const handleManualSave = useCallback(() => {
@@ -394,7 +540,7 @@ const saveNote = useCallback(async () => {
       };
 
       // Save the updated note
-      const savedNote = await updateNote(updatedNote);
+      const savedNote = await updateNote(updatedNote, undefined, originalTitleRef.current);
       currentNoteRef.current = savedNote;
       onSave?.(savedNote);
 
@@ -467,7 +613,7 @@ const saveNote = useCallback(async () => {
         };
 
         // Save the updated note
-        updateNote(updatedNote).then(savedNote => {
+        updateNote(updatedNote, undefined, originalTitleRef.current).then(savedNote => {
           currentNoteRef.current = savedNote;
           onSave?.(savedNote);
           window.noteWindow.noteUpdated(savedNote.id, { favorite: newFavoriteState });
@@ -525,7 +671,7 @@ const saveNote = useCallback(async () => {
       };
 
       // Save the updated note
-      const savedNote = await updateNote(updatedNote);
+      const savedNote = await updateNote(updatedNote, undefined, originalTitleRef.current);
       currentNoteRef.current = savedNote;
       onSave?.(savedNote);
 
@@ -551,7 +697,7 @@ const saveNote = useCallback(async () => {
       };
 
       // Save the updated note
-      const savedNote = await updateNote(updatedNote);
+      const savedNote = await updateNote(updatedNote, undefined, originalTitleRef.current);
       currentNoteRef.current = savedNote;
       onSave?.(savedNote);
 
@@ -617,7 +763,7 @@ const saveNote = useCallback(async () => {
               className="w-6 h-6 rounded-full flex items-center justify-center transition-colors"
               title="Close note"
               style={{ 
-                WebkitAppRegion: 'no-drag',
+                WebkitAppRegion: 'no-drag' as any,
                 backgroundColor: getButtonColors().inactive.replace('0.5', '0.2'),
                 color: getButtonColors().inactive
               }}
@@ -651,7 +797,7 @@ const saveNote = useCallback(async () => {
               className="w-6 h-6 rounded-full flex items-center justify-center transition-colors"
               title="Minimize"
               style={{ 
-                WebkitAppRegion: 'no-drag',
+                WebkitAppRegion: 'no-drag' as any,
                 backgroundColor: getButtonColors().inactive.replace('0.5', '0.2'),
                 color: getButtonColors().inactive
               }}
@@ -679,58 +825,169 @@ const saveNote = useCallback(async () => {
             </button>
           </div>
 
-          {/* Center: Title */}
+          {/* Center: Title with status indicators */}
           <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center">
-            <input
-              type="text"
-              className={`note-title-input text-sm font-medium bg-transparent border-none outline-none focus:outline-none focus:ring-0 font-['Chirp',_'Segoe_UI',_sans-serif] cursor-text text-center ${isTitleFocused ? 'ring-1 ring-blue-400/30 bg-white/10' : ''}`}
-              style={{
-                WebkitAppRegion: 'no-drag',
-                boxShadow: 'none',
-                borderRadius: isTitleFocused ? '4px' : '0px',
-                padding: isTitleFocused ? '2px 6px' : '2px 0px',
-                width: isTitleFocused ?
-                  `${Math.min(Math.max((tempTitle?.length || 1) * 8, 50), 250)}px` :
-                  `${Math.min(Math.max((title?.length || 1) * 8, 50), 250)}px`,
-                color: getTextColor(),
-                caretColor: getTextColor()
-              }}
-              ref={titleInputRef}
-              value={isTitleFocused ? tempTitle : title}
-              onChange={(e) => {
-                // Only update the temporary title while editing
-                // This won't trigger any saves
-                const newTitle = e.target.value;
-                console.log('Title input change (temp):', newTitle);
-                dispatch(updateEditorState({ tempTitle: newTitle }));
-              }}
-              onFocus={() => {
-                // When focusing, set the temporary title to the current title
-                dispatch(updateEditorState({ tempTitle: title }));
-                dispatch(updateUIState({ isTitleFocused: true }));
-                console.log('Title focused, preventing saves');
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === 'Tab') {
-                  e.preventDefault();
-                  // Apply title change and move focus to content
-                  handleTitleBlur();
-                  // Focus the content editor after a small delay
-                  setTimeout(() => {
-                    if (tiptapRef.current?.focus) {
-                      tiptapRef.current.focus();
-                      console.log('Moved focus to content editor after Enter/Tab');
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                className={`note-title-input text-sm font-medium bg-transparent border-none outline-none focus:outline-none focus:ring-0 font-['Chirp',_'Segoe_UI',_sans-serif] cursor-text text-center ${
+                  isTitleFocused ? 'ring-1 ring-blue-400/30 bg-white/10' : ''
+                } ${
+                  titleChangeStatus.error ? 'ring-1 ring-red-400/50 bg-red-50/10' : ''
+                } ${
+                  titleChangeStatus.success ? 'ring-1 ring-green-400/50 bg-green-50/10' : ''
+                }`}
+                style={{
+                  WebkitAppRegion: 'no-drag' as any,
+                  boxShadow: 'none',
+                  borderRadius: isTitleFocused || titleChangeStatus.error || titleChangeStatus.success ? '4px' : '0px',
+                  padding: isTitleFocused || titleChangeStatus.error || titleChangeStatus.success ? '2px 6px' : '2px 0px',
+                  width: isTitleFocused ?
+                    `${Math.min(Math.max((tempTitle?.length || 1) * 8, 50), 250)}px` :
+                    `${Math.min(Math.max((title?.length || 1) * 8, 50), 250)}px`,
+                  color: getTextColor(),
+                  caretColor: getTextColor()
+                }}
+                ref={titleInputRef}
+                value={isTitleFocused ? tempTitle : title}
+                onChange={(e) => {
+                  const newTitle = e.target.value;
+                  console.log('Title input change (temp):', newTitle);
+                  
+                  // Update the temporary title
+                  dispatch(updateEditorState({ tempTitle: newTitle }));
+                  
+                  // Clear previous status when user starts typing
+                  if (titleChangeStatus.error || titleChangeStatus.success) {
+                    setTitleChangeStatus({ isChanging: false, error: null, success: false });
+                  }
+                  
+                  // Provide real-time validation feedback for very problematic titles
+                  if (newTitle.length > 0) {
+                    const validation = validateTitle(newTitle);
+                    if (!validation.isValid && newTitle.length > 5) {
+                      // Only show validation errors for longer titles to avoid annoying the user
+                      const hasOnlyInvalidChars = /^[<>:"|?*\\/\x00-\x1f]+$/.test(newTitle);
+                      if (hasOnlyInvalidChars) {
+                        setTitleChangeStatus({
+                          isChanging: false,
+                          error: 'Title contains only invalid characters',
+                          success: false
+                        });
+                      }
                     }
-                  }, 50);
-                }
-              }}
-              onBlur={handleTitleBlur}
-              placeholder="Untitled Note"
-            />
+                  }
+                }}
+                onFocus={() => {
+                  // Clear any status when focusing
+                  setTitleChangeStatus({ isChanging: false, error: null, success: false });
+                  
+                  // When focusing, set the temporary title to the current title
+                  dispatch(updateEditorState({ tempTitle: title }));
+                  dispatch(updateUIState({ isTitleFocused: true }));
+                  console.log('Title focused, preventing saves');
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === 'Tab') {
+                    e.preventDefault();
+                    // Apply title change and move focus to content
+                    handleTitleBlur();
+                    // Focus the content editor after a small delay
+                    setTimeout(() => {
+                      if (tiptapRef.current?.focus) {
+                        tiptapRef.current.focus();
+                        console.log('Moved focus to content editor after Enter/Tab');
+                      }
+                    }, 50);
+                  }
+                  if (e.key === 'Escape') {
+                    // Cancel title editing and revert to original
+                    dispatch(updateEditorState({ tempTitle: title }));
+                    dispatch(updateUIState({ isTitleFocused: false }));
+                    setTitleChangeStatus({ isChanging: false, error: null, success: false });
+                    titleInputRef.current?.blur();
+                  }
+                }}
+                onBlur={handleTitleBlur}
+                placeholder="Untitled Note"
+                disabled={titleChangeStatus.isChanging}
+              />
+              
+              {/* Status indicators */}
+              {titleChangeStatus.isChanging && (
+                <div 
+                  className="absolute -right-6 top-1/2 transform -translate-y-1/2"
+                  title="Renaming file..."
+                >
+                  <svg 
+                    className="animate-spin h-4 w-4" 
+                    style={{ color: getTextColor() }}
+                    fill="none" 
+                    viewBox="0 0 24 24"
+                  >
+                    <circle 
+                      className="opacity-25" 
+                      cx="12" 
+                      cy="12" 
+                      r="10" 
+                      stroke="currentColor" 
+                      strokeWidth="4"
+                    />
+                    <path 
+                      className="opacity-75" 
+                      fill="currentColor" 
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                </div>
+              )}
+              
+              {titleChangeStatus.success && (
+                <div 
+                  className="absolute -right-6 top-1/2 transform -translate-y-1/2"
+                  title="Title updated successfully"
+                >
+                  <svg 
+                    className="h-4 w-4 text-green-500" 
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2} 
+                      d="M5 13l4 4L19 7" 
+                    />
+                  </svg>
+                </div>
+              )}
+              
+              {titleChangeStatus.error && (
+                <div 
+                  className="absolute -right-6 top-1/2 transform -translate-y-1/2"
+                  title={titleChangeStatus.error}
+                >
+                  <svg 
+                    className="h-4 w-4 text-red-500" 
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2} 
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" 
+                    />
+                  </svg>
+                </div>
+              )}
+            </div>
           </div>
 
 {/* Right side: Action buttons */}
-<div className="flex items-center gap-2 relative" style={{ WebkitAppRegion: 'no-drag' }}>
+<div className="flex items-center gap-2 relative" style={{ WebkitAppRegion: 'no-drag' as any }}>
   {!autoSaveEnabled && (
     <button
       onClick={handleManualSave}
@@ -822,7 +1079,7 @@ const saveNote = useCallback(async () => {
                         console.log('NoteEditor - Updated note object:', updatedNote);
 
                         // Save the updated note
-                        const savedNote = await updateNote(updatedNote);
+                        const savedNote = await updateNote(updatedNote, undefined, originalTitleRef.current);
                         console.log('NoteEditor - Saved note from server:', savedNote);
                         currentNoteRef.current = savedNote;
                         onSave?.(savedNote);
@@ -1078,6 +1335,20 @@ const saveNote = useCallback(async () => {
           </div>
         </div>
       </div>
+
+      {/* Title change feedback messages */}
+      {titleChangeStatus.error && (
+        <div 
+          className="absolute top-12 left-1/2 transform -translate-x-1/2 z-50 px-3 py-2 rounded-md shadow-lg max-w-xs text-center text-sm"
+          style={{
+            backgroundColor: 'rgba(239, 68, 68, 0.9)',
+            color: '#ffffff',
+            backdropFilter: 'blur(8px)'
+          }}
+        >
+          {titleChangeStatus.error}
+        </div>
+      )}
 
       <div
         className="flex-1 overflow-hidden flex flex-col"

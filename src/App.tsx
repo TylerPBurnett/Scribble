@@ -126,8 +126,15 @@ function App() {
 
   // Listen for note updates from other windows
   useEffect(() => {
+    console.log('🎯 [Frontend] Setting up event listeners, isNoteWindow:', isNoteWindow);
+    
     // Skip this in note windows
-    if (isNoteWindow) return
+    if (isNoteWindow) {
+      console.log('🎯 [Frontend] Skipping event listeners - this is a note window');
+      return;
+    }
+    
+    console.log('🎯 [Frontend] This is the main window - setting up event listeners');
 
     // Set up listener for note updates
     const handleNoteUpdated = async (_event: any, noteId: string) => {
@@ -150,20 +157,24 @@ function App() {
 
     // Set up listener for full notes list refresh
     const handleRefreshNotesList = async () => {
-      console.log('Refreshing entire notes list')
+      console.log('🔄 [Frontend] Received refresh-notes-list event')
+      console.log('🔄 [Frontend] Current notes count before refresh:', notes.length)
       try {
         const updatedNotes = await getNotes()
         setNotes(updatedNotes)
-        console.log('Notes list refreshed, count:', updatedNotes.length)
+        console.log('✅ [Frontend] Notes list refreshed successfully, new count:', updatedNotes.length)
+        console.log('✅ [Frontend] Updated notes:', updatedNotes.map(n => ({ title: n.title, id: n.id })))
       } catch (error) {
-        console.error('Error refreshing notes list:', error)
+        console.error('❌ [Frontend] Error refreshing notes list:', error)
       }
     }
 
     // Add event listeners
+    console.log('🎯 [Frontend] Adding IPC event listeners...');
     window.ipcRenderer.on('note-updated', handleNoteUpdated)
     window.ipcRenderer.on('remove-unsaved-note', handleRemoveUnsavedNote)
     window.ipcRenderer.on('refresh-notes-list', handleRefreshNotesList)
+    console.log('🎯 [Frontend] Event listeners added successfully');
 
     // Clean up
     return () => {
@@ -194,19 +205,26 @@ function App() {
   const handleNewNote = async () => {
     try {
       // Create a new note via IPC which returns the note with UUID
-      console.log('Creating new note via IPC...')
+      console.log('🆕 [Frontend] Creating new note via IPC...')
       const newNote = await window.noteWindow.createNote()
-      console.log('New note created via IPC:', newNote)
+      console.log('🆕 [Frontend] New note created via IPC:', newNote)
       
       // The note window will open automatically from the main process
-      // Important: The note is marked as _unsaved and won't appear in the list
-      // until the user adds content or changes the title.
-      // This prevents empty "Untitled Note" entries from cluttering the UI.
-      
-      // Do NOT add the note to the notes list here - it will appear
-      // automatically once it's saved to disk (when user adds content)
+      // The main process should broadcast a refresh event that we'll receive
     } catch (error) {
-      console.error('Error creating new note:', error)
+      console.error('❌ [Frontend] Error creating new note:', error)
+    }
+  }
+
+  // Manual refresh for testing
+  const handleManualRefresh = async () => {
+    console.log('🔄 [Frontend] Manual refresh triggered');
+    try {
+      const updatedNotes = await getNotes()
+      setNotes(updatedNotes)
+      console.log('✅ [Frontend] Manual refresh complete, notes count:', updatedNotes.length)
+    } catch (error) {
+      console.error('❌ [Frontend] Manual refresh failed:', error)
     }
   }
 
@@ -290,6 +308,9 @@ function App() {
       <div className="app-actions">
         <button className="new-note-btn" onClick={handleNewNote}>
           <span className="plus-icon">+</span> New Note
+        </button>
+        <button className="refresh-btn" onClick={handleManualRefresh} style={{marginLeft: '10px', padding: '8px 12px', fontSize: '12px'}}>
+          🔄 Refresh
         </button>
         <button className="settings-btn" onClick={handleOpenSettings}>
           <span className="settings-icon">⚙</span> Settings

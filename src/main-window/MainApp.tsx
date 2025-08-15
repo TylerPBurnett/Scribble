@@ -267,6 +267,31 @@ function MainApp() {
     };
   }, [loadAllNotes]) // Add loadAllNotes as a dependency
 
+  // Listen for refresh-notes-list events from main process
+  useEffect(() => {
+    console.log('🎯 [MainApp] Setting up refresh-notes-list listener');
+
+    const handleRefreshNotesList = async () => {
+      console.log('🔄 [MainApp] Received refresh-notes-list event');
+      console.log('🔄 [MainApp] Current notes count before refresh:', notes.length);
+      try {
+        await loadAllNotes();
+        console.log('✅ [MainApp] Notes list refreshed successfully');
+      } catch (error) {
+        console.error('❌ [MainApp] Error refreshing notes list:', error);
+      }
+    };
+
+    // Add IPC event listener
+    window.ipcRenderer.on('refresh-notes-list', handleRefreshNotesList);
+
+    // Clean up
+    return () => {
+      console.log('🎯 [MainApp] Cleaning up refresh-notes-list listener');
+      window.ipcRenderer.off('refresh-notes-list', handleRefreshNotesList);
+    };
+  }, [loadAllNotes, notes.length])
+
   // Filter notes based on active collection and search query
   const filteredNotes = notes.filter(note => {
     // First filter by collection
@@ -300,11 +325,13 @@ function MainApp() {
   // Handle creating a new note
   const handleNewNote = async () => {
     try {
-      console.log('MainApp - Creating new note...');
+      console.log('🆕 [MainApp] Creating new note...');
+      console.log('🆕 [MainApp] Current notes count before creation:', notes.length);
 
       // Get a new note object from the main process with a UUID
       const newNote = await window.noteWindow.createNote();
-      console.log('MainApp - New note created with data:', newNote);
+      console.log('🆕 [MainApp] New note created with data:', newNote);
+      console.log('🆕 [MainApp] Waiting for refresh event from main process...');
 
       if (newNote && newNote.id) {
         // Add the new note to the local state immediately for a responsive UI
@@ -328,9 +355,8 @@ function MainApp() {
           }
         }
 
-        // Pass the newNote object directly to openNote
-        await window.noteWindow.openNote(newNote.id, newNote);
-        console.log('MainApp - Note window opened with initial data');
+        // The main process already opens the note window, so we don't need to call openNote here
+        console.log('MainApp - Note window should already be open from main process');
 
         // Broadcast the new note to other windows
         window.noteWindow.noteUpdated(newNote.id, newNote);

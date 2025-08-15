@@ -30,6 +30,7 @@ export class SmartAutosaveService {
   private lastSavedContent = '';
   private isSaving = false;
   private saveQueue: (() => Promise<void>)[] = [];
+  private getCurrentNote?: () => Note;
 
   constructor(config: AutosaveConfig) {
     this.config = config;
@@ -42,9 +43,11 @@ export class SmartAutosaveService {
     note: Note,
     getCurrentContent: () => string,
     onSave: (savedNote: Note) => void,
+    getCurrentNote?: () => Note,
     onConflict?: (localNote: Note, remoteNote: Note) => Note
   ) {
     this.lastSavedContent = getCurrentContent();
+    this.getCurrentNote = getCurrentNote;
 
     // Setup periodic saves (like Obsidian's background saves)
     if (this.config.strategies.periodic.enabled) {
@@ -76,27 +79,7 @@ export class SmartAutosaveService {
     const contentChanged = currentContent !== this.lastSavedContent;
     if (!contentChanged) return;
 
-    // Check if this is an unsaved note that shouldn't be saved yet
-    if (note._unsaved) {
-      // Check if the note has meaningful content or a custom title
-      const hasContent = currentContent && 
-                        currentContent !== '<p></p>' && 
-                        currentContent !== '<p><br></p>' &&
-                        currentContent.trim().length > 0;
-      
-      const hasCustomTitle = note.title && 
-                            !note.title.startsWith('Untitled Note');
-      
-      // If the note doesn't have content or a custom title, skip autosave
-      if (!hasContent && !hasCustomTitle) {
-        console.log('Skipping autosave trigger for empty untitled note:', {
-          id: note.id,
-          title: note.title,
-          priority
-        });
-        return;
-      }
-    }
+    // SIMPLIFIED: No complex unsaved note logic - all notes are saved to disk
 
     const characterDelta = Math.abs(currentContent.length - this.lastSavedContent.length);
     
@@ -141,33 +124,7 @@ export class SmartAutosaveService {
     content: string,
     onSave: (savedNote: Note) => void
   ) {
-    // Check if this is an unsaved note that shouldn't be saved yet
-    if (note._unsaved) {
-      // Check if the note has meaningful content or a custom title
-      const hasContent = content && 
-                        content !== '<p></p>' && 
-                        content !== '<p><br></p>' &&
-                        content.trim().length > 0;
-      
-      const hasCustomTitle = note.title && 
-                            !note.title.startsWith('Untitled Note');
-      
-      // If the note doesn't have content or a custom title, don't save it
-      if (!hasContent && !hasCustomTitle) {
-        console.log('Skipping immediate save for empty untitled note:', {
-          id: note.id,
-          title: note.title,
-          unsaved: true
-        });
-        // Return the note as-is, still marked as unsaved
-        onSave({
-          ...note,
-          content,
-          updatedAt: new Date()
-        });
-        return;
-      }
-    }
+    // SIMPLIFIED: No complex unsaved note logic - all notes are saved to disk
 
     // Add to queue to prevent concurrent saves
     return new Promise<void>((resolve) => {
@@ -181,6 +138,8 @@ export class SmartAutosaveService {
             updatedAt: new Date()
           };
 
+          // For autosave, we don't want to trigger renames - only save content
+          // Title changes should be handled explicitly by the UI
           const savedNote = await updateNote(updatedNote);
           this.lastSavedContent = content;
           onSave(savedNote);
@@ -229,7 +188,8 @@ export class SmartAutosaveService {
     this.periodicTimer = setInterval(async () => {
       const currentContent = getCurrentContent();
       if (currentContent !== this.lastSavedContent) {
-        await this.triggerAutosave(note, currentContent, onSave, 'low');
+        const currentNote = this.getCurrentNote ? this.getCurrentNote() : note;
+        await this.triggerAutosave(currentNote, currentContent, onSave, 'low');
       }
     }, this.config.strategies.periodic.interval);
   }
@@ -244,7 +204,8 @@ export class SmartAutosaveService {
   ) {
     const handleFocusLoss = async () => {
       const currentContent = getCurrentContent();
-      await this.triggerAutosave(note, currentContent, onSave, 'high');
+      const currentNote = this.getCurrentNote ? this.getCurrentNote() : note;
+      await this.triggerAutosave(currentNote, currentContent, onSave, 'high');
     };
 
     window.addEventListener('blur', handleFocusLoss);
@@ -266,8 +227,12 @@ export class SmartAutosaveService {
     const handleBeforeUnload = async (e: BeforeUnloadEvent) => {
       const currentContent = getCurrentContent();
       if (currentContent !== this.lastSavedContent) {
+        // FIXED: Use getCurrentNote callback to get the latest note state
+        // instead of the stale note reference from initialization
+        const currentNote = this.getCurrentNote ? this.getCurrentNote() : note;
+        
         // Force immediate save on close
-        await this.saveImmediately(note, currentContent, onSave);
+        await this.saveImmediately(currentNote, currentContent, onSave);
         e.preventDefault();
         return 'You have unsaved changes. Are you sure you want to close?';
       }

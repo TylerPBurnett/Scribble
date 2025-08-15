@@ -1,6 +1,6 @@
 export interface Note {
-  id: string;
-  title: string;
+  id?: string; // Optional - only used for backward compatibility and window management
+  title: string; // Primary identifier in the new system
   content: string;
   createdAt: Date;
   updatedAt: Date;
