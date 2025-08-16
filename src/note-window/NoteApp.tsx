@@ -120,9 +120,20 @@ function NoteApp() {
     })
   }
 
-  // Show loading state
+  // Show loading state with modern skeleton
   if (isLoading) {
-    return <div className="note-window loading">Loading note...</div>
+    return (
+      <div className="note-window loading">
+        <div className="note-skeleton">
+          <div className="skeleton-title"></div>
+          <div className="skeleton-content">
+            <div className="skeleton-line"></div>
+            <div className="skeleton-line"></div>
+            <div className="skeleton-line short"></div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   // Show error state
@@ -134,7 +145,7 @@ function NoteApp() {
   if (activeNote && appSettings) {
     return (
       <ThemeProvider initialSettings={appSettings}>
-        <div className="note-window">
+        <div className="note-window ready">
           <NoteEditor 
             note={activeNote} 
             onSave={handleNoteSave} 

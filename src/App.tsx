@@ -276,8 +276,13 @@ function App() {
 
   // Render the settings window
   if (isSettingsWindow) {
+    // Don't render anything until settings are fully loaded
+    if (!appSettings.saveLocation) {
+      return null;
+    }
+
     return (
-      <div className="settings-window-container">
+      <div className="settings-window-container ready">
         <SettingsWindow
           onClose={() => window.close()}
           initialSettings={appSettings}

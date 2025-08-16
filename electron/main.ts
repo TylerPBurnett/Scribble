@@ -164,8 +164,6 @@ function createMainWindow() {
   // Configure vibrancy settings for macOS
   const vibrancyMaterial = getVibrancyMaterialForConstructor(currentTheme);
   console.log('Window creation - Current theme:', currentTheme);
-  console.log('Window creation - Vibrancy material:', vibrancyMaterial);
-  console.log('Window creation - Is macOS:', isMacOS);
 
   const vibrancyConfig = {
     transparent: true,
@@ -174,7 +172,12 @@ function createMainWindow() {
     } : {})
   };
 
-  console.log('Window creation - Final vibrancy config:', vibrancyConfig);
+  // Only log detailed vibrancy info in development
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Window creation - Vibrancy material:', vibrancyMaterial);
+    console.log('Window creation - Is macOS:', isMacOS);
+    console.log('Window creation - Final vibrancy config:', vibrancyConfig);
+  }
 
   // Create the browser window with saved state or defaults
   mainWindow = new BrowserWindow({
@@ -184,6 +187,8 @@ function createMainWindow() {
     y: validPosition ? mainWindowState.y : undefined,
     minWidth: 250,
     minHeight: 300,
+    // Modern window startup - hide until ready
+    show: false,
     backgroundColor: 'rgba(0, 0, 0, 0)',
     // Use the new rounded-corner icon
     icon: path.join(process.env.APP_ROOT, 'src/assets/icon2-512.png'),
@@ -203,10 +208,19 @@ function createMainWindow() {
     },
   })
 
-  // Maximize window if it was maximized before
-  if (mainWindowState.isMaximized) {
-    mainWindow.maximize();
-  }
+  // Modern window startup - show when ready
+  // Modern window startup - show when content is loaded
+  mainWindow.webContents.once('did-finish-load', () => {
+    // Add a small delay to ensure React has finished rendering
+    setTimeout(() => {
+      mainWindow?.show();
+
+      // Maximize window if it was maximized before
+      if (mainWindowState.isMaximized) {
+        mainWindow?.maximize();
+      }
+    }, 100);
+  });
 
   mainWindow.webContents.on('did-finish-load', () => {
     mainWindow?.webContents.send('main-process-message', (new Date).toLocaleString())
@@ -301,8 +315,8 @@ function createNoteWindow(noteId: string) {
     height: noteWindowDefaults.height,
     minWidth: 250,
     minHeight: 300,
-    // Remove backgroundColor for transparency
-    // backgroundColor: '#1a1a1a',
+    // Modern window startup - hide until ready
+    show: false,
     // Use the new rounded-corner icon
     icon: path.join(process.env.APP_ROOT, 'src/assets/icon2-512.png'),
     title: 'Scribble - Note',
@@ -316,7 +330,6 @@ function createNoteWindow(noteId: string) {
     trafficLightPosition: { x: -20, y: -20 },
     // Enable transparency for the window
     transparent: true, // Enable true window transparency
-    // opacity: 1, // Remove opacity control, let CSS handle it
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
       contextIsolation: true,
@@ -357,8 +370,14 @@ function createNoteWindow(noteId: string) {
   // Store the window reference
   noteWindows.set(noteId, noteWindow)
 
-  // Send initial note data once the window is ready
-  noteWindow.once('ready-to-show', () => {
+  // Modern window startup - show window smoothly when ready
+  // Modern window startup - show window smoothly when content is loaded
+  noteWindow.webContents.once('did-finish-load', () => {
+    // Add a delay to ensure React has finished rendering and note is loaded
+    setTimeout(() => {
+      noteWindow.show();
+    }, 100);
+
     // Check if we have transient data for this note
     if (transientNewNotes.has(noteId)) {
       const initialNoteData = transientNewNotes.get(noteId);
@@ -491,6 +510,8 @@ function createSettingsWindow() {
     y,
     minWidth: 250,
     minHeight: 300,
+    // Modern window startup - hide until ready
+    show: false,
     backgroundColor: 'rgba(0, 0, 0, 0)',
     // Use the new rounded-corner icon
     icon: path.join(process.env.APP_ROOT, 'src/assets/icon2-512.png'),
@@ -502,13 +523,21 @@ function createSettingsWindow() {
     // On Windows, use 'hidden' to completely hide the title bar
     titleBarStyle: isMac ? 'hiddenInset' : 'hidden',
     // Additional macOS-specific settings - vertically centered in 40px title bar
-    trafficLightPosition: { x: 12, y: 11 },  // Centered vertically (40px height / 2 - ~9px for button radius)
+    trafficLightPosition: { x: 12, y: 11 },  // Centered vertically (40px title bar / 2 - ~9px for button radius)
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
       contextIsolation: true,
       nodeIntegration: false,
     },
   })
+
+  // Modern window startup - show when content is fully loaded
+  settingsWindow.webContents.once('did-finish-load', () => {
+    // Add a delay to ensure React has finished rendering and settings are loaded
+    setTimeout(() => {
+      settingsWindow?.show();
+    }, 150);
+  });
 
   // Load the settings.html file instead of index.html
   let url;
@@ -799,25 +828,21 @@ function registerGlobalHotkeys() {
   // Check all registered shortcuts
   const allRegisteredShortcuts = [];
 
-  // Check if our hotkeys are registered
+  // Check if our hotkeys are registered (avoid duplicates by using Set)
+  const registeredSet = new Set<string>();
+
   if (newNoteHotkey && newNoteRegistered) {
     const formattedHotkey = formatAccelerator(newNoteHotkey);
-    allRegisteredShortcuts.push(formattedHotkey);
+    registeredSet.add(formattedHotkey);
   }
 
   if (toggleAppHotkey && toggleAppRegistered) {
     const formattedHotkey = formatAccelerator(toggleAppHotkey);
-    allRegisteredShortcuts.push(formattedHotkey);
+    registeredSet.add(formattedHotkey);
   }
 
-  // Also check default hotkeys
-  if (DEFAULT_GLOBAL_HOTKEYS.newNote && globalShortcut.isRegistered(DEFAULT_GLOBAL_HOTKEYS.newNote)) {
-    allRegisteredShortcuts.push(DEFAULT_GLOBAL_HOTKEYS.newNote);
-  }
-
-  if (DEFAULT_GLOBAL_HOTKEYS.toggleApp && globalShortcut.isRegistered(DEFAULT_GLOBAL_HOTKEYS.toggleApp)) {
-    allRegisteredShortcuts.push(DEFAULT_GLOBAL_HOTKEYS.toggleApp);
-  }
+  // Convert Set back to array for logging
+  allRegisteredShortcuts.push(...Array.from(registeredSet));
 
   console.log('Currently registered global shortcuts:', allRegisteredShortcuts);
   console.log('Global hotkeys registration complete');
@@ -1875,12 +1900,20 @@ ipcMain.handle('sync-settings', (_, inputSettings) => {
   }
 });
 
+// Track if settings have been logged to reduce spam
+let settingsLoggedOnce = false;
+
 // Get settings from main process
 ipcMain.handle('get-main-process-settings', () => {
   try {
     const settingsStore = new Store({ name: 'settings' });
     const settings = settingsStore.get('settings');
-    console.log('Retrieved settings from main process:', settings);
+
+    // Only log settings once per session to reduce spam
+    if (!settingsLoggedOnce) {
+      console.log('Retrieved settings from main process:', settings);
+      settingsLoggedOnce = true;
+    }
 
     // Validate settings to ensure we're returning a proper object
     if (typeof settings !== 'object' || settings === null) {
