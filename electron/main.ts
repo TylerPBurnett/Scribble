@@ -725,7 +725,7 @@ function registerGlobalHotkeys() {
 
       // Create the note object
       const newNote: Note = {
-        id: title, // FIXED: Ensure ID matches title for consistency
+        id: title, // Use title as ID (primary identifier)
         title: title,
         content: '<p></p>',
         createdAt: new Date(),
@@ -737,6 +737,7 @@ function registerGlobalHotkeys() {
         try {
           const titleHeader = `# ${title}\n\n`;
           const metadata = {
+            id: newNote.id,
             createdAt: newNote.createdAt.toISOString(),
             updatedAt: newNote.updatedAt.toISOString()
           };
@@ -1195,15 +1196,13 @@ ipcMain.handle('create-note', async () => {
     }
   }
 
-  // Create the note object (title is now the primary identifier)
+  // Create the note object
   const newNote: Note = {
-    id: title, // FIXED: Ensure ID matches title for consistency
+    id: title, // Use title as ID (primary identifier)
     title: title,
     content: '<p></p>',
     createdAt: new Date(),
     updatedAt: new Date()
-    // SIMPLIFIED: Remove conflicting _isNew and _unsaved flags
-    // The note will be saved immediately, so it's not unsaved
   };
 
   // Save the note file immediately (industry standard behavior)
@@ -1212,7 +1211,7 @@ ipcMain.handle('create-note', async () => {
       // Create the markdown content with title as heading
       const titleHeader = `# ${title}\n\n`;
       const metadata = {
-        // Remove id from metadata - title is now the identifier
+        id: newNote.id,
         createdAt: newNote.createdAt.toISOString(),
         updatedAt: newNote.updatedAt.toISOString()
       };
