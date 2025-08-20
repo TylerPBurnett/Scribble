@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import NoteList from './components/NoteList'
+import SelectableNotesList from './components/SelectableNotesList'
 import CollectionTabs from './components/CollectionTabs'
 
 import TitleBar from '../shared/components/TitleBar'
@@ -430,6 +430,79 @@ function MainApp() {
     }
   }
 
+  // Handle bulk note deletion
+  const handleBulkDelete = async (selectedTitles: string[]) => {
+    console.log('MainApp - Handling bulk note deletion:', selectedTitles);
+    
+    try {
+      // Find notes by title and delete them
+      const notesToDelete = notes.filter(note => selectedTitles.includes(note.title));
+      
+      for (const note of notesToDelete) {
+        console.log('MainApp - Deleting note:', note.id);
+        await deleteNote(note.id);
+        // Notify other windows that this note has been deleted
+        window.noteWindow.noteUpdated(note.id, { deleted: true });
+      }
+      
+      console.log('MainApp - Bulk deletion completed');
+      
+      // Remove deleted notes from state
+      const deletedIds = notesToDelete.map(note => note.id);
+      setNotes(prevNotes => {
+        const updatedNotes = prevNotes.filter(note => !deletedIds.includes(note.id));
+        
+        // Notify collection service about deleted notes
+        deletedIds.forEach(id => collectionService.handleNoteDeleted(id, updatedNotes));
+        
+        return updatedNotes;
+      });
+      
+      // Reset active note if it was deleted
+      if (activeNote && deletedIds.includes(activeNote.id)) {
+        setActiveNote(null);
+      }
+      
+    } catch (error) {
+      console.error('MainApp - Error in bulk deletion:', error);
+      // Reload all notes to ensure consistency
+      loadAllNotes();
+      throw error;
+    }
+  };
+
+  // Handle bulk move to collection
+  const handleBulkMoveToCollection = async (selectedTitles: string[], targetCollectionId: string) => {
+    console.log('MainApp - Handling bulk move to collection:', selectedTitles, targetCollectionId);
+    
+    try {
+      // Find notes by title
+      const notesToMove = notes.filter(note => selectedTitles.includes(note.title));
+      
+      for (const note of notesToMove) {
+        // Remove from current collection if it's not 'all'
+        if (activeCollectionId && activeCollectionId !== 'all') {
+          await collectionService.removeNoteFromCollection(activeCollectionId, note.id);
+        }
+        
+        // Add to target collection
+        if (targetCollectionId !== 'all') {
+          await collectionService.addNoteToCollection(targetCollectionId, note.id);
+        }
+      }
+      
+      console.log('MainApp - Bulk move completed');
+      
+      // Refresh collections and notes
+      await loadCollections();
+      await loadAllNotes();
+      
+    } catch (error) {
+      console.error('MainApp - Error in bulk move:', error);
+      throw error;
+    }
+  };
+
   // Handle collection change
   const handleCollectionChange = async (collectionId: string) => {
     console.log('MainApp - Changing active collection to:', collectionId);
@@ -502,7 +575,7 @@ function MainApp() {
           </CollectionErrorBoundary>
 
           {/* Main Content */}
-          <NoteList
+          <SelectableNotesList
             notes={filteredNotes}
             onNoteClick={handleNoteClick}
             activeNoteId={activeNote?.id}
@@ -512,6 +585,9 @@ function MainApp() {
             activeCollectionName={collections.find(c => c.id === activeCollectionId)?.name}
             allNotes={notes}
             onNewNote={handleNewNote}
+            onBulkDelete={handleBulkDelete}
+            onBulkMoveToCollection={handleBulkMoveToCollection}
+            availableCollections={collections.map(c => ({ id: c.id, name: c.name }))}
           />
         </div>
         </div>
