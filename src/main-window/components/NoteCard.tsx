@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, memo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Note } from '../../shared/types/Note';
 import { deleteNote, updateNote } from '../../shared/services/noteService';
 import NoteCollectionManager from './NoteCollectionManager';
@@ -120,9 +121,9 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
     // Close any existing menu first
     updateMenuState({ showMenu: false, isContextMenu: false, showColorPicker: false });
 
-    // Calculate position, ensuring menu stays within viewport
-    const x = Math.min(e.clientX, window.innerWidth - 160);
-    const y = Math.min(e.clientY, window.innerHeight - 200);
+    // Use client coordinates for fixed positioning
+    const x = e.clientX;
+    const y = e.clientY;
 
     // Use setTimeout to ensure state updates happen after current event cycle
     setTimeout(() => {
@@ -185,9 +186,9 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
       updateMenuState({ isAnimating: true });
       
       // Small delay to show the scale-down effect
-      setTimeout(async () => {
+      setTimeout(() => {
         try {
-          await onClick(note);
+          onClick(note);
         } finally {
           // Reset animation state after a delay
           setTimeout(() => {
@@ -252,21 +253,21 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
 
   return (
     <>
-      {/* Context Menu Overlay - rendered at the root level */}
-      {showMenu && isContextMenu && (
+      {/* Context Menu Overlay - rendered at the document root using portal */}
+      {showMenu && isContextMenu && createPortal(
         <div
-          className="fixed inset-0 z-[9998] bg-transparent"
+          className="fixed inset-0 z-[99999] bg-transparent"
           onClick={() => {
             updateMenuState({ showMenu: false, isContextMenu: false });
           }}
         >
           <div
-            className="fixed bg-popover rounded-md shadow-[0_5px_15px_rgba(0,0,0,0.3)] z-[9999] min-w-[140px] overflow-hidden border border-border text-xs font-twitter"
+            className="fixed bg-popover rounded-md shadow-[0_5px_15px_rgba(0,0,0,0.3)] z-[99999] min-w-[140px] overflow-hidden border border-border text-xs font-twitter"
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
             style={{
-              top: menuPosition.y,
-              left: menuPosition.x,
+              top: `${menuPosition.y}px`,
+              left: `${menuPosition.x}px`,
             }}
           >
             <button
@@ -487,12 +488,13 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
               <span>Delete</span>
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       <div
         ref={noteCardRef}
-        className={`note-card ${isActive ? 'selected' : ''} ${isAnimating ? 'scale-95 opacity-90' : ''} rounded-xl overflow-hidden flex flex-col shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer h-note-card
+        className={`note-card ${isActive ? 'selected' : ''} ${isAnimating ? 'scale-95 opacity-90' : ''} rounded-xl overflow-hidden flex flex-col shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer h-note-card w-full
           hover:translate-y-[-2px] hover:scale-[1.02] group ease-out border border-black/[0.10] dark:border-white/[0.10] dim:border-white/[0.12]`}
         onClick={handleNoteClick}
         tabIndex={-1}
@@ -503,6 +505,7 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
           '--note-text-color': colorStyle.color,
           '--note-text-secondary': `${colorStyle.color}99`,
           '--note-text-tertiary': `${colorStyle.color}66`,
+          minWidth: 0, // Prevents CSS Grid items from expanding beyond column width
           ...colorStyle.cssVars
         } as React.CSSProperties}
       >
@@ -549,7 +552,7 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
           {/* Regular Dropdown Menu (non-context menu) */}
           {showMenu && !isContextMenu && (
             <div
-              className="dropdown-menu absolute bg-popover rounded-md shadow-[0_5px_15px_rgba(0,0,0,0.3)] z-[100] min-w-[140px] overflow-hidden border border-border text-xs font-twitter"
+              className="dropdown-menu absolute bg-popover rounded-md shadow-[0_5px_15px_rgba(0,0,0,0.3)] z-[9999] min-w-[140px] overflow-hidden border border-border text-xs font-twitter"
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
@@ -792,8 +795,14 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
 
       {/* Note Content */}
       <div 
-        className="note-content flex-1 px-4 py-3 text-xs overflow-hidden whitespace-pre-line font-twitter"
-        style={{ color: 'var(--note-text-color, inherit)' }}
+        className="note-content flex-1 px-4 py-3 text-xs overflow-hidden break-words font-twitter"
+        style={{ 
+          color: 'var(--note-text-color, inherit)',
+          wordWrap: 'break-word',
+          overflowWrap: 'break-word',
+          whiteSpace: 'pre-wrap',
+          maxWidth: '100%'
+        }}
       >
         {getContentPreview(note.content) || <span className="empty-content italic opacity-60">No content</span>}
       </div>
