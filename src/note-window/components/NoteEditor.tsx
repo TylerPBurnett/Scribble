@@ -7,7 +7,7 @@ import { getHotkeys, formatHotkeyForDisplay } from '../../shared/services/hotkey
 import { NoteHotkeys } from './NoteHotkeys';
 import { useDebounce } from '../../shared/hooks/useDebounce';
 import { ColorPicker } from '../../shared/components/ColorPicker';
-import { NOTE_COLOR_OPTIONS, getTextColorForBackground, getDarkerShade, getDefaultNoteColorForTheme } from '../../shared/constants/colors';
+import { getTextColorForBackground, getDarkerShade, getDefaultNoteColorForTheme } from '../../shared/constants/colors';
 import { useTheme } from '../../shared/services/themeService';
 import { 
   noteEditorReducer, 
@@ -20,9 +20,15 @@ import { useNoteEditorPerformance } from '../../shared/hooks/useExpensiveOperati
 import { useRenderPerformance } from '../../shared/hooks/usePerformanceMonitoring';
 import { SmartAutosaveService, DEFAULT_AUTOSAVE_CONFIG } from '../../shared/services/smartAutosaveService';
 import { fileNamingService } from '../../shared/services/fileNamingService';
-import { fileOperationService } from '../../shared/services/fileOperationService';
 import './NoteEditor.css';
 import './SettingsMenu.css';
+
+// Extend CSSProperties to include WebKit specific properties
+declare module 'react' {
+  interface CSSProperties {
+    WebkitAppRegion?: string;
+  }
+}
 
 interface NoteEditorProps {
   note: Note;
@@ -545,7 +551,9 @@ const saveNote = useCallback(async () => {
       onSave?.(savedNote);
 
       // Notify other windows that this note has been updated
-      window.noteWindow.noteUpdated(savedNote.id, { transparency: value });
+      if (savedNote.id) {
+        window.noteWindow.noteUpdated(savedNote.id, { transparency: value });
+      }
 
       // Don't automatically close the settings menu when adjusting transparency
       // Let the user manually close it or click outside
@@ -616,7 +624,9 @@ const saveNote = useCallback(async () => {
         updateNote(updatedNote, undefined, originalTitleRef.current).then(savedNote => {
           currentNoteRef.current = savedNote;
           onSave?.(savedNote);
-          window.noteWindow.noteUpdated(savedNote.id, { favorite: newFavoriteState });
+          if (savedNote.id) {
+            window.noteWindow.noteUpdated(savedNote.id, { favorite: newFavoriteState });
+          }
         }).catch(error => {
           console.error('Error toggling favorite state:', error);
         });
@@ -652,20 +662,19 @@ const saveNote = useCallback(async () => {
   }, [showSettingsMenu]);
 
   // Use shared color options
-  const colorOptions = NOTE_COLOR_OPTIONS;
 
   // Toggle pin state
   const togglePinState = useCallback(async () => {
     try {
       const newPinState = !isPinned;
-      const result = await window.windowControls.togglePin(newPinState);
-      dispatch(updateNoteData({ isPinned: result }));
+      await window.windowControls.togglePin(newPinState);
+      dispatch(updateNoteData({ isPinned: newPinState }));
 
       // Update the note's pinned property
       // Create a deep copy of the note to ensure we don't lose any properties
       const updatedNote = {
         ...currentNoteRef.current,
-        pinned: result,
+        pinned: newPinState,
         // Ensure content is preserved exactly as it was
         content: currentContentRef.current
       };
@@ -676,7 +685,9 @@ const saveNote = useCallback(async () => {
       onSave?.(savedNote);
 
       // Notify other windows that this note has been updated
-      window.noteWindow.noteUpdated(savedNote.id, { pinned: result });
+      if (savedNote.id) {
+        window.noteWindow.noteUpdated(savedNote.id, { pinned: newPinState });
+      }
     } catch (error) {
       console.error('Error toggling pin state:', error);
     }
@@ -702,7 +713,9 @@ const saveNote = useCallback(async () => {
       onSave?.(savedNote);
 
       // Notify other windows that this note has been updated
-      window.noteWindow.noteUpdated(savedNote.id, { color: color });
+      if (savedNote.id) {
+        window.noteWindow.noteUpdated(savedNote.id, { color: color });
+      }
     } catch (error) {
       console.error('Error changing note color:', error);
     }
@@ -763,7 +776,7 @@ const saveNote = useCallback(async () => {
               className="w-6 h-6 rounded-full flex items-center justify-center transition-colors"
               title="Close note"
               style={{ 
-                WebkitAppRegion: 'no-drag' as any,
+                WebkitAppRegion: 'no-drag',
                 backgroundColor: getButtonColors().inactive.replace('0.5', '0.2'),
                 color: getButtonColors().inactive
               }}
@@ -797,7 +810,7 @@ const saveNote = useCallback(async () => {
               className="w-6 h-6 rounded-full flex items-center justify-center transition-colors"
               title="Minimize"
               style={{ 
-                WebkitAppRegion: 'no-drag' as any,
+                WebkitAppRegion: 'no-drag',
                 backgroundColor: getButtonColors().inactive.replace('0.5', '0.2'),
                 color: getButtonColors().inactive
               }}
@@ -838,7 +851,7 @@ const saveNote = useCallback(async () => {
                   titleChangeStatus.success ? 'ring-1 ring-green-400/50 bg-green-50/10' : ''
                 }`}
                 style={{
-                  WebkitAppRegion: 'no-drag' as any,
+                  WebkitAppRegion: 'no-drag',
                   boxShadow: 'none',
                   borderRadius: isTitleFocused || titleChangeStatus.error || titleChangeStatus.success ? '4px' : '0px',
                   padding: isTitleFocused || titleChangeStatus.error || titleChangeStatus.success ? '2px 6px' : '2px 0px',
@@ -987,7 +1000,7 @@ const saveNote = useCallback(async () => {
           </div>
 
 {/* Right side: Action buttons */}
-<div className="flex items-center gap-2 relative" style={{ WebkitAppRegion: 'no-drag' as any }}>
+<div className="flex items-center gap-2 relative" style={{ WebkitAppRegion: 'no-drag' }}>
   {!autoSaveEnabled && (
     <button
       onClick={handleManualSave}
@@ -1087,8 +1100,10 @@ const saveNote = useCallback(async () => {
                         // Notify other windows that this note has been updated
                         // Pass the updated favorite property to immediately update the UI
                         console.log('NoteEditor - Notifying other windows with:', { favorite: newFavoriteState });
-                        window.noteWindow.noteUpdated(savedNote.id, { favorite: newFavoriteState });
-                        console.log('NoteEditor - Notification sent');
+                        if (savedNote.id) {
+                          window.noteWindow.noteUpdated(savedNote.id, { favorite: newFavoriteState });
+                          console.log('NoteEditor - Notification sent');
+                        }
                       } catch (error) {
                         console.error('Error toggling favorite state:', error);
                       }
@@ -1253,6 +1268,11 @@ const saveNote = useCallback(async () => {
                         const fullContent = titlePrefix + markdownContent;
 
                         // Save to file
+                        if (!currentNote.id || !currentNote.title) {
+                          alert('Invalid note data. Cannot save.');
+                          return;
+                        }
+                        
                         const result = await window.fileOps.saveNoteToFile(
                           currentNote.id,
                           currentNote.title,
@@ -1261,7 +1281,7 @@ const saveNote = useCallback(async () => {
                         );
 
                         if (result.success) {
-                          alert(`Note saved to ${result.filePath}`);
+                          alert('Note saved successfully to file.');
                         } else {
                           alert('Failed to save note to file.');
                         }
@@ -1294,6 +1314,11 @@ const saveNote = useCallback(async () => {
                         try {
                           // Get the note ID
                           const noteId = currentNoteRef.current.id;
+
+                          if (!noteId) {
+                            alert('Cannot delete note - invalid note ID');
+                            return;
+                          }
 
                           // Delete the note
                           await deleteNote(noteId);

@@ -8,6 +8,10 @@ interface Window {
     send: (channel: string, ...args: any[]) => void;
     invoke: (channel: string, ...args: any[]) => Promise<any>;
   };
+
+  electronAPI: {
+    platform: () => Promise<string>;
+  };
   
   windowControls: {
     minimize: () => Promise<void>;
@@ -22,7 +26,7 @@ interface Window {
   
   noteWindow: {
     openNote: (noteId: string, initialNoteData?: any) => Promise<any>;
-    createNote: () => Promise<any>;
+    createNote: (saveLocation?: string) => Promise<any>;
     createNoteWithId: (noteId: string) => Promise<any>;
     getNoteId: () => Promise<string>;
     getTransientNewNoteData: (noteId: string) => Promise<any>;

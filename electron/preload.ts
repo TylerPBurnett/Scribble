@@ -36,7 +36,7 @@ contextBridge.exposeInMainWorld('windowControls', {
 contextBridge.exposeInMainWorld('noteWindow', {
   openNote: (noteId: string, initialNoteData?: any) =>
     ipcRenderer.invoke('open-note', noteId, initialNoteData),
-  createNote: () => ipcRenderer.invoke('create-note'),
+  createNote: (saveLocation?: string) => ipcRenderer.invoke('create-note', saveLocation),
   createNoteWithId: (noteId: string) => ipcRenderer.invoke('create-note-with-id', noteId),
   getNoteId: () => ipcRenderer.invoke('get-note-id'),
   getTransientNewNoteData: (noteId: string) =>

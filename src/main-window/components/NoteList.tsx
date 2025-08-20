@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Note } from '../../shared/types/Note';
 import { deleteNote } from '../../shared/services/noteService';
 import { getNotesSortOption, saveNotesSortOption, SortOption } from '../../shared/services/settingsService';
@@ -157,7 +157,7 @@ const NoteList = ({ notes, onNoteClick, activeNoteId, onNoteDelete, onCollection
   // Filter out deleted notes with performance measurement
   const filteredNotes = useMemoizedFilter(
     notes,
-    (notes) => notes.filter(note => !deletedNotes.includes(note.id)),
+    (notes) => notes.filter(note => note.id && !deletedNotes.includes(note.id)),
     [notes, deletedNotes],
     'note-list-filter-deleted'
   );

@@ -16,8 +16,8 @@ vi.mock('../../../shared/services/settingsService', () => ({
 
 vi.mock('../../../shared/hooks/useExpensiveOperations', () => ({
   useNoteListPerformance: vi.fn().mockReturnValue({
-    measureOperation: vi.fn().mockImplementation((name, fn) => fn()),
-    measureSync: vi.fn().mockImplementation((name, fn) => ({ result: fn(), duration: 0 })),
+    measureOperation: vi.fn().mockImplementation((_name, fn) => fn()),
+    measureSync: vi.fn().mockImplementation((_name, fn) => ({ result: fn(), duration: 0 })),
   }),
 }));
 

@@ -7,6 +7,7 @@ interface CompactToolbarProps {
   onSearchChange: (query: string) => void;
   onNewNote: () => void;
   onOpenSettings: () => void;
+  searchInputRef?: React.RefObject<HTMLInputElement>;
   notes?: Note[];
   onNoteClick?: (note: Note) => void;
   isSearchOpen?: boolean;
@@ -20,6 +21,7 @@ export const CompactToolbar: React.FC<CompactToolbarProps> = ({
   onSearchChange,
   onNewNote,
   onOpenSettings,
+  searchInputRef,
   notes = [],
   onNoteClick,
   isSearchOpen,

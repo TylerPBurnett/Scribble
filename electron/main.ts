@@ -55,15 +55,6 @@ import { mainProcessFileOperationService as fileOperationService } from './fileO
 // Global map to store transient new note data
 const transientNewNotes = new Map<string, Note>();
 
-// Define the metadata interface
-interface NoteMetadata {
-  id?: string;
-  color?: string;
-  pinned?: boolean;
-  favorite?: boolean;
-  transparency?: number;
-  [key: string]: unknown;
-}
 
 // Type for settings
 interface SettingsType {
@@ -1020,7 +1011,7 @@ ipcMain.handle('set-window-transparency', (event, enabled: boolean) => {
 })
 
 // Handle theme changes for vibrancy updates
-ipcMain.on('theme-changed', (event, newTheme: ThemeName) => {
+ipcMain.on('theme-changed', (_event, newTheme: ThemeName) => {
   console.log('Theme changed from renderer process:', newTheme);
   console.log('Platform is macOS:', isMacOS);
 
@@ -1185,19 +1176,15 @@ ipcMain.handle('window-get-vibrancy-support', () => {
   }
 })
 
-ipcMain.handle('create-note', async () => {
+ipcMain.handle('create-note', async (_, saveLocationFromRenderer) => {
   // Generate a unique UUID for the new note (still used for window management)
   const noteId = uuidv4();
   console.log('[Main Process] IPC: create-note called, generated UUID:', noteId);
+  console.log('[Main Process] Received saveLocation from renderer:', saveLocationFromRenderer);
 
-  // Get save location from settings
-  const settingsStore = new Store({ name: 'settings' });
-  const settings = settingsStore.get('settings') as any || {};
-  const saveLocation = settings.saveLocation || await getDefaultSaveLocation();
-
-  console.log('[Main Process] Settings from electron-store:', settings);
-  console.log('[Main Process] Save location:', saveLocation);
-  console.log('[Main Process] Default save location would be:', await getDefaultSaveLocation());
+  // Use the saveLocation passed from renderer, fallback to default if not provided
+  const saveLocation = saveLocationFromRenderer || await getDefaultSaveLocation();
+  console.log('[Main Process] Using save location:', saveLocation);
 
   // Generate unique title by checking existing files
   let title = 'Untitled Note';

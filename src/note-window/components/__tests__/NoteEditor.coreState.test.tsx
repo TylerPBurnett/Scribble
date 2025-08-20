@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import { Note } from '../../../shared/types/Note';
-import { AppSettings } from '../../../shared/services/settingsService';
 
 // Mock the services
 vi.mock('../../../shared/services/noteService', () => ({
@@ -49,7 +48,7 @@ Object.defineProperty(window, 'noteWindow', {
 
 // Mock Tiptap component
 vi.mock('../Tiptap', () => ({
-  default: React.forwardRef(({ content, onUpdate, placeholder, autofocus }: any, ref: any) => (
+  default: React.forwardRef(({ content, onUpdate, placeholder, autofocus }: any, _ref: any) => (
     <div data-testid="tiptap-editor">
       <textarea 
         value={content}
@@ -63,7 +62,7 @@ vi.mock('../Tiptap', () => ({
 
 // Mock NoteHotkeys component
 vi.mock('../NoteHotkeys', () => ({
-  NoteHotkeys: ({ settings, note, onSave, onTogglePin, onDelete }: any) => (
+  NoteHotkeys: ({ settings: _settings, note: _note, onSave: _onSave, onTogglePin: _onTogglePin, onDelete: _onDelete }: any) => (
     <div data-testid="note-hotkeys" />
   )
 }));

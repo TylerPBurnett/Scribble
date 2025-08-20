@@ -3,7 +3,6 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import NoteEditor from '../NoteEditor';
 import { Note } from '../../../shared/types/Note';
-import { AppSettings } from '../../../shared/services/settingsService';
 
 // Mock the services
 vi.mock('../../../shared/services/noteService', () => ({
@@ -228,7 +227,7 @@ describe('NoteEditor State Consolidation Tests', () => {
 
       // Should trigger auto-save after interval
       await waitFor(() => {
-        expect(defaultProps.onNoteUpdate).toHaveBeenCalled();
+        expect(defaultProps.onSave).toHaveBeenCalled();
       }, { timeout: 6000 });
     });
   });

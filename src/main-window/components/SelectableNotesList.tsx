@@ -82,7 +82,7 @@ const SelectableNotesList = ({
 }: SelectableNotesListProps) => {
   // Performance monitoring
   const componentName = 'SelectableNotesList';
-  const { measureOperation, measureSync } = useNoteListPerformance(componentName);
+  const { measureOperation } = useNoteListPerformance(componentName);
   useRenderPerformance(componentName);
   
   // TODO: Add memoization tracking when test mocking is fixed

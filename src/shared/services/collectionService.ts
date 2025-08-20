@@ -64,8 +64,8 @@ const loadCollectionsFromFile = async (): Promise<Collection[]> => {
   }
 
   try {
-    const collectionsData = await window.fileOps.readCollectionsFile(settings.saveLocation);
-    if (!collectionsData) {
+    const collectionsResult = await window.fileOps.readCollectionsFile(settings.saveLocation);
+    if (!collectionsResult.success || !collectionsResult.data) {
       console.log('No collections file found, using default collections');
       return [...DEFAULT_COLLECTIONS];
     }
@@ -73,13 +73,13 @@ const loadCollectionsFromFile = async (): Promise<Collection[]> => {
     // Parse JSON with error handling for corrupted data
     let parsedData;
     try {
-      parsedData = JSON.parse(collectionsData);
+      parsedData = JSON.parse(collectionsResult.data);
     } catch (parseError) {
       console.error('Collections file contains invalid JSON, attempting recovery:', parseError);
       
       // Try to create a backup of the corrupted file
       try {
-        const backupData = `${collectionsData}\n\n// Corrupted on ${new Date().toISOString()}`;
+        const backupData = `${collectionsResult.data}\n\n// Corrupted on ${new Date().toISOString()}`;
         await window.fileOps.saveCollectionsFile(backupData, settings.saveLocation + '_backup_' + Date.now());
         console.log('Created backup of corrupted collections file');
       } catch (backupError) {
@@ -316,7 +316,7 @@ export const collectionService = {
         noteCount = notes.length;
       } else {
         // Count notes that belong to this collection
-        noteCount = notes.filter(note => collection.noteIds.includes(note.id)).length;
+        noteCount = notes.filter(note => note.id && collection.noteIds.includes(note.id)).length;
       }
 
       return {
@@ -441,7 +441,7 @@ export const collectionService = {
     }
 
     // Filter notes that belong to this collection
-    return allNotes.filter(note => collection.noteIds.includes(note.id));
+    return allNotes.filter(note => note.id && collection.noteIds.includes(note.id));
   },
 
   // Get collections that contain a specific note

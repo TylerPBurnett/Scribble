@@ -23,7 +23,7 @@ function MainApp() {
   const { isVisible: isDashboardVisible, hideDashboard } = usePerformanceDashboard();
 
   const [notes, setNotes] = useState<Note[]>([])
-  const [activeNote] = useState<Note | null>(null)
+  const [activeNote, setActiveNote] = useState<Note | null>(null)
 
   const [searchQuery, setSearchQuery] = useState('')
   // Initialize settings with null to indicate loading state
@@ -300,7 +300,7 @@ function MainApp() {
     
     if (activeCollection && !activeCollection.isDefault) {
       // For non-default collections, only show notes that belong to this collection
-      passesCollectionFilter = activeCollection.noteIds.includes(note.id);
+      passesCollectionFilter = note.id ? activeCollection.noteIds.includes(note.id) : false;
     }
     // For default "All" collection, show all notes (passesCollectionFilter remains true)
     
@@ -319,7 +319,9 @@ function MainApp() {
   // Handle note click
   const handleNoteClick = async (note: Note) => {
     // Open the note in a new window
-    await window.noteWindow.openNote(note.id)
+    if (note.id) {
+      await window.noteWindow.openNote(note.id);
+    }
   }
 
   // Handle creating a new note
@@ -328,8 +330,8 @@ function MainApp() {
       console.log('🆕 [MainApp] Creating new note...');
       console.log('🆕 [MainApp] Current notes count before creation:', notes.length);
 
-      // Get a new note object from the main process with a UUID
-      const newNote = await window.noteWindow.createNote();
+      // Get a new note object from the main process with a UUID, passing current save location
+      const newNote = await window.noteWindow.createNote(appSettings?.saveLocation || '');
       console.log('🆕 [MainApp] New note created with data:', newNote);
       console.log('🆕 [MainApp] Waiting for refresh event from main process...');
 
@@ -384,7 +386,7 @@ function MainApp() {
     const currentTheme = appSettings.theme || 'dim';
 
     // Toggle between light and dim themes
-    const newTheme = currentTheme === 'light' ? 'dim' : 'light';
+    const newTheme: 'light' | 'dim' = currentTheme === 'light' ? 'dim' : 'light';
 
     const newSettings = {
       ...appSettings,
@@ -439,6 +441,7 @@ function MainApp() {
       const notesToDelete = notes.filter(note => selectedTitles.includes(note.title));
       
       for (const note of notesToDelete) {
+        if (!note.id) continue;
         console.log('MainApp - Deleting note:', note.id);
         await deleteNote(note.id);
         // Notify other windows that this note has been deleted
@@ -450,16 +453,18 @@ function MainApp() {
       // Remove deleted notes from state
       const deletedIds = notesToDelete.map(note => note.id);
       setNotes(prevNotes => {
-        const updatedNotes = prevNotes.filter(note => !deletedIds.includes(note.id));
+        const updatedNotes = prevNotes.filter(note => note.id && !deletedIds.includes(note.id));
         
         // Notify collection service about deleted notes
-        deletedIds.forEach(id => collectionService.handleNoteDeleted(id, updatedNotes));
+        deletedIds.forEach(id => {
+          if (id) collectionService.handleNoteDeleted(id, updatedNotes);
+        });
         
         return updatedNotes;
       });
       
       // Reset active note if it was deleted
-      if (activeNote && deletedIds.includes(activeNote.id)) {
+      if (activeNote && activeNote.id && deletedIds.includes(activeNote.id)) {
         setActiveNote(null);
       }
       
@@ -481,12 +486,12 @@ function MainApp() {
       
       for (const note of notesToMove) {
         // Remove from current collection if it's not 'all'
-        if (activeCollectionId && activeCollectionId !== 'all') {
+        if (activeCollectionId && activeCollectionId !== 'all' && note.id) {
           await collectionService.removeNoteFromCollection(activeCollectionId, note.id);
         }
         
         // Add to target collection
-        if (targetCollectionId !== 'all') {
+        if (targetCollectionId !== 'all' && note.id) {
           await collectionService.addNoteToCollection(targetCollectionId, note.id);
         }
       }

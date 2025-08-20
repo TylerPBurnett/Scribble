@@ -114,10 +114,12 @@ function NoteApp() {
     
     // Notify other windows about the real-time changes for preview updates
     // Only send title and content for real-time updates
-    window.noteWindow.noteUpdated(updatedNote.id, { 
-      title: updatedNote.title, 
-      content: updatedNote.content 
-    })
+    if (updatedNote.id) {
+      window.noteWindow.noteUpdated(updatedNote.id, { 
+        title: updatedNote.title, 
+        content: updatedNote.content 
+      });
+    }
   }
 
   // Show loading state with modern skeleton

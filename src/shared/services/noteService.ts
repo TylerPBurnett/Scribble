@@ -2,7 +2,7 @@ import { Note } from '../types/Note';
 import { htmlToMarkdown, markdownToHtml } from '../utils/markdownUtils';
 import { getSettings } from './settingsService';
 import { fileNamingService } from './fileNamingService';
-import { fileOperationService, NoteFileInfo } from './fileOperationService';
+import { fileOperationService } from './fileOperationService';
 
 // Define the metadata interface
 interface NoteMetadata {

@@ -266,7 +266,7 @@ export const useNoteListPerformance = (componentName: string = 'NoteList') => {
     // Measure filtering (removing deleted notes)
     const { result: filteredNotes } = await operations.measureNoteFilter(
       notes,
-      (notes) => notes.filter(note => !deletedNotes.includes(note.id)),
+      (notes) => notes.filter(note => note.id && !deletedNotes.includes(note.id)),
       'deleted-filter'
     );
 

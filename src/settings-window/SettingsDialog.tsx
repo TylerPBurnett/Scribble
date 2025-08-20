@@ -4,13 +4,9 @@ import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { 
   FolderOpen, 
-  Edit3, 
-  Palette, 
   Keyboard, 
   Settings as SettingsIcon,
-  Check,
   ChevronRight,
-  X
 } from 'lucide-react';
 import { AppSettings } from '../shared/services/settingsService';
 import { DEFAULT_HOTKEYS, HotkeyAction } from '../shared/services/hotkeyService';

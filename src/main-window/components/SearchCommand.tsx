@@ -71,7 +71,7 @@ export const SearchCommand: React.FC<SearchCommandProps> = ({
     // First filter by active collection if not searching all notes and not in 'all' collection
     if (!searchAllNotes && activeCollectionId && activeCollectionId !== 'all') {
       const activeCollection = collections.find(c => c.id === activeCollectionId);
-      if (activeCollection && !activeCollection.noteIds.includes(note.id)) {
+      if (activeCollection && note.id && !activeCollection.noteIds.includes(note.id)) {
         return false;
       }
     }

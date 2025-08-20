@@ -16,8 +16,8 @@ vi.mock('../../../shared/services/settingsService', () => ({
 
 vi.mock('../../../shared/hooks/useExpensiveOperations', () => ({
   useNoteListPerformance: vi.fn().mockReturnValue({
-    measureOperation: vi.fn().mockImplementation((name, fn) => fn()),
-    measureSync: vi.fn().mockImplementation((name, fn) => ({ result: fn(), duration: 0 })),
+    measureOperation: vi.fn().mockImplementation((_name, fn) => fn()),
+    measureSync: vi.fn().mockImplementation((_name, fn) => ({ result: fn(), duration: 0 })),
   }),
 }));
 
@@ -419,7 +419,7 @@ describe('SelectableNotesList Selection Functionality', () => {
   describe('Selection State Validation and Cleanup', () => {
     it('should validate selections when notes list changes', async () => {
       const onSelectionChange = vi.fn();
-      const { rerender } = render(<SelectableNotesList {...defaultProps} onSelectionChange={onSelectionChange} />);
+      render(<SelectableNotesList {...defaultProps} onSelectionChange={onSelectionChange} />);
 
       // Enter selection mode and select notes
       const selectButton = screen.getByRole('button', { name: /enter selection mode/i });
@@ -530,7 +530,7 @@ describe('SelectableNotesList Selection Functionality', () => {
         expect(onSelectionChange).toHaveBeenCalledWith(expectedTitles);
         
         // Should show correct count using flexible matcher
-        const selectionTexts = screen.getAllByText((content, element) => {
+        const selectionTexts = screen.getAllByText((_content, element) => {
           return element?.textContent?.match(/Selected:\s*100\s*notes/) !== null;
         });
         expect(selectionTexts.length).toBeGreaterThan(0);

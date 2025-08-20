@@ -147,9 +147,9 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
   const handleConfirmDelete = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering the note click
     await measureOperation('note-delete-handler', async () => {
-      if (onDelete) {
+      if (onDelete && note.id) {
         onDelete(note.id);
-      } else {
+      } else if (note.id) {
         // Fallback if onDelete prop is not provided
         console.log('NoteCard - Deleting note (fallback):', note.id);
         try {
@@ -358,7 +358,9 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
                   updateNote(updatedNote).then(() => {
                     // Notify other windows that this note has been updated with the specific property
                     // This allows the main window to update its state without a full reload
-                    window.noteWindow.noteUpdated(note.id, { favorite: !isFavoriteNote });
+                    if (note.id) {
+                      window.noteWindow.noteUpdated(note.id, { favorite: !isFavoriteNote });
+                    }
                     
                     // PERMANENT FIX: Use the onCollectionUpdate callback to trigger parent refresh
                     // This directly tells the parent component to refresh its state
@@ -409,7 +411,9 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
                   updateNote(updatedNote).then(() => {
                     // Notify other windows that this note has been updated with the specific property
                     // This allows the main window to update its state without a full reload
-                    window.noteWindow.noteUpdated(note.id, { pinned: !isPinnedNote });
+                    if (note.id) {
+                      window.noteWindow.noteUpdated(note.id, { pinned: !isPinnedNote });
+                    }
                     
                     // PERMANENT FIX: Use the onCollectionUpdate callback to trigger parent refresh
                     // This directly tells the parent component to refresh its state
@@ -648,7 +652,9 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
                     updateNote(updatedNote).then(() => {
                       // Notify other windows that this note has been updated with the specific property
                       // This allows the main window to update its state without a full reload
-                      window.noteWindow.noteUpdated(note.id, { favorite: !isFavoriteNote });
+                      if (note.id) {
+                        window.noteWindow.noteUpdated(note.id, { favorite: !isFavoriteNote });
+                      }
                       
                       // PERMANENT FIX: Use the onCollectionUpdate callback to trigger parent refresh
                       // This directly tells the parent component to refresh its state
@@ -699,7 +705,9 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
                     updateNote(updatedNote).then(() => {
                       // Notify other windows that this note has been updated with the specific property
                       // This allows the main window to update its state without a full reload
-                      window.noteWindow.noteUpdated(note.id, { pinned: !isPinnedNote });
+                      if (note.id) {
+                        window.noteWindow.noteUpdated(note.id, { pinned: !isPinnedNote });
+                      }
                       
                       // PERMANENT FIX: Use the onCollectionUpdate callback to trigger parent refresh
                       // This directly tells the parent component to refresh its state
@@ -848,7 +856,9 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
             
             // Notify other windows that this note has been updated with the specific property
             // This allows the main window to update its state without a full reload
-            window.noteWindow.noteUpdated(note.id, { color: color });
+            if (note.id) {
+              window.noteWindow.noteUpdated(note.id, { color: color });
+            }
             
             // PERMANENT FIX: Use the onCollectionUpdate callback to trigger parent refresh
             // This directly tells the parent component to refresh its state
@@ -875,7 +885,7 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
             onCollectionUpdate();
           }
           // Also notify other windows for consistency
-          if (window.noteWindow && window.noteWindow.noteUpdated) {
+          if (window.noteWindow && window.noteWindow.noteUpdated && note.id) {
             window.noteWindow.noteUpdated(note.id, { collectionsUpdated: true });
           }
         }}

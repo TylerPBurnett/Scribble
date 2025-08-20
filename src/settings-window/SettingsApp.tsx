@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { SettingsDialog } from './SettingsDialog'
 import { initSettings, saveSettings, AppSettings } from '../shared/services/settingsService'
 import { ThemeProvider } from '../shared/services/themeService'
-import TitleBar from '../shared/components/TitleBar'
 
 function SettingsApp() {
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null)

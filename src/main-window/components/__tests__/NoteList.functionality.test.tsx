@@ -42,7 +42,7 @@ vi.mock('../NoteCard', () => ({
   default: ({ note, onClick, onDelete }: { note: Note; onClick: (note: Note) => void; onDelete: (id: string) => void }) => (
     <div data-testid={`note-card-${note.id}`}>
       <div onClick={() => onClick(note)}>{note.title}</div>
-      <button onClick={() => onDelete(note.id)} data-testid={`delete-${note.id}`}>Delete</button>
+      <button onClick={() => note.id && onDelete(note.id)} data-testid={`delete-${note.id || 'unknown'}`}>Delete</button>
     </div>
   )
 }));

@@ -46,6 +46,7 @@ const NoteCollectionManager: React.FC<NoteCollectionManagerProps> = ({
       setCollections(allCollections.filter(c => !c.isDefault)); // Exclude "All" collection
 
       // Load collections this note belongs to
+      if (!note.id) return;
       const noteColls = await collectionService.getCollectionsForNote(note.id);
       setNoteCollections(noteColls.map(c => c.id));
     } catch (error) {
@@ -70,6 +71,7 @@ const NoteCollectionManager: React.FC<NoteCollectionManagerProps> = ({
     try {
       if (isInCollection) {
         // Use the new method that handles count updates
+        if (!note.id) return;
         await collectionService.handleNoteRemovedFromCollection(collectionId, note.id, allNotes);
         setNoteCollections(prev => prev.filter(id => id !== collectionId));
         showSuccess(
@@ -78,6 +80,7 @@ const NoteCollectionManager: React.FC<NoteCollectionManagerProps> = ({
         );
       } else {
         // Use the new method that handles count updates
+        if (!note.id) return;
         await collectionService.handleNoteAddedToCollection(collectionId, note.id, allNotes);
         setNoteCollections(prev => [...prev, collectionId]);
         showSuccess(
