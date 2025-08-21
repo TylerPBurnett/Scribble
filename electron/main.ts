@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, screen, Tray, Menu, globalShortcut, nativeImage } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, screen, Tray, Menu, globalShortcut, nativeImage, session } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import fs from 'node:fs/promises'
@@ -2161,8 +2161,57 @@ function createApplicationMenu() {
   Menu.setApplicationMenu(menu)
 }
 
+// Configure cache management to prevent excessive cache buildup
+function configureCacheManagement() {
+  console.log('Configuring cache management...')
+  
+  const isDev = process.env.NODE_ENV === 'development'
+  
+  // Set cache size limit to 50MB (50,000,000 bytes)
+  // This prevents unlimited cache growth
+  app.commandLine.appendSwitch('disk-cache-size', '50000000')
+  
+  // In production, clear cache on startup to ensure fresh start
+  if (!isDev) {
+    console.log('Production mode: Clearing cache on startup')
+    session.defaultSession.clearCache().then(() => {
+      console.log('Cache cleared successfully')
+    }).catch((error: any) => {
+      console.error('Error clearing cache:', error)
+    })
+  } else {
+    console.log('Development mode: Cache size limited to 50MB')
+  }
+  
+  // Set up periodic cache cleanup (every 24 hours)
+  setInterval(() => {
+    console.log('Performing periodic cache cleanup')
+    session.defaultSession.clearCache().then(() => {
+      console.log('Periodic cache cleanup completed')
+    }).catch((error: any) => {
+      console.error('Error during periodic cache cleanup:', error)
+    })
+  }, 24 * 60 * 60 * 1000) // 24 hours in milliseconds
+}
+
+// Add IPC handler for manual cache clearing (useful for debugging/maintenance)
+ipcMain.handle('clear-app-cache', async () => {
+  try {
+    console.log('Manual cache clear requested')
+    await session.defaultSession.clearCache()
+    console.log('Manual cache clear completed')
+    return { success: true }
+  } catch (error) {
+    console.error('Error clearing cache manually:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+})
+
 // When app is ready
 app.whenReady().then(() => {
+  // Configure cache management to prevent excessive cache buildup
+  configureCacheManagement()
+
   // Set the dock icon again when the app is ready (as a backup)
   if (process.platform === 'darwin' && app.dock) {
     try {
