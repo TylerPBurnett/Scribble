@@ -72,9 +72,13 @@ function MainApp() {
 
   // Initialize collections with session restoration
   const initializeCollectionsWithSession = useCallback(async () => {
-    if (collectionsInitialized) return;
+    console.log('🔥 [MainApp] FORCE initializing collections - ignoring collectionsInitialized flag');
+    console.log('🔍 [MainApp] collectionsInitialized was:', collectionsInitialized);
     
-    console.log('MainApp - Initializing collections with session restoration...');
+    // TEMPORARILY ignore the flag to force initialization
+    // if (collectionsInitialized) return;
+    
+    console.log('🚀 [MainApp] Starting collections initialization with session restoration...');
     try {
       const { activeCollectionId: restoredActiveCollectionId } = 
         await collectionService.initializeCollectionsWithSession();
@@ -87,9 +91,9 @@ function MainApp() {
       setActiveCollectionId(restoredActiveCollectionId);
       
       setCollectionsInitialized(true);
-      console.log(`MainApp - Collections initialized with session: ${collectionsWithCounts.length} collections, active: ${restoredActiveCollectionId}`);
+      console.log(`✅ [MainApp] Collections initialized with session: ${collectionsWithCounts.length} collections, active: ${restoredActiveCollectionId}`);
     } catch (error) {
-      console.error('MainApp - Error initializing collections with session:', error);
+      console.error('❌ [MainApp] Error initializing collections with session:', error);
       // Fallback to basic initialization
       await loadCollections();
       setCollectionsInitialized(true);
@@ -298,9 +302,14 @@ function MainApp() {
     const activeCollection = collections.find(c => c.id === activeCollectionId);
     let passesCollectionFilter = true;
     
+    console.log('🔍 [MainApp] Filtering note:', note.title, 'ActiveCollectionId:', activeCollectionId, 'Found collection:', activeCollection?.name);
+    
     if (activeCollection && !activeCollection.isDefault) {
       // For non-default collections, only show notes that belong to this collection
       passesCollectionFilter = note.id ? activeCollection.noteIds.includes(note.id) : false;
+      console.log('🔍 [MainApp] Note passes collection filter:', passesCollectionFilter, 'Note ID:', note.id, 'Collection noteIds:', activeCollection.noteIds);
+    } else if (!activeCollection) {
+      console.log('❌ [MainApp] Active collection not found! Available collections:', collections.map(c => ({ id: c.id, name: c.name })));
     }
     // For default "All" collection, show all notes (passesCollectionFilter remains true)
     

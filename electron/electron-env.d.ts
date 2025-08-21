@@ -53,7 +53,7 @@ interface Window {
     readNoteFile: (filePath: string) => Promise<string>
     // Collection file operations
     saveCollectionsFile: (collectionsData: string, saveLocation: string) => Promise<{ success: boolean; filePath: string }>
-    readCollectionsFile: (saveLocation: string) => Promise<string | null>
+    readCollectionsFile: (saveLocation: string) => Promise<{success: boolean, data?: string, error?: string}>
   }
   windowControls: {
     minimize: () => Promise<void>

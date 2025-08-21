@@ -58,22 +58,38 @@ const sanitizeCollection = (collection: any): Collection => {
 // Load collections from file system with enhanced error handling
 const loadCollectionsFromFile = async (): Promise<Collection[]> => {
   const settings = getSettings();
+  console.log('🔍 [CollectionService] Loading collections from save location:', settings.saveLocation);
+  
   if (!settings.saveLocation) {
-    console.log('No save location configured, using default collections');
+    console.log('❌ [CollectionService] No save location configured, using default collections');
     return [...DEFAULT_COLLECTIONS];
   }
 
   try {
+    console.log('🔍 [CollectionService] Attempting to read collections file...');
     const collectionsResult = await window.fileOps.readCollectionsFile(settings.saveLocation);
+    console.log('🔍 [CollectionService] File read result:', collectionsResult);
+    console.log('🔍 [CollectionService] File read details:', { 
+      success: collectionsResult.success, 
+      hasData: !!collectionsResult.data,
+      dataLength: collectionsResult.data?.length,
+      error: collectionsResult.error 
+    });
+    
     if (!collectionsResult.success || !collectionsResult.data) {
-      console.log('No collections file found, using default collections');
+      console.log('❌ [CollectionService] No collections file found, using default collections');
+      console.log('❌ [CollectionService] Failure reason - success:', collectionsResult.success, 'data:', !!collectionsResult.data);
       return [...DEFAULT_COLLECTIONS];
     }
+
+    console.log('🔍 [CollectionService] Raw file data length:', collectionsResult.data.length);
+    console.log('🔍 [CollectionService] Raw file data preview:', collectionsResult.data.substring(0, 200));
 
     // Parse JSON with error handling for corrupted data
     let parsedData;
     try {
       parsedData = JSON.parse(collectionsResult.data);
+      console.log('✅ [CollectionService] Successfully parsed JSON data:', parsedData);
     } catch (parseError) {
       console.error('Collections file contains invalid JSON, attempting recovery:', parseError);
       
@@ -121,10 +137,12 @@ const loadCollectionsFromFile = async (): Promise<Collection[]> => {
     // Ensure default collection exists
     const hasDefaultCollection = loadedCollections.some(c => c.isDefault);
     if (!hasDefaultCollection) {
+      console.log('🔍 [CollectionService] No default collection found, adding default collections');
       loadedCollections.unshift(...DEFAULT_COLLECTIONS);
     }
 
-    console.log(`Loaded ${loadedCollections.length} collections from file (${corruptedCount} corrupted entries skipped)`);
+    console.log(`✅ [CollectionService] Loaded ${loadedCollections.length} collections from file (${corruptedCount} corrupted entries skipped)`);
+    console.log('✅ [CollectionService] Final loaded collections:', loadedCollections.map(c => ({ id: c.id, name: c.name, isDefault: c.isDefault, noteCount: c.noteIds?.length || 0 })));
     return loadedCollections;
   } catch (error) {
     console.error('Error loading collections from file:', error);
@@ -153,19 +171,27 @@ const saveCollectionsToFile = async (collections: Collection[]): Promise<void> =
   }
 
   try {
+    console.log('🔍 [CollectionService] Starting save operation with', collections.length, 'total collections');
+    console.log('🔍 [CollectionService] All collections:', collections.map(c => ({ id: c.id, name: c.name, isDefault: c.isDefault, noteCount: c.noteIds?.length || 0 })));
+    
     // Filter out default collections from saved data (they're always added on load)
     const collectionsToSave = collections.filter(c => !c.isDefault);
+    console.log('🔍 [CollectionService] Collections to save after filtering defaults:', collectionsToSave.length);
+    console.log('🔍 [CollectionService] Filtered collections:', collectionsToSave.map(c => ({ id: c.id, name: c.name, noteIds: c.noteIds })));
     
     // Validate collections before saving
     const validCollections = collectionsToSave.filter(collection => {
-      if (!validateCollectionData(collection)) {
-        console.warn('Skipping invalid collection during save:', collection);
+      const isValid = validateCollectionData(collection);
+      if (!isValid) {
+        console.warn('❌ [CollectionService] Skipping invalid collection during save:', collection);
         return false;
       }
       return true;
     });
 
+    console.log('🔍 [CollectionService] Valid collections after validation:', validCollections.length);
     const collectionsData = JSON.stringify(validCollections, null, 2);
+    console.log('🔍 [CollectionService] Collections JSON data to save:', collectionsData);
 
     // Attempt to save with retry logic
     let retryCount = 0;
@@ -174,7 +200,8 @@ const saveCollectionsToFile = async (collections: Collection[]): Promise<void> =
     while (retryCount < maxRetries) {
       try {
         await window.fileOps.saveCollectionsFile(collectionsData, settings.saveLocation);
-        console.log(`Saved ${validCollections.length} collections to file`);
+        console.log(`✅ [CollectionService] Successfully saved ${validCollections.length} collections to file at: ${settings.saveLocation}`);
+        console.log('✅ [CollectionService] Save operation completed successfully');
         return; // Success, exit retry loop
       } catch (saveError) {
         retryCount++;
@@ -294,7 +321,11 @@ export const collectionService = {
   async getAllCollections(): Promise<Collection[]> {
     try {
       if (!collectionsCache) {
+        console.log('🔍 [CollectionService] Cache is empty, loading from file...');
         collectionsCache = await loadCollectionsFromFile();
+        console.log('🔍 [CollectionService] Cache populated with', collectionsCache.length, 'collections');
+      } else {
+        console.log('🔍 [CollectionService] Using cached collections:', collectionsCache.length, 'items');
       }
       return [...collectionsCache].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
     } catch (error) {
@@ -335,7 +366,10 @@ export const collectionService = {
   // Create a new collection
   async createCollection(input: CollectionCreateInput): Promise<Collection> {
     try {
+      console.log('🔍 [CollectionService] Creating new collection:', input);
+      
       if (!collectionsCache) {
+        console.log('🔍 [CollectionService] Cache empty, loading before creating collection');
         collectionsCache = await loadCollectionsFromFile();
       }
 
@@ -348,8 +382,14 @@ export const collectionService = {
         sortOrder: collectionsCache.length
       };
 
+      console.log('🔍 [CollectionService] New collection created:', { id: newCollection.id, name: newCollection.name, isDefault: newCollection.isDefault });
+      
       collectionsCache.push(newCollection);
+      console.log('🔍 [CollectionService] Added to cache, total collections:', collectionsCache.length);
+      
       await saveCollectionsToFile(collectionsCache);
+      console.log('✅ [CollectionService] Collection created and saved successfully');
+      
       return newCollection;
     } catch (error) {
       const collectionError = createCollectionError(error, 'createCollection');
@@ -397,17 +437,29 @@ export const collectionService = {
 
   // Add a note to a collection
   async addNoteToCollection(collectionId: string, noteId: string): Promise<boolean> {
+    console.log('🔍 [CollectionService] Adding note to collection:', { collectionId, noteId });
+    
     if (!collectionsCache) {
+      console.log('🔍 [CollectionService] Cache empty, loading before adding note to collection');
       collectionsCache = await loadCollectionsFromFile();
     }
 
     const collection = collectionsCache.find(c => c.id === collectionId);
-    if (!collection || collection.isDefault) return false;
+    if (!collection || collection.isDefault) {
+      console.log('❌ [CollectionService] Collection not found or is default:', { found: !!collection, isDefault: collection?.isDefault });
+      return false;
+    }
 
     if (!collection.noteIds.includes(noteId)) {
+      console.log('🔍 [CollectionService] Adding note to collection, current noteIds:', collection.noteIds);
       collection.noteIds.push(noteId);
       collection.updatedAt = new Date();
+      console.log('🔍 [CollectionService] Updated noteIds:', collection.noteIds);
+      
       await saveCollectionsToFile(collectionsCache);
+      console.log('✅ [CollectionService] Note added to collection and saved');
+    } else {
+      console.log('ℹ️ [CollectionService] Note already in collection');
     }
     return true;
   },
@@ -470,8 +522,10 @@ export const collectionService = {
 
   // Force reload collections from storage
   async reloadCollections(): Promise<void> {
+    console.log('🔄 [CollectionService] Force reloading collections from storage');
     collectionsCache = null;
     await this.getAllCollections();
+    console.log('✅ [CollectionService] Collections reloaded from storage');
   },
 
   // Clear collections cache (useful for testing)
@@ -482,11 +536,15 @@ export const collectionService = {
   // Initialize collections (migration and setup)
   async initializeCollections(): Promise<void> {
     try {
+      // Force cache invalidation to ensure fresh data
+      console.log('🔄 [CollectionService] Force clearing cache during initialization');
+      collectionsCache = null;
+      
       // Load collections to initialize cache
       await this.getAllCollections();
-      console.log('Collections initialized successfully');
+      console.log('✅ [CollectionService] Collections initialized successfully');
     } catch (error) {
-      console.error('Error initializing collections:', error);
+      console.error('❌ [CollectionService] Error initializing collections:', error);
       // Fallback to default collections
       collectionsCache = [...DEFAULT_COLLECTIONS];
     }
@@ -687,27 +745,34 @@ export const collectionService = {
   // Enhanced initialization with session restoration
   async initializeCollectionsWithSession(): Promise<{ collections: Collection[], activeCollectionId: string }> {
     try {
-      console.log('Initializing collections with session restoration...');
+      console.log('🚀 [CollectionService] FORCE Initializing collections with session restoration...');
+      
+      // CRITICAL: Force complete cache invalidation
+      console.log('🔥 [CollectionService] FORCE clearing cache before initialization');
+      collectionsCache = null;
       
       // Initialize collections first
       await this.initializeCollections();
       
       // Get all collections
       const collections = await this.getAllCollections();
+      console.log('🔍 [CollectionService] Collections after getAllCollections:', collections.map(c => ({ id: c.id, name: c.name, isDefault: c.isDefault })));
       
       // Restore active collection state
       const activeCollectionId = await this.getRestoredActiveCollection();
+      console.log('🔍 [CollectionService] Restored active collection ID:', activeCollectionId);
       
-      console.log(`Collections initialized with ${collections.length} collections, active: ${activeCollectionId}`);
+      console.log(`✅ [CollectionService] Collections initialized with ${collections.length} collections, active: ${activeCollectionId}`);
       
       return {
         collections,
         activeCollectionId
       };
     } catch (error) {
-      console.error('Error initializing collections with session:', error);
+      console.error('❌ [CollectionService] Error initializing collections with session:', error);
       
       // Fallback to basic initialization
+      collectionsCache = null; // Force clear again
       await this.initializeCollections();
       const collections = await this.getAllCollections();
       

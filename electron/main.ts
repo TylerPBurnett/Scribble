@@ -1690,23 +1690,26 @@ ipcMain.handle('save-collections-file', async (_, collectionsData: string, saveL
 ipcMain.handle('read-collections-file', async (_, saveLocation: string) => {
   try {
     if (!saveLocation) {
-      return null;
+      return { success: false, error: 'No save location provided' };
     }
 
     const collectionsFilePath = path.join(saveLocation, 'collections.json');
 
     // Check if the collections file exists
     if (!fsSync.existsSync(collectionsFilePath)) {
-      return null;
+      return { success: false, error: 'Collections file not found' };
     }
 
     // Read the collections data from file
     const collectionsData = await fs.readFile(collectionsFilePath, 'utf8');
 
-    return collectionsData;
+    return { success: true, data: collectionsData };
   } catch (error: unknown) {
     console.error('[Main Process] Error reading collections file:', error);
-    throw error;
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error reading collections file' 
+    };
   }
 })
 
