@@ -173,6 +173,18 @@ function MainApp() {
     console.log('MainApp - Setting up settings change subscription');
     const unsubscribe = subscribeToSettingsChanges((newSettings) => {
       console.log('MainApp - Settings changed:', newSettings);
+      
+      // Check if save location changed
+      if (appSettings && newSettings.saveLocation !== appSettings.saveLocation) {
+        console.log('MainApp - Save location changed from', appSettings.saveLocation, 'to', newSettings.saveLocation);
+        // Refresh notes and collections when save location changes
+        loadAllNotes().then(() => {
+          console.log('MainApp - Notes refreshed after save location change');
+        }).catch(error => {
+          console.error('MainApp - Error refreshing notes after save location change:', error);
+        });
+      }
+      
       setAppSettings(newSettings);
     });
 
@@ -182,6 +194,18 @@ function MainApp() {
         try {
           const newSettings = JSON.parse(e.newValue);
           console.log('MainApp - Settings changed from another window:', newSettings);
+          
+          // Check if save location changed
+          if (appSettings && newSettings.saveLocation !== appSettings.saveLocation) {
+            console.log('MainApp - Save location changed from another window from', appSettings.saveLocation, 'to', newSettings.saveLocation);
+            // Refresh notes and collections when save location changes
+            loadAllNotes().then(() => {
+              console.log('MainApp - Notes refreshed after save location change from another window');
+            }).catch(error => {
+              console.error('MainApp - Error refreshing notes after save location change from another window:', error);
+            });
+          }
+          
           setAppSettings(newSettings);
         } catch (error) {
           console.error('Error parsing settings from storage event:', error);
@@ -196,7 +220,7 @@ function MainApp() {
       unsubscribe();
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, []);
+  }, [loadAllNotes, appSettings]);
 
   // Initialize collections with session restoration when notes are loaded
   useEffect(() => {
