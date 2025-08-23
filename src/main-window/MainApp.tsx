@@ -296,6 +296,7 @@ function MainApp() {
     };
   }, [loadAllNotes, notes.length])
 
+
   // Filter notes based on active collection and search query
   const filteredNotes = notes.filter(note => {
     // First filter by collection
@@ -530,6 +531,30 @@ function MainApp() {
       // Don't throw error - this is not critical for app functionality
     }
   }
+
+  // Listen for switch-to-collection events from tray menu
+  useEffect(() => {
+    console.log('🎯 [MainApp] Setting up switch-to-collection listener');
+
+    const handleSwitchToCollection = async (collectionId: string) => {
+      console.log('🔄 [MainApp] Received switch-to-collection event for:', collectionId);
+      try {
+        await handleCollectionChange(collectionId);
+        console.log('✅ [MainApp] Collection switched successfully to:', collectionId);
+      } catch (error) {
+        console.error('❌ [MainApp] Error switching collection:', error);
+      }
+    };
+
+    // Add IPC event listener
+    window.ipcRenderer.on('switch-to-collection', handleSwitchToCollection);
+
+    // Clean up
+    return () => {
+      console.log('🎯 [MainApp] Cleaning up switch-to-collection listener');
+      window.ipcRenderer.off('switch-to-collection', handleSwitchToCollection);
+    };
+  }, [handleCollectionChange])
 
   // Handle search open/close
   const [isSearchOpen, setSearchOpen] = useState(false);

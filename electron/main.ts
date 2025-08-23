@@ -588,74 +588,127 @@ function createSettingsWindow() {
   return settingsWindow
 }
 
+// Variable to track the actual save location being used by the app
+let currentSaveLocation: string | null = null;
+
+// Helper function to get actual save location being used by the app
+async function getActualSaveLocation(): Promise<string | null> {
+  // If we have a tracked current save location, use that
+  if (currentSaveLocation) {
+    console.log('🔍 [Tray] Using tracked save location:', currentSaveLocation);
+    return currentSaveLocation;
+  }
+  
+  // Try to get save location from settings store
+  const settingsStore = new Store({ name: 'settings' });
+  const settings = settingsStore.get('settings') as any || {};
+  let saveLocation = settings.saveLocation;
+  
+  console.log('🔍 [Tray] Settings from store:', { saveLocation, hasSettings: !!settings });
+  
+  // If no save location in settings, use default
+  if (!saveLocation) {
+    saveLocation = await getDefaultSaveLocation();
+    console.log('🔍 [Tray] Using default save location:', saveLocation);
+  } else {
+    console.log('🔍 [Tray] Using save location from settings:', saveLocation);
+  }
+  
+  return saveLocation;
+}
+
+// Helper function to get collections for tray menu
+async function getCollectionsForTray(): Promise<{ id: string; name: string }[]> {
+  try {
+    console.log('🔍 [Tray] Getting collections for tray menu...');
+    const saveLocation = await getActualSaveLocation();
+    
+    console.log('🔍 [Tray] Save location:', saveLocation);
+    
+    if (!saveLocation) {
+      console.log('🔍 [Tray] No save location, returning default only');
+      return [{ id: 'all', name: 'All Notes' }];
+    }
+
+    // Read collections file
+    console.log('🔍 [Tray] Reading collections file...');
+    const collectionsResult = await fileOperationService.readCollectionsFile(saveLocation);
+    console.log('🔍 [Tray] Collections result:', collectionsResult);
+    
+    if (!collectionsResult.success || !collectionsResult.data) {
+      console.log('🔍 [Tray] No collections data, returning default only');
+      return [{ id: 'all', name: 'All Notes' }];
+    }
+
+    const collections = JSON.parse(collectionsResult.data);
+    console.log('🔍 [Tray] Parsed collections:', collections);
+    
+    const defaultCollection = { id: 'all', name: 'All Notes' };
+    const userCollections = Array.isArray(collections) ? 
+      collections.filter(c => c && c.id && c.name).map(c => ({ id: c.id, name: c.name })) : [];
+    
+    const result = [defaultCollection, ...userCollections].slice(0, 8); // Limit to 8 collections
+    console.log('🔍 [Tray] Final collections for tray:', result);
+    return result;
+  } catch (error) {
+    console.error('❌ [Tray] Error getting collections for tray:', error);
+    return [{ id: 'all', name: 'All Notes' }];
+  }
+}
+
+// Helper function to get recent notes for tray menu
+async function getRecentNotesForTray(): Promise<{ title: string; createdAt: Date }[]> {
+  try {
+    console.log('🔍 [Tray] Getting recent notes for tray menu...');
+    const saveLocation = await getActualSaveLocation();
+    
+    console.log('🔍 [Tray] Save location for notes:', saveLocation);
+    
+    if (!saveLocation) {
+      console.log('🔍 [Tray] No save location, returning empty notes array');
+      return [];
+    }
+
+    // Get note files
+    console.log('🔍 [Tray] Listing note files...');
+    const noteFiles = await fileOperationService.listNoteFiles(saveLocation);
+    console.log('🔍 [Tray] Found note files:', noteFiles?.length || 0);
+    console.log('🔍 [Tray] Note files details:', noteFiles?.map(f => ({ title: f.title, createdAt: f.createdAt })));
+    
+    if (!Array.isArray(noteFiles)) {
+      console.log('🔍 [Tray] Note files is not an array, returning empty array');
+      return [];
+    }
+
+    // Sort by creation date and take top 5
+    const result = noteFiles
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 5)
+      .map(file => ({ title: file.title, createdAt: new Date(file.createdAt) }));
+    
+    console.log('🔍 [Tray] Final recent notes for tray:', result);
+    return result;
+  } catch (error) {
+    console.error('❌ [Tray] Error getting recent notes for tray:', error);
+    return [];
+  }
+}
+
 // Create tray icon
-function createTray() {
+async function createTray() {
   // Create tray icon
   const iconPath = path.join(process.env.APP_ROOT, 'src/assets/icon-64.png')
   const trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 })
 
   tray = new Tray(trayIcon)
 
-  // Create context menu
-  const contextMenu = Menu.buildFromTemplate([
-    {
-      label: 'Open Scribble',
-      click: () => {
-        if (mainWindow) {
-          mainWindow.show()
-          mainWindow.focus()
-        } else {
-          createMainWindow()
-        }
-      }
-    },
-    {
-      label: 'New Note',
-      click: () => {
-        // Generate a unique UUID for the new note (for window management)
-        const noteId = uuidv4();
-
-        // Create a new note object and store it in transient registry
-        const newNote: Note = {
-          title: 'Untitled Note',
-          content: '<p></p>',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          _isNew: true,
-          _unsaved: true
-        };
-
-        // Store the note in the transient registry
-        transientNewNotes.set(noteId, newNote);
-
-        createNoteWindow(noteId);
-
-        // Show main window if it's hidden
-        if (mainWindow && !mainWindow.isVisible()) {
-          mainWindow.show();
-        }
-      }
-    },
-    { type: 'separator' },
-    {
-      label: 'Settings',
-      click: () => {
-        createSettingsWindow()
-      }
-    },
-    { type: 'separator' },
-    {
-      label: 'Quit',
-      click: () => {
-        isQuitting = true
-        app.quit()
-      }
-    }
-  ])
+  // Build dynamic menu (with a delay to allow main window to initialize)
+  setTimeout(async () => {
+    await updateTrayMenu();
+  }, 2000); // Wait 2 seconds for the main window to fully load and sync settings
 
   // Set tray properties
   tray.setToolTip('Scribble')
-  tray.setContextMenu(contextMenu)
 
   // Show window on tray icon click
   tray.on('click', () => {
@@ -669,6 +722,226 @@ function createTray() {
       createMainWindow()
     }
   })
+
+  // Also refresh tray menu when tray is right-clicked (before showing menu)
+  tray.on('right-click', async () => {
+    console.log('🔍 [Tray] Right-click detected, refreshing menu...');
+    await updateTrayMenu();
+  })
+}
+
+// Update tray menu with collections and recent notes
+async function updateTrayMenu() {
+  if (!tray) {
+    console.log('🔍 [Tray] No tray available, skipping menu update');
+    return;
+  }
+
+  try {
+    console.log('🔍 [Tray] Updating tray menu...');
+    const [collections, recentNotes] = await Promise.all([
+      getCollectionsForTray(),
+      getRecentNotesForTray()
+    ]);
+
+    console.log('🔍 [Tray] Got collections for menu:', collections.length);
+    console.log('🔍 [Tray] Got recent notes for menu:', recentNotes.length);
+
+    const menuTemplate: Electron.MenuItemConstructorOptions[] = [];
+
+    // Collections section
+    if (collections.length > 0) {
+      menuTemplate.push({
+        label: 'Collections',
+        enabled: false, // Section header
+        icon: nativeImage.createEmpty()
+      });
+
+      collections.forEach(collection => {
+        menuTemplate.push({
+          label: `  ${collection.name}`,
+          click: () => {
+            // Show main window and switch to this collection
+            if (mainWindow) {
+              mainWindow.show();
+              mainWindow.focus();
+              // Send IPC to switch to collection
+              mainWindow.webContents.send('switch-to-collection', collection.id);
+            } else {
+              createMainWindow();
+              // Wait for window to be ready then switch collection
+              // We set up the listener after creating the window
+              setTimeout(() => {
+                if (mainWindow) {
+                  mainWindow.webContents.once('did-finish-load', () => {
+                    setTimeout(() => {
+                      if (mainWindow) {
+                        mainWindow.webContents.send('switch-to-collection', collection.id);
+                      }
+                    }, 500);
+                  });
+                }
+              }, 100);
+            }
+          }
+        });
+      });
+
+      menuTemplate.push({ type: 'separator' });
+    }
+
+    // Recent notes section
+    if (recentNotes.length > 0) {
+      menuTemplate.push({
+        label: 'Recent Notes',
+        enabled: false, // Section header
+        icon: nativeImage.createEmpty()
+      });
+
+      recentNotes.forEach(note => {
+        const noteTitle = note.title.length > 30 ? note.title.substring(0, 30) + '...' : note.title;
+        menuTemplate.push({
+          label: `  ${noteTitle}`,
+          click: async () => {
+            // Generate UUID for window management
+            const noteId = uuidv4();
+            
+            // Create note object for transient registry
+            const noteData: Note = {
+              title: note.title,
+              content: '<p>Loading...</p>',
+              createdAt: note.createdAt,
+              updatedAt: note.createdAt
+            };
+
+            // Store in transient registry
+            transientNewNotes.set(noteId, noteData);
+
+            // Open note window
+            createNoteWindow(noteId);
+
+            // Show main window if hidden
+            if (mainWindow && !mainWindow.isVisible()) {
+              mainWindow.show();
+            }
+          }
+        });
+      });
+
+      menuTemplate.push({ type: 'separator' });
+    }
+
+    // Standard menu items
+    menuTemplate.push(
+      {
+        label: 'Open Scribble',
+        click: () => {
+          if (mainWindow) {
+            mainWindow.show()
+            mainWindow.focus()
+          } else {
+            createMainWindow()
+          }
+        }
+      },
+      {
+        label: 'New Note',
+        click: () => {
+          // Generate a unique UUID for the new note (for window management)
+          const noteId = uuidv4();
+
+          // Create a new note object and store it in transient registry
+          const newNote: Note = {
+            title: 'Untitled Note',
+            content: '<p></p>',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            _isNew: true,
+            _unsaved: true
+          };
+
+          // Store the note in the transient registry
+          transientNewNotes.set(noteId, newNote);
+
+          createNoteWindow(noteId);
+
+          // Show main window if it's hidden
+          if (mainWindow && !mainWindow.isVisible()) {
+            mainWindow.show();
+          }
+        }
+      },
+      { type: 'separator' },
+      {
+        label: 'Settings',
+        click: () => {
+          createSettingsWindow()
+        }
+      },
+      { type: 'separator' },
+      {
+        label: 'Quit',
+        click: () => {
+          isQuitting = true
+          app.quit()
+        }
+      }
+    );
+
+    const contextMenu = Menu.buildFromTemplate(menuTemplate);
+    tray.setContextMenu(contextMenu);
+  } catch (error) {
+    console.error('Error updating tray menu:', error);
+    // Fallback to basic menu
+    const basicMenu = Menu.buildFromTemplate([
+      {
+        label: 'Open Scribble',
+        click: () => {
+          if (mainWindow) {
+            mainWindow.show()
+            mainWindow.focus()
+          } else {
+            createMainWindow()
+          }
+        }
+      },
+      {
+        label: 'New Note',
+        click: () => {
+          const noteId = uuidv4();
+          const newNote: Note = {
+            title: 'Untitled Note',
+            content: '<p></p>',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            _isNew: true,
+            _unsaved: true
+          };
+          transientNewNotes.set(noteId, newNote);
+          createNoteWindow(noteId);
+          if (mainWindow && !mainWindow.isVisible()) {
+            mainWindow.show();
+          }
+        }
+      },
+      { type: 'separator' },
+      {
+        label: 'Settings',
+        click: () => {
+          createSettingsWindow()
+        }
+      },
+      { type: 'separator' },
+      {
+        label: 'Quit',
+        click: () => {
+          isQuitting = true
+          app.quit()
+        }
+      }
+    ]);
+    tray.setContextMenu(basicMenu);
+  }
 }
 
 // Default global hotkeys - use non-optional types here since these are guaranteed to exist
@@ -1539,6 +1812,10 @@ function broadcastRefreshDebounced(delay = 100) {
         window.webContents.send('refresh-notes-list');
       }
     });
+    
+    // Also update tray menu when notes change
+    updateTrayMenu().catch(error => console.error('Error updating tray menu after notes change:', error));
+    
     refreshTimeouts.delete('global');
   }, delay);
 
@@ -1578,6 +1855,12 @@ async function queueOperation<T>(key: string, operation: () => Promise<T>): Prom
 // List all markdown files in a directory
 ipcMain.handle('list-note-files', async (_, directoryPath) => {
   console.log(`[Main Process] Listing note files in directory: ${directoryPath}`);
+
+  // Track the current save location being used
+  if (directoryPath && typeof directoryPath === 'string') {
+    currentSaveLocation = directoryPath;
+    console.log(`🔍 [Tray] Updated current save location to: ${currentSaveLocation}`);
+  }
 
   // Input validation
   if (!directoryPath || typeof directoryPath !== 'string') {
@@ -1679,6 +1962,9 @@ ipcMain.handle('save-collections-file', async (_, collectionsData: string, saveL
 
     // Write the collections data to file
     await fs.writeFile(collectionsFilePath, collectionsData, 'utf8');
+
+    // Update tray menu when collections change
+    updateTrayMenu().catch(error => console.error('Error updating tray menu after collections save:', error));
 
     return { success: true, filePath: collectionsFilePath };
   } catch (error: unknown) {
@@ -1791,6 +2077,14 @@ ipcMain.handle('sync-settings', (_, inputSettings) => {
 
     // Save the normalized settings object
     settingsStore.set('settings', normalisedSettings);
+
+    // Check if save location changed and update tray menu
+    const newSaveLocation = (inputSettings as any).saveLocation;
+    if (newSaveLocation && newSaveLocation !== currentSaveLocation) {
+      console.log('🔍 [Tray] Save location changed, updating tray menu...');
+      currentSaveLocation = newSaveLocation;
+      updateTrayMenu().catch(error => console.error('Error updating tray menu after save location change:', error));
+    }
 
     // Update vibrancy if theme changed and we're on macOS
     const newTheme = (inputSettings as { theme?: ThemeName }).theme || 'dim';
@@ -2208,9 +2502,21 @@ ipcMain.handle('clear-app-cache', async () => {
 })
 
 // When app is ready
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Configure cache management to prevent excessive cache buildup
   configureCacheManagement()
+
+  // Initialize current save location from settings
+  try {
+    const settingsStore = new Store({ name: 'settings' });
+    const settings = settingsStore.get('settings') as any || {};
+    if (settings.saveLocation) {
+      currentSaveLocation = settings.saveLocation;
+      console.log('🔍 [Tray] Initialized save location from settings:', currentSaveLocation);
+    }
+  } catch (error) {
+    console.error('Error initializing save location:', error);
+  }
 
   // Set the dock icon again when the app is ready (as a backup)
   if (process.platform === 'darwin' && app.dock) {
@@ -2235,7 +2541,7 @@ app.whenReady().then(() => {
   createMainWindow()
 
   // Create tray icon
-  createTray()
+  await createTray()
 
   // Register global hotkeys
   registerGlobalHotkeys()

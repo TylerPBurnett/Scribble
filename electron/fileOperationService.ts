@@ -303,6 +303,35 @@ export class MainProcessFileOperationService {
   }
 
   /**
+   * Read collections file
+   */
+  async readCollectionsFile(saveLocation: string): Promise<{ success: boolean; data?: string; error?: string }> {
+    try {
+      if (!saveLocation) {
+        return { success: false, error: 'No save location provided' };
+      }
+
+      const collectionsFilePath = path.join(saveLocation, 'collections.json');
+
+      // Check if the collections file exists
+      if (!(await this.fileExists(collectionsFilePath))) {
+        return { success: false, error: 'Collections file not found' };
+      }
+
+      // Read the collections data from file
+      const collectionsData = await fs.readFile(collectionsFilePath, 'utf8');
+
+      return { success: true, data: collectionsData };
+    } catch (error: unknown) {
+      console.error('[Main Process] Error reading collections file:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error reading collections file' 
+      };
+    }
+  }
+
+  /**
    * Extract metadata from note content
    */
   private extractMetadata(content: string): Record<string, any> {
