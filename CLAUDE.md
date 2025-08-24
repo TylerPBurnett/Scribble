@@ -5,6 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Commands
 
 ### Core Development
+- Do not use 'bun run dev' unless the user asks for it, the use will handle all server starts
 - `bun run dev` - Start development server on port 5173
 - `bun run build` - Build and package the Electron app
 - `bun run preview` - Preview the build locally
