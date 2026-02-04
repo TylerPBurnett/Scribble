@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback, useReducer } from 'react';
 import { Note } from '../../shared/types/Note';
 import Tiptap, { TiptapRef } from './Tiptap';
-import { updateNote, deleteNote } from '../../shared/services/noteService';
+import { updateNote } from '../../shared/services/noteService';
 import { getSettings, subscribeToSettingsChanges, AppSettings } from '../../shared/services/settingsService';
-import { getHotkeys, formatHotkeyForDisplay } from '../../shared/services/hotkeyService';
+// import { getHotkeys } from '../../shared/services/hotkeyService';
 import { NoteHotkeys } from './NoteHotkeys';
 import { useDebounce } from '../../shared/hooks/useDebounce';
 import { ColorPicker } from '../../shared/components/ColorPicker';
@@ -34,9 +34,10 @@ interface NoteEditorProps {
   note: Note;
   onSave?: (note: Note) => void;
   onChange?: (note: Note) => void;
+  isToolbarVisible?: boolean;
 }
 
-const NoteEditor = ({ note, onSave, onChange }: NoteEditorProps) => {
+const NoteEditor = ({ note, onSave, onChange, isToolbarVisible = true }: NoteEditorProps) => {
   // Performance monitoring
   const componentName = `NoteEditor-${note.id}`;
   const { measureOperation } = useNoteEditorPerformance(componentName);
@@ -252,6 +253,13 @@ const saveNote = useCallback(async () => {
       currentNoteRef.current = savedNote;
       onSave?.(savedNote);
       dispatch(updateEditorState({ isDirty: false }));
+
+      // Clear recovery data after successful save
+      if (savedNote.id && window.recovery) {
+        window.recovery.clearRecoveryData(savedNote.id).catch(err => {
+          console.warn('Failed to clear recovery data:', err);
+        });
+      }
     }, 'high');
   }
 }, [onSave]);
@@ -304,6 +312,28 @@ const saveNote = useCallback(async () => {
       dispatch(updateEditorState({ isDirty: true }));
     }
   }, [content, isTitleFocused]);
+
+  // Store recovery data when content changes (crash protection)
+  useEffect(() => {
+    if (!note.id || !isDirty) return;
+
+    // Debounce recovery storage to avoid excessive writes
+    const recoveryTimeout = setTimeout(() => {
+      if (window.recovery) {
+        window.recovery.storeRecoveryData({
+          noteId: note.id!,
+          title: currentTitleRef.current,
+          content: currentContentRef.current,
+          timestamp: Date.now(),
+          saveLocation: appSettings.saveLocation
+        }).catch(err => {
+          console.warn('Failed to store recovery data:', err);
+        });
+      }
+    }, 2000); // Store recovery data 2 seconds after changes
+
+    return () => clearTimeout(recoveryTimeout);
+  }, [note.id, isDirty, content, title, appSettings.saveLocation]);
 
   // Check if title has changed from the last saved version
   useEffect(() => {
@@ -566,7 +596,7 @@ const saveNote = useCallback(async () => {
   useEffect(() => {
     const checkPinState = async () => {
       try {
-        const isWindowPinned = await window.windowControls.isPinned();
+        const isWindowPinned = await window.windowControls.isWindowPinned();
         dispatch(updateNoteData({ isPinned: isWindowPinned }));
       } catch (error) {
         console.error('Error checking window pin state:', error);
@@ -1033,20 +1063,28 @@ const saveNote = useCallback(async () => {
   {/* Settings button */}
             <div className="relative">
               <button
-                onClick={() => dispatch(updateUIState({ showSettingsMenu: !showSettingsMenu }))}
+                onClick={async () => {
+                  try {
+                    // Get the note ID from the note window context
+                    const noteId = await window.noteWindow?.getNoteId();
+                    if (noteId) {
+                      window.settings?.openNoteSettings(noteId);
+                    } else {
+                      console.error('No note ID available for settings window');
+                    }
+                  } catch (error) {
+                    console.error('Error opening note settings:', error);
+                  }
+                }}
                 className="settings-button transition-colors p-1 cursor-pointer"
                 style={{
-                  color: showSettingsMenu ? getButtonColors().active : getButtonColors().inactive
+                  color: getButtonColors().inactive
                 }}
                 onMouseEnter={(e) => {
-                  if (!showSettingsMenu) {
-                    e.currentTarget.style.color = getButtonColors().hover;
-                  }
+                  e.currentTarget.style.color = getButtonColors().hover;
                 }}
                 onMouseLeave={(e) => {
-                  if (!showSettingsMenu) {
-                    e.currentTarget.style.color = getButtonColors().inactive;
-                  }
+                  e.currentTarget.style.color = getButtonColors().inactive;
                 }}
                 title="Note settings"
               >
@@ -1065,297 +1103,6 @@ const saveNote = useCallback(async () => {
                 </svg>
               </button>
 
-              {/* Settings menu dropdown */}
-              {showSettingsMenu && (
-                <div
-                  className="settings-menu-container absolute right-0 top-full mt-1 rounded-lg shadow-lg z-[9999] w-64"
-                  onClick={(e) => e.stopPropagation()}
-                  onMouseDown={(e) => e.stopPropagation()} // Prevent drag events
-                >
-                  {/* Favorite option */}
-                  <div
-                    className="menu-item py-2 px-4 cursor-pointer transition-colors flex items-center justify-between"
-                    onClick={async () => {
-                      try {
-                        // Toggle favorite state
-                        const newFavoriteState = !isFavorite;
-                        console.log('NoteEditor - Toggling favorite state to:', newFavoriteState);
-                        dispatch(updateNoteData({ isFavorite: newFavoriteState }));
-
-                        // Update the note's favorite property
-                        const updatedNote = {
-                          ...currentNoteRef.current,
-                          favorite: newFavoriteState,
-                          // Ensure content is preserved exactly as it was
-                          content: currentContentRef.current
-                        };
-                        console.log('NoteEditor - Updated note object:', updatedNote);
-
-                        // Save the updated note
-                        const savedNote = await updateNote(updatedNote, undefined, originalTitleRef.current);
-                        console.log('NoteEditor - Saved note from server:', savedNote);
-                        currentNoteRef.current = savedNote;
-                        onSave?.(savedNote);
-
-                        // Notify other windows that this note has been updated
-                        // Pass the updated favorite property to immediately update the UI
-                        console.log('NoteEditor - Notifying other windows with:', { favorite: newFavoriteState });
-                        if (savedNote.id) {
-                          window.noteWindow.noteUpdated(savedNote.id, { favorite: newFavoriteState });
-                          console.log('NoteEditor - Notification sent');
-                        }
-                      } catch (error) {
-                        console.error('Error toggling favorite state:', error);
-                      }
-                    }}
-                  >
-                    <span>Favorite</span>
-                    <div className="flex items-center gap-2">
-                      {isFavorite && (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <polyline points="20 6 9 17 4 12"></polyline>
-                        </svg>
-                      )}
-                      <span className="keyboard-shortcut">⌥⌘S</span>
-                    </div>
-                  </div>
-
-                  {/* Pinned option with checkmark */}
-                  <div
-                    className="menu-item py-2 px-4 cursor-pointer transition-colors flex items-center justify-between"
-                    onClick={togglePinState}
-                  >
-                    <span>Float on Top</span>
-                    <div className="flex items-center gap-2">
-                      {isPinned && (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <polyline points="20 6 9 17 4 12"></polyline>
-                        </svg>
-                      )}
-                      <span className="keyboard-shortcut">⌥⌘F</span>
-                    </div>
-                  </div>
-
-                  {/* Toolbar toggle option */}
-                  <div
-                    className="menu-item py-2 px-4 cursor-pointer transition-colors flex items-center justify-between"
-                    onClick={() => {
-                      if (tiptapRef.current?.toggleToolbar) {
-                        tiptapRef.current.toggleToolbar();
-                      }
-                    }}
-                  >
-                    <span>Show Toolbar</span>
-                    <div className="flex items-center gap-2">
-                      {tiptapRef.current?.isToolbarVisible?.() && (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <polyline points="20 6 9 17 4 12"></polyline>
-                        </svg>
-                      )}
-                      <span className="keyboard-shortcut">
-                        {(() => {
-                          const settings = getSettings();
-                          const hotkeys = getHotkeys(settings);
-                          return formatHotkeyForDisplay(hotkeys.toggleToolbar || 'alt+t');
-                        })()}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Translucency option */}
-                  <div className="py-2 px-4 transition-colors">
-                    <div className="flex items-center justify-between mb-1">
-                      <span>Translucency</span>
-                      <span className="keyboard-shortcut">⌥⌘T</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs opacity-60">Solid</span>
-                      <input
-                        type="range"
-                        min="0.3"
-                        max="1"
-                        step="0.05"
-                        value={transparency}
-                        onChange={(e) => {
-                          const newValue = parseFloat(e.target.value);
-                          console.log('Setting transparency to:', newValue);
-                          updateTransparency(newValue);
-                        }}
-                        className="w-full"
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                      <span className="text-xs opacity-60">Clear</span>
-                    </div>
-                    <div className="text-xs text-center mt-1 opacity-60">
-                      {Math.round((1 - transparency) * 100)}% transparent
-                    </div>
-                  </div>
-
-                  {/* Note Shortcut option */}
-                  <div
-                    className="menu-item py-2 px-4 cursor-pointer transition-colors"
-                    onClick={() => {
-                      // Show a message explaining that this feature is coming soon
-                      alert('Note shortcuts will be available in a future update. This feature will allow you to assign custom keyboard shortcuts to specific notes.');
-                      dispatch(updateUIState({ showSettingsMenu: false }));
-                    }}
-                  >
-                    <span>Note Shortcut</span>
-                    <span className="text-xs text-gray-400 ml-2">(Coming soon)</span>
-                  </div>
-
-                  {/* Divider */}
-                  <div className="divider border-t my-1"></div>
-
-                  {/* Background Color section */}
-                  <div 
-                    className="py-2 px-4 cursor-pointer hover:bg-black/5 transition-colors"
-                    onClick={() => {
-                      dispatch(updateUIState({ showSettingsMenu: false, showColorPicker: true }));
-                    }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="section-header">Background Color</span>
-                      <div className="flex items-center gap-1">
-                        <div 
-                          className="w-5 h-5 rounded-full border border-black/20"
-                          style={{ backgroundColor: noteColor }}
-                          title="Current color"
-                        />
-                        <svg 
-                          width="12" 
-                          height="12" 
-                          viewBox="0 0 24 24" 
-                          fill="none" 
-                          stroke="currentColor" 
-                          strokeWidth="2" 
-                          strokeLinecap="round" 
-                          strokeLinejoin="round"
-                          style={{ color: `${getButtonColors().inactive}` }}
-                        >
-                          <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Divider */}
-                  <div className="divider border-t my-1"></div>
-
-                  {/* Save to File option */}
-                  <div
-                    className="menu-item py-2 px-4 cursor-pointer transition-colors"
-                    onClick={async () => {
-                      try {
-                        // Get the current note data
-                        const currentNote = currentNoteRef.current;
-                        const currentContent = currentContentRef.current;
-
-                        // Get the save location from settings
-                        const settings = getSettings();
-                        if (!settings.saveLocation) {
-                          alert('No save location set. Please set a save location in Settings.');
-                          return;
-                        }
-
-                        // Convert HTML content to Markdown for saving
-                        const { htmlToMarkdown } = await import('../../shared/utils/markdownUtils');
-                        const markdownContent = htmlToMarkdown(currentContent);
-
-                        // Add title as H1 at the beginning
-                        const titlePrefix = currentNote.title ? `# ${currentNote.title}\n\n` : '';
-                        const fullContent = titlePrefix + markdownContent;
-
-                        // Save to file
-                        if (!currentNote.id || !currentNote.title) {
-                          alert('Invalid note data. Cannot save.');
-                          return;
-                        }
-                        
-                        const result = await window.fileOps.saveNoteToFile(
-                          currentNote.id,
-                          currentNote.title,
-                          fullContent,
-                          settings.saveLocation
-                        );
-
-                        if (result.success) {
-                          alert('Note saved successfully to file.');
-                        } else {
-                          alert('Failed to save note to file.');
-                        }
-
-                        // Close the settings menu
-                        dispatch(updateUIState({ showSettingsMenu: false }));
-                      } catch (error) {
-                        console.error('Error saving note to file:', error);
-                        alert('Failed to save note to file. Please try again.');
-                      }
-                    }}
-                  >
-                    <span>Save to File</span>
-                  </div>
-
-                  {/* Move to Folder option */}
-                  <div className="menu-item py-2 px-4 cursor-pointer transition-colors flex items-center justify-between">
-                    <span>Move to Folder</span>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="9 18 15 12 9 6"></polyline>
-                    </svg>
-                  </div>
-
-                  {/* Move to Trash option */}
-                  <div
-                    className="menu-item py-2 px-4 cursor-pointer transition-colors text-red-400"
-                    onClick={async () => {
-                      // Confirm before deleting
-                      if (confirm(`Are you sure you want to move "${title}" to trash?`)) {
-                        try {
-                          // Get the note ID
-                          const noteId = currentNoteRef.current.id;
-
-                          if (!noteId) {
-                            alert('Cannot delete note - invalid note ID');
-                            return;
-                          }
-
-                          // Delete the note
-                          await deleteNote(noteId);
-
-                          // Notify other windows that this note has been deleted
-                          window.noteWindow.noteUpdated(noteId, { deleted: true });
-
-                          // Close the window
-                          window.windowControls.close();
-                        } catch (error) {
-                          console.error('Error deleting note:', error);
-                          alert('Failed to delete note. Please try again.');
-                        }
-                      }
-                    }}
-                  >
-                    <span>Move to Trash</span>
-                  </div>
-
-                  {/* Divider */}
-                  <div className="divider border-t my-1"></div>
-
-                  {/* Settings option */}
-                  <div
-                    className="menu-item py-2 px-4 cursor-pointer transition-colors flex items-center justify-between"
-                    onClick={() => {
-                      // Open settings window
-                      window.settings.openSettings();
-                      // Close the settings menu
-                      dispatch(updateUIState({ showSettingsMenu: false }));
-                    }}
-                  >
-                    <span>Settings...</span>
-                    <span className="keyboard-shortcut">⌘,</span>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -1418,6 +1165,7 @@ const saveNote = useCallback(async () => {
           backgroundColor={noteColor}
           textColor={getTextColor()}
           toolbarColor={getDarkerShade(noteColor)}
+          isToolbarVisible={isToolbarVisible}
         />
       </div>
 

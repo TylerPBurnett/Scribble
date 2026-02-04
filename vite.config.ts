@@ -11,6 +11,7 @@ export default defineConfig({
         main: path.resolve(__dirname, 'index.html'),
         note: path.resolve(__dirname, 'note.html'),
         settings: path.resolve(__dirname, 'settings.html'),
+        noteSettings: path.resolve(__dirname, 'note-settings.html'),
       },
     },
   },

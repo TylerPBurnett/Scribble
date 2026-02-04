@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/src/assets/icon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Note Settings</title>
+    <!-- Base styles for the settings window -->
+    <style>
+      /* Base reset and theme styling */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      
+      body {
+        font-family: 'Chirp', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+        background: transparent;
+        overflow: hidden;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-app-region: no-drag;
+      }
+
+      #root {
+        width: 100%;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* Traffic light positioning for macOS */
+      .titlebar {
+        -webkit-app-region: drag;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        padding-left: 80px; /* Space for traffic lights */
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--foreground);
+        background: transparent;
+      }
+
+      /* Content area */
+      .content {
+        flex: 1;
+        overflow-y: auto;
+        -webkit-app-region: no-drag;
+      }
+    </style>
+    <script>
+      // This script runs before React loads
+      // It sets a flag that identifies this as a note settings window
+      window.IS_NOTE_SETTINGS_WINDOW = true;
+      
+      // Extract noteId from URL parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const noteId = urlParams.get('noteId');
+      if (noteId) {
+        window.NOTE_ID = noteId;
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/note-settings-window/note-settings.tsx"></script>
+  </body>
+</html>

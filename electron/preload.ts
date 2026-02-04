@@ -27,9 +27,10 @@ contextBridge.exposeInMainWorld('windowControls', {
   close: () => ipcRenderer.invoke('window-close'),
   moveWindow: (moveX: number, moveY: number) => ipcRenderer.invoke('window-move', moveX, moveY),
   togglePin: (shouldPin: boolean) => ipcRenderer.invoke('window-toggle-pin', shouldPin),
-  isPinned: () => ipcRenderer.invoke('window-is-pinned'),
+  isWindowPinned: () => ipcRenderer.invoke('window-is-pinned'),
   setPinState: (noteId: string, isPinned: boolean) => ipcRenderer.invoke('window-set-pin-state', noteId, isPinned),
   setTransparency: (value: number) => ipcRenderer.invoke('window-set-transparency', value),
+  getTransparency: () => ipcRenderer.invoke('window-get-transparency'),
 })
 
 // Expose specific APIs for note management
@@ -61,7 +62,10 @@ contextBridge.exposeInMainWorld('noteWindow', {
 // Expose specific APIs for settings management
 contextBridge.exposeInMainWorld('settings', {
   openSettings: () => ipcRenderer.invoke('open-settings'),
+  openNoteSettings: (noteId: string) => ipcRenderer.invoke('open-note-settings', noteId),
+  closeNoteSettings: (noteId: string) => ipcRenderer.invoke('close-note-settings', noteId),
   isSettingsWindow: () => ipcRenderer.invoke('is-settings-window'),
+  isNoteSettingsWindow: () => ipcRenderer.invoke('is-note-settings-window'),
   selectDirectory: () => ipcRenderer.invoke('select-directory'),
   getDefaultSaveLocation: () => ipcRenderer.invoke('get-default-save-location'),
   setAutoLaunch: (enabled: boolean) => ipcRenderer.invoke('set-auto-launch', enabled),
@@ -92,6 +96,30 @@ contextBridge.exposeInMainWorld('fileOps', {
     ipcRenderer.invoke('save-collections-file', collectionsData, saveLocation),
   readCollectionsFile: (saveLocation: string) =>
     ipcRenderer.invoke('read-collections-file', saveLocation),
+})
+
+// Expose crash recovery APIs
+interface RecoveryData {
+  noteId: string;
+  title: string;
+  content: string;
+  timestamp: number;
+  saveLocation?: string;
+}
+
+contextBridge.exposeInMainWorld('recovery', {
+  // Store recovery data for a note (called periodically during editing)
+  storeRecoveryData: (data: RecoveryData) =>
+    ipcRenderer.invoke('store-recovery-data', data),
+  // Clear recovery data after successful save
+  clearRecoveryData: (noteId: string) =>
+    ipcRenderer.invoke('clear-recovery-data', noteId),
+  // Get all pending recovery data (for startup recovery dialog)
+  getRecoveryData: () =>
+    ipcRenderer.invoke('get-recovery-data'),
+  // Clear all recovery data (after user dismisses recovery)
+  clearAllRecoveryData: () =>
+    ipcRenderer.invoke('clear-all-recovery-data'),
 })
 
 

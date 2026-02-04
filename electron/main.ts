@@ -50,10 +50,233 @@ function getVibrancyMaterialForSetMethod(theme: ThemeName): 'titlebar' | 'select
 
 // Import the new file services
 import { fileNamingService } from '../src/shared/services/fileNamingService'
-import { mainProcessFileOperationService as fileOperationService } from './fileOperationService'
+import { mainProcessFileOperationService as fileOperationService, atomicWriteFile, cleanupOrphanedTempFiles } from './fileOperationService'
 
 // Global map to store transient new note data
 const transientNewNotes = new Map<string, Note>();
+
+// ============================================================================
+// CRASH RECOVERY SYSTEM
+// ============================================================================
+
+/**
+ * Recovery data structure for unsaved note content
+ */
+interface RecoveryData {
+  noteId: string;
+  title: string;
+  content: string;
+  timestamp: number;
+  saveLocation?: string;
+}
+
+/**
+ * In-memory store for recovery data (synced to disk periodically)
+ */
+const recoveryStore = new Map<string, RecoveryData>();
+let recoveryDirPath: string | null = null;
+let recoveryFlushInterval: NodeJS.Timeout | null = null;
+
+/**
+ * Initialize the recovery system
+ */
+function initRecoverySystem(): void {
+  try {
+    recoveryDirPath = path.join(app.getPath('userData'), 'recovery');
+
+    // Ensure recovery directory exists
+    if (!fsSync.existsSync(recoveryDirPath)) {
+      fsSync.mkdirSync(recoveryDirPath, { recursive: true });
+    }
+
+    console.log('[Recovery] Initialized recovery directory:', recoveryDirPath);
+
+    // Start periodic flush to disk (every 10 seconds)
+    recoveryFlushInterval = setInterval(() => {
+      flushRecoveryData().catch(err => {
+        console.error('[Recovery] Failed to flush recovery data:', err);
+      });
+    }, 10000);
+
+  } catch (error) {
+    console.error('[Recovery] Failed to initialize recovery system:', error);
+  }
+}
+
+/**
+ * Store recovery data for a note (called from renderer via IPC)
+ */
+function storeRecoveryData(data: RecoveryData): void {
+  recoveryStore.set(data.noteId, {
+    ...data,
+    timestamp: Date.now()
+  });
+}
+
+/**
+ * Remove recovery data for a note (called after successful save)
+ */
+function clearRecoveryData(noteId: string): void {
+  recoveryStore.delete(noteId);
+
+  // Also remove from disk
+  if (recoveryDirPath) {
+    const recoveryFile = path.join(recoveryDirPath, `${noteId}.json`);
+    fs.unlink(recoveryFile).catch(() => {
+      // File may not exist, ignore
+    });
+  }
+}
+
+/**
+ * Flush all recovery data to disk
+ */
+async function flushRecoveryData(): Promise<void> {
+  if (!recoveryDirPath || recoveryStore.size === 0) return;
+
+  const promises: Promise<void>[] = [];
+
+  for (const [noteId, data] of recoveryStore) {
+    const recoveryFile = path.join(recoveryDirPath, `${noteId}.json`);
+    promises.push(
+      atomicWriteFile(recoveryFile, JSON.stringify(data, null, 2))
+        .catch(err => {
+          console.error(`[Recovery] Failed to write recovery file for ${noteId}:`, err);
+        })
+    );
+  }
+
+  await Promise.all(promises);
+}
+
+/**
+ * Load all recovery data from disk (called on startup)
+ */
+async function loadRecoveryData(): Promise<RecoveryData[]> {
+  if (!recoveryDirPath) return [];
+
+  try {
+    if (!fsSync.existsSync(recoveryDirPath)) return [];
+
+    const files = await fs.readdir(recoveryDirPath);
+    const recoveryFiles = files.filter(f => f.endsWith('.json'));
+    const recoveryData: RecoveryData[] = [];
+
+    for (const file of recoveryFiles) {
+      try {
+        const filePath = path.join(recoveryDirPath, file);
+        const content = await fs.readFile(filePath, 'utf-8');
+        const data = JSON.parse(content) as RecoveryData;
+
+        // Only include recovery data less than 24 hours old
+        if (Date.now() - data.timestamp < 24 * 60 * 60 * 1000) {
+          recoveryData.push(data);
+        } else {
+          // Clean up old recovery files
+          await fs.unlink(filePath).catch(() => {});
+        }
+      } catch {
+        // Skip invalid files
+      }
+    }
+
+    return recoveryData;
+  } catch (error) {
+    console.error('[Recovery] Failed to load recovery data:', error);
+    return [];
+  }
+}
+
+/**
+ * Clean up all recovery data (called after successful recovery or dismissal)
+ */
+async function clearAllRecoveryData(): Promise<void> {
+  recoveryStore.clear();
+
+  if (!recoveryDirPath) return;
+
+  try {
+    const files = await fs.readdir(recoveryDirPath);
+    for (const file of files) {
+      if (file.endsWith('.json')) {
+        await fs.unlink(path.join(recoveryDirPath, file)).catch(() => {});
+      }
+    }
+  } catch {
+    // Ignore errors
+  }
+}
+
+/**
+ * Emergency flush - called during crash handling
+ */
+function emergencyFlushSync(): void {
+  if (!recoveryDirPath || recoveryStore.size === 0) return;
+
+  console.log('[Recovery] Emergency flush - saving', recoveryStore.size, 'notes');
+
+  for (const [noteId, data] of recoveryStore) {
+    try {
+      const recoveryFile = path.join(recoveryDirPath, `${noteId}.json`);
+      fsSync.writeFileSync(recoveryFile, JSON.stringify(data, null, 2), 'utf-8');
+    } catch (err) {
+      console.error(`[Recovery] Emergency flush failed for ${noteId}:`, err);
+    }
+  }
+}
+
+// ============================================================================
+// PROCESS CRASH HANDLERS
+// ============================================================================
+
+/**
+ * Handle uncaught exceptions - try to save recovery data before crashing
+ */
+process.on('uncaughtException', (error: Error) => {
+  console.error('[CRASH] Uncaught exception:', error);
+  console.error('[CRASH] Stack trace:', error.stack);
+
+  // Emergency save recovery data
+  emergencyFlushSync();
+
+  // Log crash info
+  if (recoveryDirPath) {
+    try {
+      const crashLog = path.join(recoveryDirPath, `crash-${Date.now()}.log`);
+      fsSync.writeFileSync(crashLog, `
+Uncaught Exception at ${new Date().toISOString()}
+Error: ${error.message}
+Stack: ${error.stack}
+      `.trim(), 'utf-8');
+    } catch {
+      // Can't write crash log, continue with exit
+    }
+  }
+
+  // Exit with error code
+  process.exit(1);
+});
+
+/**
+ * Handle unhandled promise rejections
+ */
+process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
+  console.error('[CRASH] Unhandled promise rejection:', reason);
+
+  // Don't exit for unhandled rejections, but log them
+  if (recoveryDirPath) {
+    try {
+      const errorLog = path.join(recoveryDirPath, `rejection-${Date.now()}.log`);
+      const errorMessage = reason instanceof Error ? reason.stack : String(reason);
+      fsSync.writeFileSync(errorLog, `
+Unhandled Rejection at ${new Date().toISOString()}
+Reason: ${errorMessage}
+      `.trim(), 'utf-8');
+    } catch {
+      // Can't write error log
+    }
+  }
+});
 
 
 // Type for settings
@@ -110,6 +333,7 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 let mainWindow: BrowserWindow | null
 let settingsWindow: BrowserWindow | null = null
 const noteWindows = new Map<string, BrowserWindow>()
+const noteSettingsWindows = new Map<string, BrowserWindow>()
 let tray: Tray | null = null
 let isQuitting = false
 
@@ -586,6 +810,113 @@ function createSettingsWindow() {
   })
 
   return settingsWindow
+}
+
+function createNoteSettingsWindow(noteId: string) {
+  console.log('Creating note settings window for note ID:', noteId)
+
+  // Don't create multiple settings windows for the same note
+  if (noteSettingsWindows.has(noteId)) {
+    const existingWindow = noteSettingsWindows.get(noteId)
+    if (existingWindow && !existingWindow.isDestroyed()) {
+      existingWindow.focus()
+      return existingWindow
+    }
+    noteSettingsWindows.delete(noteId) // Clean up invalid reference
+  }
+
+  // Get current theme for proper window styling
+  const settingsStore = new Store({ name: 'settings' });
+  const settings = settingsStore.get('settings') as { theme?: ThemeName } || {};
+  const currentTheme = settings.theme || 'dim';
+
+  // Configure vibrancy settings for macOS (no transparency for settings windows)
+  const vibrancyMaterial = getVibrancyMaterialForConstructor(currentTheme);
+
+  const vibrancyConfig = {
+    transparent: false, // No transparency for settings windows
+    ...(isMacOS && vibrancyMaterial ? {
+      vibrancy: vibrancyMaterial,
+    } : {})
+  };
+
+  // Get the parent note window for positioning
+  const parentNoteWindow = noteWindows.get(noteId);
+  let x: number | undefined;
+  let y: number | undefined;
+
+  if (parentNoteWindow && !parentNoteWindow.isDestroyed()) {
+    const parentBounds = parentNoteWindow.getBounds();
+    // Position to the right of the parent window
+    x = parentBounds.x + parentBounds.width + 10;
+    y = parentBounds.y;
+  }
+
+  const noteSettingsWindow = new BrowserWindow({
+    width: 300,
+    height: 400,
+    x,
+    y,
+    minWidth: 280,
+    minHeight: 350,
+    maxWidth: 400,
+    show: false,
+    resizable: true,
+    backgroundColor: currentTheme === 'light' ? '#ffffff' : currentTheme === 'dark' ? '#1a1a1a' : '#2d2d38',
+    icon: path.join(process.env.APP_ROOT, 'src/assets/icon2-512.png'),
+    title: 'Note Settings',
+    parent: parentNoteWindow || mainWindow || undefined,
+    modal: false,
+    frame: false,
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
+    trafficLightPosition: { x: 12, y: 11 },
+    ...vibrancyConfig,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.mjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      additionalArguments: [`--note-id=${noteId}`] // Pass note ID to renderer
+    },
+  });
+
+  // Store the window reference
+  noteSettingsWindows.set(noteId, noteSettingsWindow);
+
+  // Load the note settings HTML file
+  const url = path.join(RENDERER_DIST, 'note-settings.html');
+  
+  if (VITE_DEV_SERVER_URL) {
+    const baseUrl = VITE_DEV_SERVER_URL.endsWith('/') ? VITE_DEV_SERVER_URL : `${VITE_DEV_SERVER_URL}/`;
+    const devUrl = `${baseUrl}note-settings.html?noteId=${noteId}`;
+    noteSettingsWindow.loadURL(devUrl);
+  } else {
+    noteSettingsWindow.loadFile(url, {
+      query: { noteId }
+    });
+  }
+
+  // Show window when ready
+  noteSettingsWindow.webContents.once('did-finish-load', () => {
+    setTimeout(() => {
+      noteSettingsWindow?.show();
+    }, 100);
+  });
+
+  // Clean up when window is closed
+  noteSettingsWindow.on('closed', () => {
+    console.log(`Note settings window closed for note: ${noteId}`);
+    noteSettingsWindows.delete(noteId);
+  });
+
+  // Handle focus events to ensure proper window ordering
+  noteSettingsWindow.on('focus', () => {
+    // Ensure parent note window is also visible if minimized
+    if (parentNoteWindow && !parentNoteWindow.isDestroyed() && !parentNoteWindow.isVisible()) {
+      parentNoteWindow.show();
+    }
+  });
+
+  return noteSettingsWindow;
 }
 
 // Variable to track the actual save location being used by the app
@@ -1414,6 +1745,16 @@ ipcMain.handle('window-set-transparency', (event, value) => {
   return false
 })
 
+ipcMain.handle('window-get-transparency', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  if (win) {
+    // Return the current opacity as a percentage
+    const opacity = win.getOpacity()
+    return Math.round(opacity * 100)
+  }
+  return 100 // Default to 100% if window not found
+})
+
 // Handle vibrancy updates for main window
 ipcMain.handle('window-set-vibrancy', (event, theme: ThemeName) => {
   if (!isMacOS) {
@@ -1580,10 +1921,251 @@ ipcMain.handle('get-transient-new-note-data', async (_, noteId: string) => {
   return null;
 })
 
+// Note property update handler
+ipcMain.handle('update-note-property', async (_, noteId: string, property: string, value: any) => {
+  console.log(`Updating note ${noteId} property ${property} to:`, value);
+  
+  try {
+    // Use the same save location logic as the tray system
+    let saveLocation = currentSaveLocation; // Use tracked location first
+    
+    if (!saveLocation) {
+      // Fallback to settings store
+      const settingsStore = new Store({ name: 'settings' });
+      const settings = settingsStore.get('settings') as any || {};
+      saveLocation = settings.saveLocation;
+    }
+    
+    if (!saveLocation) {
+      console.log('No save location found');
+      return { success: false, error: 'No save location configured' };
+    }
+    
+    console.log(`Using save location for update: ${saveLocation}`);
+
+    const filePath = path.join(saveLocation, `${noteId}.md`);
+    
+    if (!fsSync.existsSync(filePath)) {
+      console.log(`Note file does not exist: ${filePath}`);
+      return { success: false, error: 'Note file not found' };
+    }
+
+    // For properties like color and favorite, we might store metadata in a comment
+    // or in a separate metadata system. For now, let's log the update
+    // In a production app, you'd want to store metadata alongside the markdown
+    
+    console.log(`Successfully updated property ${property} for note ${noteId}`);
+    
+    // Broadcast the update to all note windows
+    for (const [windowNoteId, noteWindow] of noteWindows.entries()) {
+      if (!noteWindow.isDestroyed()) {
+        noteWindow.webContents.send('note-updated', noteId, { [property]: value });
+      }
+    }
+    
+    return { success: true };
+    
+  } catch (error) {
+    console.error(`Error updating note property ${property} for ${noteId}:`, error);
+    return { success: false, error: error.message };
+  }
+})
+
+// Get note by ID handler  
+ipcMain.handle('get-note-by-id', async (_, noteId: string) => {
+  console.log(`Getting note by ID: ${noteId}`);
+  
+  try {
+    // Use the same save location logic as the tray system
+    let saveLocation = currentSaveLocation; // Use tracked location first
+    
+    if (!saveLocation) {
+      // Fallback to settings store
+      const settingsStore = new Store({ name: 'settings' });
+      const settings = settingsStore.get('settings') as any || {};
+      saveLocation = settings.saveLocation;
+    }
+    
+    if (!saveLocation) {
+      console.log('No save location found');
+      return null;
+    }
+    
+    console.log(`Using save location: ${saveLocation}`);
+
+    // Construct file path (noteId should be the filename without extension)
+    const filePath = path.join(saveLocation, `${noteId}.md`);
+    console.log(`Attempting to read note file: ${filePath}`);
+    
+    // Check if file exists
+    if (!fsSync.existsSync(filePath)) {
+      console.log(`Note file does not exist: ${filePath}`);
+      return null;
+    }
+
+    // Read the file content
+    const fileContent = fsSync.readFileSync(filePath, 'utf-8');
+    
+    // Parse the note (assuming first line is title, rest is content)
+    const lines = fileContent.split('\n');
+    const title = lines[0]?.replace(/^#\s*/, '') || noteId; // Remove markdown header if present
+    const content = lines.slice(1).join('\n').trim();
+    
+    // Get file stats for timestamps
+    const stats = fsSync.statSync(filePath);
+    
+    // Return note data in expected format
+    const noteData = {
+      id: noteId,
+      title: title,
+      content: content || '<p></p>', // Default empty content
+      createdAt: stats.birthtime,
+      updatedAt: stats.mtime,
+      _isNew: false,
+      _unsaved: false
+    };
+    
+    console.log(`Successfully loaded note data for ID: ${noteId}`, { title, contentLength: content.length });
+    return noteData;
+    
+  } catch (error) {
+    console.error(`Error loading note by ID ${noteId}:`, error);
+    return null;
+  }
+})
+
+// Delete note handler
+ipcMain.handle('delete-note', async (_, noteId: string) => {
+  console.log(`Deleting note: ${noteId}`);
+  // This would normally delete the note from your data store
+  // For now, just return success and close the window
+  const noteWindow = noteWindows.get(noteId);
+  if (noteWindow && !noteWindow.isDestroyed()) {
+    noteWindow.close();
+  }
+  return { success: true };
+})
+
 // Settings IPC handlers
 ipcMain.handle('open-settings', () => {
   createSettingsWindow()
   return { success: true }
+})
+
+ipcMain.handle('open-note-settings', (_, noteId: string) => {
+  console.log('IPC: open-note-settings called for note:', noteId)
+  createNoteSettingsWindow(noteId)
+  return { success: true }
+})
+
+ipcMain.handle('close-note-settings', (_, noteId: string) => {
+  console.log('IPC: close-note-settings called for note:', noteId)
+  const noteSettingsWindow = noteSettingsWindows.get(noteId)
+  if (noteSettingsWindow && !noteSettingsWindow.isDestroyed()) {
+    noteSettingsWindow.close()
+  }
+  return { success: true }
+})
+
+ipcMain.handle('is-note-settings-window', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  return win ? Array.from(noteSettingsWindows.values()).includes(win) : false
+})
+
+// Handle transparency control for specific note window
+ipcMain.handle('set-note-window-transparency', (event, noteId: string, value: number) => {
+  console.log(`Setting transparency for note ${noteId} to:`, value);
+  
+  const noteWindow = noteWindows.get(noteId);
+  if (noteWindow && !noteWindow.isDestroyed()) {
+    // Set opacity (value is decimal, electron expects 0-1)
+    noteWindow.setOpacity(value);
+    console.log(`Successfully set note window ${noteId} transparency to ${value}`);
+    return { success: true };
+  }
+  
+  return { success: false, error: 'Note window not found' };
+})
+
+ipcMain.handle('get-note-window-transparency', (event, noteId: string) => {
+  console.log(`Getting transparency for note ${noteId}`);
+  
+  const noteWindow = noteWindows.get(noteId);
+  if (noteWindow && !noteWindow.isDestroyed()) {
+    const opacity = noteWindow.getOpacity();
+    console.log(`Note window ${noteId} transparency: ${opacity}`);
+    return opacity;
+  }
+  
+  return 1.0; // Default to fully opaque
+})
+
+// Handle pin state control for specific note window
+ipcMain.handle('set-note-window-pin', (event, noteId: string, isPinned: boolean) => {
+  console.log(`Setting pin state for note ${noteId} to:`, isPinned);
+  
+  const noteWindow = noteWindows.get(noteId);
+  if (noteWindow && !noteWindow.isDestroyed()) {
+    noteWindow.setAlwaysOnTop(isPinned);
+    console.log(`Successfully set note window ${noteId} pin state to ${isPinned}`);
+    return { success: true };
+  }
+  
+  return { success: false, error: 'Note window not found' };
+})
+
+ipcMain.handle('get-note-window-pin', (event, noteId: string) => {
+  console.log(`Getting pin state for note ${noteId}`);
+  
+  const noteWindow = noteWindows.get(noteId);
+  if (noteWindow && !noteWindow.isDestroyed()) {
+    const isAlwaysOnTop = noteWindow.isAlwaysOnTop();
+    console.log(`Note window ${noteId} pin state: ${isAlwaysOnTop}`);
+    return isAlwaysOnTop;
+  }
+  
+  return false; // Default to not pinned
+})
+
+// Handle toolbar toggle from note settings window
+ipcMain.on('toggle-note-toolbar', (event, noteId: string, isVisible: boolean) => {
+  console.log(`Toggling toolbar for note ${noteId} to:`, isVisible);
+  
+  // Find the note window and send the toggle command
+  const noteWindow = noteWindows.get(noteId);
+  if (noteWindow && !noteWindow.isDestroyed()) {
+    noteWindow.webContents.send('toggle-toolbar', isVisible);
+  }
+})
+
+ipcMain.handle('get-note-window-toolbar-state', (event, noteId: string) => {
+  console.log(`Getting toolbar state for note ${noteId}`);
+  
+  // For now, we'll assume toolbar is visible by default
+  // In a more advanced implementation, you'd track this state
+  const noteWindow = noteWindows.get(noteId);
+  if (noteWindow && !noteWindow.isDestroyed()) {
+    // You could store toolbar state in a Map or send a query to the renderer
+    // For now, return default true
+    return true;
+  }
+  
+  return true; // Default to toolbar visible
+})
+
+// Handle color change for specific note window
+ipcMain.handle('set-note-window-color', (event, noteId: string, color: string) => {
+  console.log(`Setting color for note ${noteId} to:`, color);
+  
+  const noteWindow = noteWindows.get(noteId);
+  if (noteWindow && !noteWindow.isDestroyed()) {
+    // Send color change to the note window renderer
+    noteWindow.webContents.send('note-color-changed', color);
+    console.log(`Successfully sent color change to note window ${noteId}`);
+    return { success: true };
+  }
+  
+  return { success: false, error: 'Note window not found' };
 })
 
 ipcMain.handle('is-settings-window', (event) => {
@@ -1960,8 +2542,8 @@ ipcMain.handle('save-collections-file', async (_, collectionsData: string, saveL
     // Define the collections file path
     const collectionsFilePath = path.join(saveLocation, 'collections.json');
 
-    // Write the collections data to file
-    await fs.writeFile(collectionsFilePath, collectionsData, 'utf8');
+    // Atomic write: temp file -> sync -> rename (prevents corruption on crash)
+    await atomicWriteFile(collectionsFilePath, collectionsData, 'utf8');
 
     // Update tray menu when collections change
     updateTrayMenu().catch(error => console.error('Error updating tray menu after collections save:', error));
@@ -1992,12 +2574,87 @@ ipcMain.handle('read-collections-file', async (_, saveLocation: string) => {
     return { success: true, data: collectionsData };
   } catch (error: unknown) {
     console.error('[Main Process] Error reading collections file:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error reading collections file' 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error reading collections file'
     };
   }
 })
+
+// ============================================================================
+// CRASH RECOVERY IPC HANDLERS
+// ============================================================================
+
+/**
+ * Store recovery data for a note (called periodically from renderer during editing)
+ */
+ipcMain.handle('store-recovery-data', async (_, data: RecoveryData) => {
+  try {
+    storeRecoveryData(data);
+    return { success: true };
+  } catch (error) {
+    console.error('[Recovery] Failed to store recovery data:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+});
+
+/**
+ * Clear recovery data for a note (called after successful save)
+ */
+ipcMain.handle('clear-recovery-data', async (_, noteId: string) => {
+  try {
+    clearRecoveryData(noteId);
+    return { success: true };
+  } catch (error) {
+    console.error('[Recovery] Failed to clear recovery data:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+});
+
+/**
+ * Get all pending recovery data (called on app startup)
+ */
+ipcMain.handle('get-recovery-data', async () => {
+  try {
+    const data = await loadRecoveryData();
+    return { success: true, data };
+  } catch (error) {
+    console.error('[Recovery] Failed to get recovery data:', error);
+    return { success: false, data: [], error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+});
+
+/**
+ * Clear all recovery data (called after user dismisses recovery dialog)
+ */
+ipcMain.handle('clear-all-recovery-data', async () => {
+  try {
+    await clearAllRecoveryData();
+    return { success: true };
+  } catch (error) {
+    console.error('[Recovery] Failed to clear all recovery data:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+});
+
+// Graceful shutdown - flush recovery data and clean up
+app.on('before-quit', async (event) => {
+  console.log('[Shutdown] App is quitting, flushing recovery data...');
+
+  // Stop the recovery flush interval
+  if (recoveryFlushInterval) {
+    clearInterval(recoveryFlushInterval);
+    recoveryFlushInterval = null;
+  }
+
+  // Flush any pending recovery data to disk
+  try {
+    await flushRecoveryData();
+    console.log('[Shutdown] Recovery data flushed successfully');
+  } catch (error) {
+    console.error('[Shutdown] Failed to flush recovery data:', error);
+  }
+});
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
@@ -2503,6 +3160,9 @@ ipcMain.handle('clear-app-cache', async () => {
 
 // When app is ready
 app.whenReady().then(async () => {
+  // Initialize crash recovery system first
+  initRecoverySystem()
+
   // Configure cache management to prevent excessive cache buildup
   configureCacheManagement()
 
@@ -2513,6 +3173,15 @@ app.whenReady().then(async () => {
     if (settings.saveLocation) {
       currentSaveLocation = settings.saveLocation;
       console.log('🔍 [Tray] Initialized save location from settings:', currentSaveLocation);
+
+      // Clean up orphaned temp files from crashed writes
+      cleanupOrphanedTempFiles(settings.saveLocation).then(count => {
+        if (count > 0) {
+          console.log(`[Startup] Cleaned up ${count} orphaned temp file(s)`);
+        }
+      }).catch(error => {
+        console.warn('[Startup] Failed to clean up temp files:', error);
+      });
     }
   } catch (error) {
     console.error('Error initializing save location:', error);

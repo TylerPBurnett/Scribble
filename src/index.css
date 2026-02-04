@@ -148,78 +148,73 @@ textarea {
 /* Import Inter font from Google Fonts */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
 
-@layer base {
+/* Tailwind directives are imported via shared/styles/index.css */
 
-  /* Theme-specific styles are now managed by the Tailwind theme plugin */
-  /* Direct styling for theme classes */
-  .theme-dim,
-  :root.dim,
-  [data-theme="dim"] {
-    background-color: hsl(231, 15%, 20%);
-    color: hsl(60, 9.1%, 97.8%);
-  }
+/* Theme-specific styles are now managed by the Tailwind theme plugin */
+/* Direct styling for theme classes */
+.theme-dim,
+:root.dim,
+[data-theme="dim"] {
+  background-color: hsl(231, 15%, 20%);
+  color: hsl(60, 9.1%, 97.8%);
+}
 
-  .theme-dark,
-  :root.dark,
-  [data-theme="dark"] {
+.theme-dark,
+:root.dark,
+[data-theme="dark"] {
     background-color: hsl(0, 0%, 10%);
     color: hsl(0, 0%, 100%);
   }
 
-  .theme-light,
-  :root.light,
-  [data-theme="light"] {
+.theme-light,
+:root.light,
+[data-theme="light"] {
     background-color: transparent;
     color: hsl(210, 10%, 23%);
   }
 
-  .theme-lightv2,
-  :root.lightv2,
-  [data-theme="lightv2"] {
+.theme-lightv2,
+:root.lightv2,
+[data-theme="lightv2"] {
     background-color: hsl(0, 0%, 100%);
     color: hsl(217, 19%, 27%);
   }
-}
 
-
-
-@layer base {
-  * {
+* {
     border-color: hsl(var(--border));
   }
 
-  body {
+body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
   }
 
   /* Ensure light theme has transparent background for window transparency */
-  .theme-light body,
-  :root.light body,
-  [data-theme="light"] body {
+.theme-light body,
+:root.light body,
+[data-theme="light"] body {
     background-color: transparent !important;
   }
   
   /* Also ensure html is transparent for light theme */
-  .theme-light html,
-  :root.light html,
-  [data-theme="light"] html {
+.theme-light html,
+:root.light html,
+[data-theme="light"] html {
     background-color: transparent !important;
   }
   
   /* LightV2 has solid backgrounds */
-  .theme-lightv2 body,
-  :root.lightv2 body,
-  [data-theme="lightv2"] body {
+.theme-lightv2 body,
+:root.lightv2 body,
+[data-theme="lightv2"] body {
     background-color: hsl(var(--background));
   }
-  
-  .theme-lightv2 html,
-  :root.lightv2 html,
-  [data-theme="lightv2"] html {
+
+.theme-lightv2 html,
+:root.lightv2 html,
+[data-theme="lightv2"] html {
     background-color: hsl(var(--background));
   }
-}
 
 /* Animations */
 @keyframes fadeIn {

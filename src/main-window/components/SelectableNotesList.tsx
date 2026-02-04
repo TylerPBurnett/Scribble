@@ -8,6 +8,7 @@ import { useRenderPerformance } from '../../shared/hooks/usePerformanceMonitorin
 import { useMemoizedFilter, useMemoizedSort, useMemoizedCategorization } from '../../shared/hooks/useAsyncMemo';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
 
 // TypeScript interfaces for component props and internal state
 interface SelectableNotesListProps {
@@ -411,13 +412,13 @@ const SelectableNotesList = ({
   );
 
   // Header Controls Component - memoized to prevent unnecessary re-renders
-  const HeaderControls = memo(({ 
-    isSelectionMode, 
+  const HeaderControls = memo(({
+    isSelectionMode,
     hasNotes,
     selectedCount,
-    onEnterSelection, 
-    onSelectAll, 
-    onDeselectAll, 
+    onEnterSelection,
+    onSelectAll,
+    onDeselectAll,
     onCancel,
     onBulkDelete,
     onBulkMoveToCollection,
@@ -431,41 +432,102 @@ const SelectableNotesList = ({
 
     if (isSelectionMode) {
       return (
-        <div className="flex space-x-2" role="toolbar" aria-label="Selection controls">
-          {/* Bulk Action Buttons - show only when notes are selected */}
+        <div className="flex items-center gap-1.5" role="toolbar" aria-label="Selection controls">
+          {/* Bulk Action Buttons - Floating pill-style container */}
           {selectedCount > 0 && (
-            <>
-              <Button
-                size="sm"
-                variant="destructive"
+            <div
+              className="flex items-center gap-1 px-2 py-1 rounded-full bg-background-tertiary/50 backdrop-blur-sm border border-border/30 animate-in fade-in slide-in-from-top-1 duration-200"
+              style={{
+                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+              }}
+            >
+              {/* Count Badge */}
+              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-primary/10 rounded-full">
+                <svg
+                  width="10"
+                  height="10"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="text-primary"
+                >
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                <span className="text-[10px] font-medium text-primary tabular-nums">
+                  {selectedCount}
+                </span>
+              </div>
+
+              {/* Divider */}
+              <div className="w-px h-3.5 bg-border/40" />
+
+              {/* Delete Button */}
+              <button
                 onClick={onBulkDelete}
                 disabled={isLoading}
-                className="text-xs h-6 px-2"
+                className="group flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium text-danger/90 hover:text-danger hover:bg-danger/10 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label={`Delete ${selectedCount} selected notes`}
                 tabIndex={0}
               >
-                {isLoading ? '...' : `Delete (${selectedCount})`}
-              </Button>
-              
+                <svg
+                  width="11"
+                  height="11"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="transition-transform duration-150 group-hover:scale-110"
+                >
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+                {!isLoading && <span>Delete</span>}
+              </button>
+
+              {/* Move to Collection Button */}
               {availableCollections.length > 0 && (
                 <div className="relative" data-move-collection-menu>
-                  <Button
-                    size="sm"
-                    variant="ghost"
+                  <button
                     onClick={() => setShowMoveToCollectionMenu(true)}
                     disabled={isLoading}
-                    className="text-xs h-6 px-2"
+                    className="group flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium text-text-secondary hover:text-text hover:bg-background-notes/20 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
                     aria-label={`Move ${selectedCount} selected notes to collection`}
                     tabIndex={0}
                   >
-                    {isLoading ? '...' : `Move (${selectedCount})`}
-                  </Button>
-                  
-                  {/* Move to Collection Dropdown */}
+                    <svg
+                      width="11"
+                      height="11"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="transition-transform duration-150 group-hover:scale-110"
+                    >
+                      <path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                    {!isLoading && <span>Move</span>}
+                  </button>
+
+                  {/* Move to Collection Dropdown - Enhanced */}
                   {showMoveToCollectionMenu && (
-                    <div className="absolute right-0 top-8 bg-popover border rounded-md shadow-lg z-50 min-w-[150px]" data-move-collection-menu>
+                    <div
+                      className="absolute right-0 top-7 bg-popover/95 backdrop-blur-xl border border-border/50 rounded-lg shadow-2xl z-50 min-w-[160px] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
+                      data-move-collection-menu
+                      style={{
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.08)',
+                      }}
+                    >
+                      <div className="px-2.5 py-1.5 text-[9px] font-semibold text-text-tertiary tracking-wider uppercase border-b border-border/30">
+                        Move to Collection
+                      </div>
                       <div className="py-1">
-                        <div className="px-3 py-1 text-xs text-text-tertiary border-b">Move to:</div>
                         {availableCollections
                           .filter(col => col.id !== activeCollectionId)
                           .map(collection => (
@@ -473,7 +535,7 @@ const SelectableNotesList = ({
                             key={collection.id}
                             onClick={() => onBulkMoveToCollection(collection.id)}
                             disabled={isLoading}
-                            className="w-full text-left px-3 py-1 text-xs hover:bg-secondary transition-colors"
+                            className="w-full text-left px-2.5 py-1.5 text-[11px] font-medium text-text-secondary hover:text-text hover:bg-background-notes/20 transition-all duration-100 disabled:opacity-50"
                           >
                             {collection.name}
                           </button>
@@ -483,61 +545,88 @@ const SelectableNotesList = ({
                   )}
                 </div>
               )}
-              
-              <div className="w-px h-4 bg-border" /> {/* Separator */}
-            </>
+            </div>
           )}
-          
-          {/* Selection Control Buttons */}
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={onSelectAll}
-            disabled={isLoading}
-            className="text-xs h-6 px-2"
-            aria-label="Select all notes"
-            tabIndex={0}
-          >
-            Select All
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={onDeselectAll}
-            disabled={isLoading}
-            className="text-xs h-6 px-2"
-            aria-label="Deselect all notes"
-            tabIndex={0}
-          >
-            Deselect All
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onCancel}
-            disabled={isLoading}
-            className="text-xs h-6 px-2"
-            aria-label="Cancel selection mode"
-            tabIndex={0}
-          >
-            Cancel
-          </Button>
+
+          {/* Selection Controls - Minimalist */}
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={onSelectAll}
+              disabled={isLoading}
+              className="px-2 py-1 text-[10px] font-medium text-text-tertiary hover:text-text rounded-md hover:bg-background-tertiary/30 transition-all duration-100"
+              aria-label="Select all notes"
+              tabIndex={0}
+            >
+              All
+            </button>
+            <button
+              onClick={onDeselectAll}
+              disabled={isLoading}
+              className="px-2 py-1 text-[10px] font-medium text-text-tertiary hover:text-text rounded-md hover:bg-background-tertiary/30 transition-all duration-100"
+              aria-label="Deselect all notes"
+              tabIndex={0}
+            >
+              None
+            </button>
+
+            {/* Divider */}
+            <div className="w-px h-3.5 bg-border/40 mx-0.5" />
+
+            {/* Cancel Button - Emphasized */}
+            <button
+              onClick={onCancel}
+              disabled={isLoading}
+              className="group flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-text-secondary hover:text-text rounded-md hover:bg-background-tertiary/50 transition-all duration-100"
+              aria-label="Cancel selection mode"
+              tabIndex={0}
+            >
+              <svg
+                width="9"
+                height="9"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="transition-transform duration-150 group-hover:rotate-90"
+              >
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+              <span>Done</span>
+            </button>
+          </div>
         </div>
       );
     }
 
     // Hide Select button when notes list is empty (requirement 1.3)
     return hasNotes ? (
-      <Button
-        size="sm"
-        variant="ghost"
+      <button
         onClick={onEnterSelection}
-        className="text-xs h-6 px-2"
+        className="group flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-text-tertiary hover:text-text rounded-md hover:bg-background-tertiary/30 transition-all duration-150"
         aria-label="Enter selection mode to select multiple notes"
         tabIndex={0}
       >
-        Select
-      </Button>
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="transition-transform duration-150 group-hover:scale-110"
+        >
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+        </svg>
+        <span>Select</span>
+      </button>
     ) : null;
   });
 
@@ -576,10 +665,37 @@ const SelectableNotesList = ({
     }, [handleCheckboxToggle]);
 
     return (
-      <div className="flex items-center">
+      <div
+        className={cn(
+          "relative group/noteitem transition-all duration-200 ease-out",
+          isSelectionMode
+            ? "hover:translate-y-[-1px]" // Subtle lift in selection mode
+            : "hover:translate-y-[-2px] hover:scale-[1.02]" // Full effect in normal mode
+        )}
+      >
+        {/* Selection Overlay - Subtle highlight when selected */}
+        {isSelectionMode && isSelected && (
+          <div className="absolute inset-0 rounded-xl border-2 border-primary/40 pointer-events-none z-[5] animate-in fade-in duration-200">
+            <div className="absolute inset-0 bg-primary/5 rounded-xl" />
+          </div>
+        )}
+
+        <NoteCard
+          key={note.title}
+          note={note}
+          onClick={handleClick}
+          isActive={isActive}
+          onDelete={onDelete}
+          isFavorite={note.favorite}
+          onCollectionUpdate={onCollectionUpdate}
+          allNotes={allNotes}
+          isSelectionMode={isSelectionMode}
+        />
+
+        {/* Floating Checkbox Badge - Integrated into card */}
         {isSelectionMode && (
           <div
-            className="mr-2 cursor-pointer"
+            className="absolute top-2 left-2 z-10 cursor-pointer animate-in fade-in zoom-in-95 duration-200"
             onKeyDown={handleCheckboxKeyDown}
             onClick={handleCheckboxToggle}
             tabIndex={0}
@@ -587,27 +703,54 @@ const SelectableNotesList = ({
             aria-checked={isSelected}
             aria-label={`Select note: ${note.title}`}
           >
-            <Checkbox
-              checked={isSelected}
-              onCheckedChange={() => {}} // Disable the internal handler
-              aria-hidden="true"
-              tabIndex={-1}
-              className="pointer-events-none" // Prevent checkbox internal clicks
-            />
+            {/* Checkbox Container with glassmorphic effect */}
+            <div
+              className={cn(
+                "relative flex items-center justify-center w-6 h-6 rounded-full backdrop-blur-md transition-all duration-200",
+                "shadow-[0_2px_8px_rgba(0,0,0,0.12)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.18)]",
+                "border-2 hover:scale-110 active:scale-95",
+                isSelected
+                  ? "bg-primary/95 border-primary/80 scale-100"
+                  : "bg-background/70 border-border/60 hover:border-primary/50 hover:bg-background/80"
+              )}
+              style={{
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+              }}
+            >
+              {/* Checkmark with smooth animation */}
+              <svg
+                width="11"
+                height="11"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className={cn(
+                  "transition-all duration-200",
+                  isSelected
+                    ? "text-primary-foreground opacity-100 scale-100"
+                    : "text-text-tertiary opacity-0 scale-50"
+                )}
+              >
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+
+              {/* Ripple effect on selection */}
+              {isSelected && (
+                <div
+                  className="absolute inset-0 rounded-full bg-primary/40 animate-ping"
+                  style={{
+                    animationDuration: '600ms',
+                    animationIterationCount: '1',
+                  }}
+                />
+              )}
+            </div>
           </div>
         )}
-        <div className="flex-1">
-          <NoteCard
-            key={note.title}
-            note={note}
-            onClick={handleClick}
-            isActive={isActive}
-            onDelete={onDelete}
-            isFavorite={note.favorite}
-            onCollectionUpdate={onCollectionUpdate}
-            allNotes={allNotes}
-          />
-        </div>
       </div>
     );
   });

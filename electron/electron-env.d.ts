@@ -65,5 +65,18 @@ interface Window {
     setPinState: (noteId: string, isPinned: boolean) => Promise<boolean>
     setTransparency: (value: number) => Promise<void>
   }
+  recovery: {
+    storeRecoveryData: (data: RecoveryData) => Promise<{ success: boolean; error?: string }>
+    clearRecoveryData: (noteId: string) => Promise<{ success: boolean; error?: string }>
+    getRecoveryData: () => Promise<{ success: boolean; data: RecoveryData[]; error?: string }>
+    clearAllRecoveryData: () => Promise<{ success: boolean; error?: string }>
+  }
+}
 
+interface RecoveryData {
+  noteId: string
+  title: string
+  content: string
+  timestamp: number
+  saveLocation?: string
 }

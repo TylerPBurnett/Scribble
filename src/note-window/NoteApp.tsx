@@ -11,6 +11,7 @@ function NoteApp() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null)
+  const [isToolbarVisible, setIsToolbarVisible] = useState(true)
 
   // Load note on startup
   useEffect(() => {
@@ -90,6 +91,36 @@ function NoteApp() {
     loadNote();
   }, [])
 
+  // Listen for messages from settings window
+  useEffect(() => {
+    const handleColorChange = (event: CustomEvent) => {
+      const { color } = event.detail;
+      console.log('NoteApp received color change:', color);
+      
+      // Update the active note with the new color
+      if (activeNote) {
+        const updatedNote = { ...activeNote, color };
+        setActiveNote(updatedNote);
+      }
+    };
+
+    const handleToolbarToggle = (event: CustomEvent) => {
+      const { isVisible } = event.detail;
+      console.log('NoteApp received toolbar toggle:', isVisible);
+      setIsToolbarVisible(isVisible);
+    };
+
+    // Add event listeners
+    window.addEventListener('noteColorChanged', handleColorChange as EventListener);
+    window.addEventListener('noteToolbarToggle', handleToolbarToggle as EventListener);
+
+    // Cleanup listeners on unmount
+    return () => {
+      window.removeEventListener('noteColorChanged', handleColorChange as EventListener);
+      window.removeEventListener('noteToolbarToggle', handleToolbarToggle as EventListener);
+    };
+  }, [activeNote])
+
   // Handle note save
   const handleNoteSave = async (updatedNote: Note) => {
     setActiveNote(updatedNote)
@@ -152,6 +183,7 @@ function NoteApp() {
             note={activeNote} 
             onSave={handleNoteSave} 
             onChange={handleNoteChange}
+            isToolbarVisible={isToolbarVisible}
           />
         </div>
       </ThemeProvider>

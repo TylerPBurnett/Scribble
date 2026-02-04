@@ -29,6 +29,7 @@ interface TiptapProps {
   backgroundColor?: string; // Background color for the editor
   textColor?: string; // Text color for the editor
   toolbarColor?: string; // Background color for the toolbar
+  isToolbarVisible?: boolean; // Control toolbar visibility from parent
 }
 
 export interface TiptapRef {
@@ -46,6 +47,8 @@ const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
   editorClass = '',
   backgroundColor,
   textColor,
+  toolbarColor,
+  isToolbarVisible: parentToolbarVisible = true,
 }, ref) => {
   // State to track toolbar visibility
   const [isToolbarVisible, setIsToolbarVisible] = useState(true);
@@ -326,6 +329,11 @@ const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
     }
   }, [editor, autofocus]);
 
+  // Sync toolbar visibility with parent prop
+  useEffect(() => {
+    setIsToolbarVisible(parentToolbarVisible);
+  }, [parentToolbarVisible]);
+
 
 
 
@@ -408,7 +416,7 @@ const Tiptap = forwardRef<TiptapRef, TiptapProps>(({
         isVisible={isToolbarVisible}
         onToggle={toggleToolbar}
         theme={theme}
-        backgroundColor={backgroundColor}
+        backgroundColor={toolbarColor || backgroundColor}
       />
 
       <EditorContent

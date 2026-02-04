@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import * as path from 'path';
+import * as crypto from 'crypto';
 
 export interface FileOperationResult {
   success: boolean;
@@ -17,6 +18,92 @@ export interface NoteFileInfo {
 }
 
 // Simplified error handling - just use basic Error class
+
+/**
+ * Atomic file write utility.
+ * Writes to a temp file, syncs to disk, then renames atomically.
+ * This prevents data corruption if the process crashes during write.
+ */
+export async function atomicWriteFile(filePath: string, content: string, encoding: BufferEncoding = 'utf-8'): Promise<void> {
+  const directory = path.dirname(filePath);
+  const filename = path.basename(filePath);
+
+  // Generate unique temp filename to avoid collisions
+  const tempFilename = `.${filename}.${crypto.randomBytes(6).toString('hex')}.tmp`;
+  const tempPath = path.join(directory, tempFilename);
+
+  let fileHandle: fs.FileHandle | null = null;
+
+  try {
+    // Ensure directory exists
+    await fs.mkdir(directory, { recursive: true });
+
+    // Write to temp file with explicit sync
+    fileHandle = await fs.open(tempPath, 'w');
+    await fileHandle.writeFile(content, { encoding });
+
+    // Force write to disk (fsync) - critical for crash safety
+    await fileHandle.sync();
+    await fileHandle.close();
+    fileHandle = null;
+
+    // Atomic rename - this is the commit point
+    // On POSIX systems, rename is atomic if source and dest are on same filesystem
+    await fs.rename(tempPath, filePath);
+  } catch (error) {
+    // Clean up temp file on failure
+    if (fileHandle) {
+      try {
+        await fileHandle.close();
+      } catch {
+        // Ignore close errors during cleanup
+      }
+    }
+
+    try {
+      await fs.unlink(tempPath);
+    } catch {
+      // Temp file may not exist, ignore
+    }
+
+    throw error;
+  }
+}
+
+/**
+ * Clean up orphaned temp files from crashed writes.
+ * Call this on app startup.
+ */
+export async function cleanupOrphanedTempFiles(directory: string): Promise<number> {
+  let cleanedCount = 0;
+
+  try {
+    const files = await fs.readdir(directory);
+
+    for (const file of files) {
+      // Match our temp file pattern: .filename.randomhex.tmp
+      if (file.startsWith('.') && file.endsWith('.tmp')) {
+        const filePath = path.join(directory, file);
+        try {
+          const stats = await fs.stat(filePath);
+          // Only clean up temp files older than 1 minute (avoid race with active writes)
+          const ageMs = Date.now() - stats.mtimeMs;
+          if (ageMs > 60000) {
+            await fs.unlink(filePath);
+            cleanedCount++;
+            console.log(`[FileOps] Cleaned up orphaned temp file: ${file}`);
+          }
+        } catch {
+          // Ignore errors for individual files
+        }
+      }
+    }
+  } catch (error) {
+    console.warn(`[FileOps] Failed to clean up temp files in ${directory}:`, error);
+  }
+
+  return cleanedCount;
+}
 
 export class MainProcessFileOperationService {
 
@@ -44,8 +131,8 @@ export class MainProcessFileOperationService {
       // Ensure directory exists
       await this.ensureDirectoryExists(directory);
 
-      // Write file directly (no atomic operation)
-      await fs.writeFile(filePath, content, 'utf-8');
+      // Atomic write: temp file -> sync -> rename
+      await atomicWriteFile(filePath, content);
 
       return {
         success: true,
@@ -128,8 +215,8 @@ export class MainProcessFileOperationService {
         };
       }
 
-      // Write file directly (no atomic operation)
-      await fs.writeFile(filePath, content, 'utf-8');
+      // Atomic write: temp file -> sync -> rename
+      await atomicWriteFile(filePath, content);
 
       return {
         success: true,
@@ -300,6 +387,33 @@ export class MainProcessFileOperationService {
     }
 
     return sanitized;
+  }
+
+  /**
+   * Save collections file atomically
+   */
+  async saveCollectionsFile(
+    saveLocation: string,
+    collectionsData: string
+  ): Promise<{ success: boolean; filePath?: string; error?: string }> {
+    try {
+      if (!saveLocation) {
+        return { success: false, error: 'No save location provided' };
+      }
+
+      const collectionsFilePath = path.join(saveLocation, 'collections.json');
+
+      // Atomic write for collections
+      await atomicWriteFile(collectionsFilePath, collectionsData, 'utf8');
+
+      return { success: true, filePath: collectionsFilePath };
+    } catch (error: unknown) {
+      console.error('[FileOps] Error saving collections file:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error saving collections file'
+      };
+    }
   }
 
   /**

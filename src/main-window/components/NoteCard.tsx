@@ -17,6 +17,7 @@ interface NoteCardProps {
   isFavorite?: boolean;
   onCollectionUpdate?: () => void;
   allNotes?: Note[]; // Add allNotes prop for collection count updates
+  isSelectionMode?: boolean; // Add selection mode prop for title spacing
 }
 
 // Custom comparison function for React.memo
@@ -29,26 +30,27 @@ const areNoteCardPropsEqual = (prevProps: NoteCardProps, nextProps: NoteCardProp
   if (prevProps.note.favorite !== nextProps.note.favorite) return false;
   if (prevProps.note.pinned !== nextProps.note.pinned) return false;
   if (prevProps.note.updatedAt?.getTime() !== nextProps.note.updatedAt?.getTime()) return false;
-  
+
   // Compare other props
   if (prevProps.isActive !== nextProps.isActive) return false;
   if (prevProps.isPinned !== nextProps.isPinned) return false;
   if (prevProps.isFavorite !== nextProps.isFavorite) return false;
-  
+  if (prevProps.isSelectionMode !== nextProps.isSelectionMode) return false;
+
   // Function props are assumed to be stable (wrapped with useCallback in parent)
   // We don't compare them as they should maintain referential equality
-  
+
   return true;
 };
 
-const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false, isFavorite = false, onCollectionUpdate, allNotes = [] }: NoteCardProps) => {
+const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false, isFavorite = false, onCollectionUpdate, allNotes = [], isSelectionMode = false }: NoteCardProps) => {
   // Performance monitoring
   const componentName = `NoteCard-${note.id}`;
   const { measureOperation } = useNoteCardPerformance(componentName);
   useRenderPerformance(componentName);
   useMemoizationTracking(componentName, [
-    note.id, note.title, note.content, note.color, note.favorite, note.pinned, 
-    note.updatedAt?.getTime(), isActive, isPinned, isFavorite
+    note.id, note.title, note.content, note.color, note.favorite, note.pinned,
+    note.updatedAt?.getTime(), isActive, isPinned, isFavorite, isSelectionMode
   ]);
 
   // Consolidated menu state management
@@ -494,8 +496,7 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
 
       <div
         ref={noteCardRef}
-        className={`note-card ${isActive ? 'selected' : ''} ${isAnimating ? 'scale-95 opacity-90' : ''} rounded-xl overflow-hidden flex flex-col shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer h-note-card w-full
-          hover:translate-y-[-2px] hover:scale-[1.02] group ease-out border border-black/[0.10] dark:border-white/[0.10] dim:border-white/[0.12]`}
+        className={`note-card ${isActive ? 'selected' : ''} ${isAnimating ? 'scale-95 opacity-90' : ''} rounded-xl overflow-hidden flex flex-col shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer h-note-card w-full group ease-out border border-black/[0.10] dark:border-white/[0.10] dim:border-white/[0.12]`}
         onClick={handleNoteClick}
         tabIndex={-1}
         onContextMenu={handleContextMenu}
@@ -514,9 +515,13 @@ const NoteCard = ({ note, onClick, isActive = false, onDelete, isPinned = false,
         className="note-header px-3 py-2 flex items-center justify-between border-b border-black/5"
         style={{ backgroundColor: colorStyle.headerBg || '' }}
       >
-        <h3 
-          className="note-title text-sm font-normal whitespace-nowrap overflow-hidden text-ellipsis max-w-[180px] font-inter"
-          style={{ color: 'var(--note-text-color, inherit)' }}
+        <h3
+          className="note-title text-sm font-normal whitespace-nowrap overflow-hidden text-ellipsis font-inter transition-all duration-200"
+          style={{
+            color: 'var(--note-text-color, inherit)',
+            maxWidth: isSelectionMode ? 'calc(100% - 32px)' : '180px',
+            marginLeft: isSelectionMode ? '32px' : '0'
+          }}
         >
           {note.title || 'Untitled Note'}
         </h3>

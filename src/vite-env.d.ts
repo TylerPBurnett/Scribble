@@ -2,6 +2,9 @@
 
 // Window interface extensions for Electron IPC
 interface Window {
+  // Note settings window specific properties
+  IS_NOTE_SETTINGS_WINDOW?: boolean;
+  NOTE_ID?: string;
   ipcRenderer: {
     on: (channel: string, listener: (event: any, ...args: any[]) => void) => void;
     off: (channel: string, ...args: any[]) => void;
@@ -19,9 +22,10 @@ interface Window {
     close: () => Promise<void>;
     moveWindow: (moveX: number, moveY: number) => Promise<void>;
     togglePin: (shouldPin: boolean) => Promise<void>;
-    isPinned: () => Promise<boolean>;
+    isWindowPinned: () => Promise<boolean>;
     setPinState: (noteId: string, isPinned: boolean) => Promise<void>;
     setTransparency: (value: number) => Promise<void>;
+    getTransparency: () => Promise<number>;
   };
   
   noteWindow: {
@@ -37,7 +41,10 @@ interface Window {
   
   settings: {
     openSettings: () => Promise<any>;
+    openNoteSettings: (noteId: string) => Promise<any>;
+    closeNoteSettings: (noteId: string) => Promise<any>;
     isSettingsWindow: () => Promise<boolean>;
+    isNoteSettingsWindow: () => Promise<boolean>;
     selectDirectory: () => Promise<any>;
     getDefaultSaveLocation: () => Promise<string>;
     setAutoLaunch: (enabled: boolean) => Promise<any>;
